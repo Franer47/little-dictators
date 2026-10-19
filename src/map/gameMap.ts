@@ -4,9 +4,13 @@ import type { MapProjection } from "./projection.ts";
 export interface MapMeta extends MapProjection {
   name: string;
   image: string;
-  projection: string;
   /** True if the map loops east–west: the right edge joins the left edge. */
   wrapX?: boolean;
+  /**
+   * Optional heightmap image: each pixel's height in metres is
+   * (red * 256 + green) + offset. Used for shading; game logic reads terrain instead.
+   */
+  heightmap?: { image: string; offset: number };
 }
 
 /** The world grid: one terrain value per pixel. Game logic works on this, not on images. */
@@ -14,6 +18,8 @@ export class GameMap {
   constructor(
     readonly meta: MapMeta,
     readonly terrain: Uint8Array,
+    /** Height above sea level in metres per pixel (negative = below sea level). All 0 if the map has no heightmap. */
+    readonly elevation: Int16Array,
   ) {}
 
   get width(): number {
@@ -51,25 +57,40 @@ export class GameMap {
   terrainAt(x: number, y: number): Terrain {
     return this.terrain[y * this.width + x];
   }
+
+  elevationAt(x: number, y: number): number {
+    return this.elevation[y * this.width + x];
+  }
 }
 
-/** Loads a map from public/maps/<name>.json and its PNG. */
-export async function loadMap(name: string): Promise<GameMap> {
-  const meta: MapMeta = await (await fetch(`/maps/${name}.json`)).json();
-
+/** Loads an image from public/maps/ and returns its RGBA pixels. */
+async function loadPixels(file: string, width: number, height: number): Promise<Uint8ClampedArray> {
   const img = new Image();
-  img.src = `/maps/${meta.image}`;
+  img.src = `/maps/${file}`;
   await img.decode();
-
-  const canvas = new OffscreenCanvas(meta.width, meta.height);
+  const canvas = new OffscreenCanvas(width, height);
   const ctx = canvas.getContext("2d")!;
   ctx.drawImage(img, 0, 0);
-  const { data } = ctx.getImageData(0, 0, meta.width, meta.height);
+  return ctx.getImageData(0, 0, width, height).data;
+}
 
-  const terrain = new Uint8Array(meta.width * meta.height);
-  for (let i = 0; i < terrain.length; i++) {
+/** Loads a map from public/maps/<name>.json, its terrain PNG and (if it has one) its heightmap. */
+export async function loadMap(name: string): Promise<GameMap> {
+  const meta: MapMeta = await (await fetch(`/maps/${name}.json`)).json();
+  const size = meta.width * meta.height;
+
+  const data = await loadPixels(meta.image, meta.width, meta.height);
+  const terrain = new Uint8Array(size);
+  for (let i = 0; i < size; i++) {
     const key = colorKey(data[i * 4], data[i * 4 + 1], data[i * 4 + 2]);
     terrain[i] = TERRAIN_BY_COLOR.get(key) ?? Terrain.Ocean;
   }
-  return new GameMap(meta, terrain);
+
+  const elevation = new Int16Array(size);
+  if (meta.heightmap) {
+    const { image, offset } = meta.heightmap;
+    const h = await loadPixels(image, meta.width, meta.height);
+    for (let i = 0; i < size; i++) elevation[i] = h[i * 4] * 256 + h[i * 4 + 1] + offset;
+  }
+  return new GameMap(meta, terrain, elevation);
 }

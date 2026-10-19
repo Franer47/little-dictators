@@ -1,4 +1,4 @@
-import { TERRAINS } from "../map/terrain.ts";
+import { paintTerrain } from "./terrainColors.ts";
 import type { GameMap } from "../map/gameMap.ts";
 import type { Camera } from "./camera.ts";
 
@@ -24,13 +24,7 @@ export class MapRenderer {
   private paintMapImage(): void {
     const ctx = this.mapImage.getContext("2d")!;
     const img = ctx.createImageData(this.map.width, this.map.height);
-    for (let i = 0; i < this.map.terrain.length; i++) {
-      const [r, g, b] = TERRAINS[this.map.terrain[i]].color;
-      img.data[i * 4] = r;
-      img.data[i * 4 + 1] = g;
-      img.data[i * 4 + 2] = b;
-      img.data[i * 4 + 3] = 255;
-    }
+    paintTerrain(this.map, img.data);
     ctx.putImageData(img, 0, 0);
   }
 

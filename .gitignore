@@ -3,3 +3,5 @@ dist/
 *.log
 .DS_Store
 .claude/
+# Downloaded source data for the map builder (big, not committed)
+data/raw/
