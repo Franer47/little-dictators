@@ -1,0 +1,45 @@
+# Changelog
+
+Every change that goes to GitHub gets a short entry here, newest first, in plain
+English. Add your entry under **Unreleased** in the same pull request as the change.
+
+## Unreleased
+
+### Added
+- This changelog.
+
+### Design
+- Lakes and rivers planned: big lakes are ordinary water, major rivers are a thin
+  River line. Later: rivers between nations belong to nobody, national waters
+  that foreign armies can't enter without war/alliance/access, and digging canals.
+- Forest biomes tried (PR #3) and dropped. The terrain list stays short.
+
+## 2026-10-19
+
+### Added
+- **Real terrain** (PR #2): plains, highlands and mountains from NOAA ETOPO1
+  elevation data, with OpenFront-style shading (green lowlands, tan highlands, white
+  peaks, darker deep sea).
+- **Antarctica** and **Greenland ice**. The map now runs from 84°N to the South Pole
+  (Patterson projection).
+- **Snow** terrain in the cold far north, following a hand-drawn tree line.
+- Hover info shows height in metres, or depth over water.
+- **East–west wrapping** (PR #1): keep scrolling and you come back around the
+  world, like HOI4. You can't see past the top or bottom of the map.
+
+### Changed
+- Map is 1.5× bigger: 1500 × 833 pixels (was 1000 × 502).
+- The F key zooms all the way out instead of "fit map".
+
+### Removed
+- The flat brown tundra band and the straight-line ice edge from the first map.
+
+## 2026-10-18
+
+### Added
+- First playable version: a pixel map of the Earth built from Natural Earth
+  coastlines.
+- Camera: drag or WASD/arrow keys to move, mouse wheel or Q/E to zoom, F to see
+  the whole map.
+- Hover a pixel to see its terrain and its real latitude/longitude.
+- DESIGN.md with the game plan.
