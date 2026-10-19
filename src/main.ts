@@ -40,7 +40,9 @@ async function main(): Promise<void> {
     const [lon, lat] = pixelToLonLat(map.meta, x + 0.5, y + 0.5);
     const ns = lat >= 0 ? "N" : "S";
     const ew = lon >= 0 ? "E" : "W";
-    return `${terrain.name} · (${x}, ${y}) · ${Math.abs(lat).toFixed(1)}°${ns} ${Math.abs(lon).toFixed(1)}°${ew}`;
+    const metres = map.elevationAt(x, y);
+    const height = terrain.isWater ? `${(-metres).toLocaleString("en-US")} m deep` : `${metres.toLocaleString("en-US")} m`;
+    return `${terrain.name} · ${height} · (${x}, ${y}) · ${Math.abs(lat).toFixed(1)}°${ns} ${Math.abs(lon).toFixed(1)}°${ew}`;
   };
 
   // Last mouse position, so the hover info stays right when the map moves under a still mouse (e.g. holding D).
