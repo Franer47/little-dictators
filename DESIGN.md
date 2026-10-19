@@ -22,9 +22,15 @@ Victoria-style simulation as they grow, ally and fight over pixels like OpenFron
 ### 1. World setup
 - **Map:** real Earth first, **including Antarctica** (like OpenFront). Generated / other
   maps come later.
-- **Size & projection:** 1500 × 833 px, 84°N to the South Pole, Patterson projection
-  (looks like Miller in the middle, squeezes the poles so Antarctica isn't huge).
-  Even larger maps and other modes later.
+- **Size & projection:** 84°N to the South Pole, Patterson projection (looks like Miller
+  in the middle, squeezes the poles so Antarctica isn't huge).
+  - **Main map: ~2000 px wide** (~2000 × 1110), roughly OpenFront's scale, so tiny
+    nations and islands get enough pixels.
+  - The map builder can make any size from the same data. The **1500 × 833 version is
+    kept** as a second map, so the game can later offer a map-size choice (e.g. a
+    smaller/faster world, or larger ones as a Steam extra).
+  - Bigger maps cost simulation speed (work grows with the number of pixels), so
+    don't go far beyond ~2.5M pixels without testing performance.
 - **Art style:** OpenFront-style. Each terrain type has its own base colour, and it gets
   lighter with height, so the relief is visible (plains green → highlands tan →
   mountains white). Nations will be coloured overlays on top.
@@ -154,7 +160,9 @@ The wheel setup is fully configurable, per wheel:
      mountains, ice, snow), shaded relief, Antarctica, map 1500 px wide. ✅ Done (PR #2).
    - **1d. Lakes & rivers:** big lakes as water, major rivers as a River terrain line.
      Map only; ownership, national waters, crossings and canals come with milestones
-     4–6.
+     4–6. ✅ Done (PR #4).
+   - **1e. Bigger map:** main Earth map ~2000 px wide; keep the 1500 px map as a
+     second size.
 2. **Wheel (cosmetic)** — wheel UI with words/numbers only; results are stored and shown
    on the nation but have **no effect** yet. Includes the customizable wheel setup
    (modes, options, bonus Continent wheel), random editable names, start year choice.

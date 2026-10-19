@@ -17,6 +17,8 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 - This changelog.
 
 ### Design
+- Main map will grow to ~2000 px wide; the 1500 px map is kept as a second size
+  for a future map-size option.
 - Lakes and rivers planned: big lakes are ordinary water, major rivers are a thin
   River line. Later: rivers between nations belong to nobody, national waters
   that foreign armies can't enter without war/alliance/access, and digging canals.
