@@ -1,0 +1,67 @@
+{
+  "about": [
+    "Which lakes and rivers go on the Earth map. Read by scripts/build-earth-map.ts (npm run build:map).",
+    "Shapes come from Natural Earth 1:50m (ne_50m_lakes, ne_50m_rivers_lake_centerlines).",
+    "lakes: every natural lake (kind 'Lake' or 'Alkaline Lake', not reservoirs) of at least minAreaKm2,",
+    "  plus the names in alsoInclude, minus the names in exclude. Names are Natural Earth's 'name' field.",
+    "rivers: one entry per river. parts = the Natural Earth names of its pieces (big rivers are split into",
+    "  pieces with local names, e.g. the Yangtze's upper course is 'Jinsha'). bbox [west, south, east, north]",
+    "  keeps only pieces inside that box, for names used by two rivers (there's also a Colorado in Argentina).",
+    "  dropLines leaves out the pieces that start or end at one of these [lon, lat] points (e.g. side branches of a delta).",
+    "  extraLines adds hand-drawn lines as [[lon, lat], ...], for stretches Natural Earth doesn't have (or that its",
+    "  coastline turns into specks of water, like the Amazon and St. Lawrence estuaries).",
+    "A river whose mouth stops short of the sea, a big lake or another river is joined to the nearest one automatically."
+  ],
+  "lakes": {
+    "minAreaKm2": 5000,
+    "kinds": ["Lake", "Alkaline Lake"],
+    "alsoInclude": ["North Aral Sea", "South Aral Sea"],
+    "exclude": ["Lake Eyre North", "Lake Torrens"]
+  },
+  "rivers": [
+    {
+      "name": "Amazon",
+      "parts": ["Amazonas", "Ucayali"],
+      "extraLines": [[[-52.66, -1.55], [-52.0, -1.1], [-51.4, -0.6], [-50.8, -0.1], [-50.0, 0.3]]]
+    },
+    { "name": "Orinoco", "parts": ["Orinoco"] },
+    { "name": "Paraná", "parts": ["Paraná"], "extraLines": [[[-54.27, -24.07], [-53.79, -23.33]]] },
+    { "name": "Mississippi", "parts": ["Mississippi"] },
+    { "name": "Missouri", "parts": ["Missouri"] },
+    { "name": "Ohio", "parts": ["Ohio", "Allegheny"] },
+    {
+      "name": "St. Lawrence",
+      "parts": ["St. Lawrence"],
+      "extraLines": [[[-74.71, 45.0], [-74.0, 45.25], [-73.5, 45.55], [-73.1, 46.0], [-72.55, 46.33], [-71.85, 46.6], [-71.2, 46.82], [-70.6, 47.15], [-70.0, 47.6], [-69.4, 48.1], [-68.6, 48.6]]]
+    },
+    { "name": "Mackenzie", "parts": ["Mackenzie"] },
+    { "name": "Yukon", "parts": ["Yukon"] },
+    { "name": "Columbia", "parts": ["Columbia"] },
+    { "name": "Colorado", "parts": ["Colorado"], "bbox": [-125, 25, -100, 45] },
+    { "name": "Rio Grande", "parts": ["Rio Grande"] },
+    { "name": "Nile", "parts": ["Nile", "El Bahr el Abyad", "Bahr el Jebel", "Albert Nile", "Victoria Nile", "Kagera", "Rosetta Branch", "Damietta Branch"] },
+    { "name": "Congo", "parts": ["Congo", "Lualaba"] },
+    { "name": "Niger", "parts": ["Niger"] },
+    { "name": "Zambezi", "parts": ["Zambezi"] },
+    { "name": "Volga", "parts": ["Volga"] },
+    { "name": "Danube", "parts": ["Donau", "Danube", "Bratul Chillia"] },
+    { "name": "Rhine", "parts": ["Rhein", "Rhin", "Rhine", "Waal"] },
+    { "name": "Dnieper", "parts": ["Dnipro", "Dnepre"] },
+    { "name": "Don", "parts": ["Don"] },
+    { "name": "Vistula", "parts": ["Vistula"] },
+    { "name": "Ob", "parts": ["Ob"], "dropLines": [[68.66, 66.75]] },
+    { "name": "Irtysh", "parts": ["Irtysh", "Ertis", "Ertix"] },
+    { "name": "Yenisei", "parts": ["Yenisey", "Verkhniy Yenisey"] },
+    { "name": "Lena", "parts": ["Lena"] },
+    { "name": "Amur", "parts": ["Amur", "Heilong Jiang", "Argun’"] },
+    { "name": "Yangtze", "parts": ["Yangtze", "Chang Jiang", "Jinsha", "Tongtian", "Tuotuo"] },
+    { "name": "Yellow River", "parts": ["Huang"] },
+    { "name": "Mekong", "parts": ["Mekong", "Lancang"] },
+    { "name": "Ganges", "parts": ["Ganges"], "dropLines": [[89.3, 22.62], [88.44, 22.99], [89.99, 22.47]] },
+    { "name": "Brahmaputra", "parts": ["Brahmaputra", "Dihang", "Yarlung", "Maquan"], "dropLines": [[90.27, 23.46], [90.56, 23.54]] },
+    { "name": "Indus", "parts": ["Indus", "Shiquan"] },
+    { "name": "Tigris", "parts": ["Tigris", "Dicle", "Shatt al Arab"] },
+    { "name": "Euphrates", "parts": ["Euphrates", "Al Furat", "Firat"] },
+    { "name": "Murray", "parts": ["Murray"] }
+  ]
+}

@@ -5,6 +5,8 @@
 // - A soft hillshade (light from the north-west) makes slopes read as relief.
 // - Land touching water gets a light sandy outline.
 // - Water gets darker the deeper it is, and lighter near the coast.
+// - Rivers are a flat, bright blue line so they stand out on any land. Land along a river
+//   gets no sandy outline (only sea and lake coasts do), so the river stays 1 pixel thin.
 //
 // This only affects what you see. Game logic reads the terrain grid, not these colours.
 
@@ -37,6 +39,8 @@ const SEA_DEEPEST = 5000;
 const COASTAL_WATER: RGB = [124, 178, 214];
 const COASTAL_WATER_NEXT_TO_LAND = 0.4;
 const COASTAL_WATER_FURTHER = 0.18;
+/** Rivers: a bit brighter and bluer than coastal water, so they read clearly on green, tan and white land. */
+const RIVER: RGB = [72, 152, 230];
 
 /** Light outline on land next to water. */
 const SHORE: RGB = [228, 222, 184];
@@ -65,6 +69,7 @@ function clamp01(t: number): number {
 /** Fills `out` (RGBA, one pixel per map pixel) with the shaded map. */
 export function paintTerrain(map: GameMap, out: Uint8ClampedArray): void {
   const { width, height, terrain, elevation } = map;
+  /** Sea or lake water (not rivers). */
   const water = (x: number, y: number): boolean => {
     const t = terrain[y * width + x];
     return t === Terrain.Ocean || t === Terrain.ShallowWater;
@@ -85,7 +90,9 @@ export function paintTerrain(map: GameMap, out: Uint8ClampedArray): void {
       let color: RGB;
 
       const ramp = LAND_RAMPS[t as Terrain];
-      if (ramp) {
+      if (t === Terrain.River) {
+        color = RIVER;
+      } else if (ramp) {
         color = mix(ramp.low, ramp.high, clamp01((h - ramp.from) / (ramp.to - ramp.from)));
 
         // Hillshade: compare the surface's slope with the light direction. Flat ground = 1.

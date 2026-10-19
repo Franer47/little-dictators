@@ -6,6 +6,8 @@
 // - NOAA ETOPO1 elevation (data/raw/, downloaded automatically the first time): how high
 //   the land is and how deep the sea is. Used to split land into plains / highlands /
 //   mountains and for the shaded look.
+// - Natural Earth 1:50m lakes and river lines (data/raw/, downloaded the first time). Which
+//   lakes and rivers go on the map is set in scripts/earth-water.json.
 //
 // Outputs (in public/maps/):
 // - earth.png: the terrain data, one exact colour per terrain type (see src/map/terrain.ts).
@@ -17,7 +19,7 @@ import { createRequire } from "node:module";
 import { PNG } from "pngjs";
 import { feature } from "topojson-client";
 import type { Topology, GeometryCollection } from "topojson-specification";
-import type { MultiPolygon, Polygon, Position } from "geojson";
+import type { FeatureCollection, Geometry, LineString, MultiLineString, MultiPolygon, Polygon, Position } from "geojson";
 import { TERRAINS, Terrain } from "../src/map/terrain.ts";
 import { lonLatToPixel, pixelToLonLat, projectedHeight, type MapProjection } from "../src/map/projection.ts";
 
@@ -100,14 +102,18 @@ interface Grid {
   values: Int16Array;
 }
 
+/** Downloads `url` to `file`, unless it's already there. */
+async function download(url: string, file: string, what: string): Promise<void> {
+  if (existsSync(file)) return;
+  console.log(`Downloading ${what} to ${file} (once)...`);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Download failed (${res.status}). Get it by hand from:\n${url}\nand save it as ${file}`);
+  mkdirSync("data/raw", { recursive: true });
+  writeFileSync(file, Buffer.from(await res.arrayBuffer()));
+}
+
 async function loadEtopo(): Promise<Grid> {
-  if (!existsSync(ETOPO_FILE)) {
-    console.log(`Downloading elevation data to ${ETOPO_FILE} (about 50 MB, once)...`);
-    const res = await fetch(ETOPO_URL);
-    if (!res.ok) throw new Error(`Download failed (${res.status}). Get it by hand from:\n${ETOPO_URL}`);
-    mkdirSync("data/raw", { recursive: true });
-    writeFileSync(ETOPO_FILE, Buffer.from(await res.arrayBuffer()));
-  }
+  await download(ETOPO_URL, ETOPO_FILE, "elevation data (about 50 MB)");
   // ESRI ASCII grid: 6 header lines ("ncols 4321" ...), then rows of numbers, north first.
   const text = readFileSync(ETOPO_FILE, "latin1");
   const header: Record<string, number> = {};
@@ -242,6 +248,60 @@ const iceRings = loadRings("countries-50m.json", "countries", (id) => id === GRE
 const isLand = rasterize(landRings);
 const isGreenland = rasterize(iceRings);
 
+// --- Lakes and rivers: Natural Earth data + scripts/earth-water.json -----------------
+// Natural Earth vector data, pinned to release v5.1.2 so a rebuild always gets the same
+// shapes. Public domain. Each file is under 1 MB.
+const NATURAL_EARTH_URL = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson";
+const LAKES_FILE = "data/raw/ne_50m_lakes.geojson";
+const RIVERS_FILE = "data/raw/ne_50m_rivers_lake_centerlines.geojson";
+
+interface WaterConfig {
+  lakes: { minAreaKm2: number; kinds: string[]; alsoInclude: string[]; exclude: string[] };
+  rivers: {
+    name: string;
+    parts: string[];
+    bbox?: [west: number, south: number, east: number, north: number];
+    dropLines?: Position[];
+    extraLines?: Position[][];
+  }[];
+}
+const water: WaterConfig = JSON.parse(readFileSync("scripts/earth-water.json", "utf8"));
+
+async function loadNaturalEarth<G extends Geometry>(file: string, what: string): Promise<FeatureCollection<G>> {
+  await download(`${NATURAL_EARTH_URL}/${file.slice(file.lastIndexOf("/") + 1)}`, file, what);
+  return JSON.parse(readFileSync(file, "utf8"));
+}
+
+/** Area of a lon/lat ring in km² (on a sphere). */
+function ringAreaKm2(ring: Position[]): number {
+  const R = 6371, rad = Math.PI / 180;
+  let sum = 0;
+  for (let i = 0; i < ring.length - 1; i++) {
+    const [lon1, lat1] = ring[i], [lon2, lat2] = ring[i + 1];
+    sum += (lon2 - lon1) * rad * (2 + Math.sin(lat1 * rad) + Math.sin(lat2 * rad));
+  }
+  return Math.abs((sum * R * R) / 2);
+}
+
+// Lakes are ordinary water (Ocean / Shallow water, by the same rule as the sea). Natural
+// Earth's land polygons cover the lakes, so cut them out of the land. Islands in a lake
+// are holes in its polygon, so they stay land.
+const lakeRings: Position[][] = [];
+const lakeNames: string[] = [];
+for (const f of (await loadNaturalEarth<Polygon | MultiPolygon>(LAKES_FILE, "Natural Earth lakes")).features) {
+  const name = String(f.properties?.name);
+  const polys = f.geometry.type === "Polygon" ? [f.geometry.coordinates] : f.geometry.coordinates;
+  const area = polys.reduce((sum, [outer, ...holes]) => sum + ringAreaKm2(outer) - holes.reduce((s, h) => s + ringAreaKm2(h), 0), 0);
+  const { minAreaKm2, kinds, alsoInclude, exclude } = water.lakes;
+  const big = area >= minAreaKm2 && kinds.includes(f.properties?.featurecla);
+  if ((!big && !alsoInclude.includes(name)) || exclude.includes(name) || lakeNames.includes(name)) continue;
+  lakeNames.push(name);
+  for (const poly of polys) lakeRings.push(...poly);
+}
+const isLake = rasterize(lakeRings);
+for (let i = 0; i < isLand.length; i++) if (isLake[i]) isLand[i] = 0;
+console.log(`Lakes (${lakeNames.length}): ${lakeNames.join(", ")}`);
+
 // --- Elevation per pixel ----------------------------------------------------------
 // Average a 4×4 grid of samples inside each pixel. Land pixels only average the land
 // samples (and water pixels the water samples), so the coast doesn't blur sea depth into
@@ -268,6 +328,32 @@ for (let y = 0; y < height; y++) {
     }
     // No matching samples (a sliver of coast the elevation data doesn't see): sea level.
     elevation[i] = count ? Math.round(sum / count) : land ? 0 : -1;
+  }
+}
+
+// Lakes: ETOPO1 is patchy inside lakes (the lake bottom for the Great Lakes, odd flat
+// values in Lake Victoria...), so every pixel of a lake gets one height instead: a rough
+// surface height from the low end (25th percentile) of the land around its shore, since a
+// lake is the lowest point around. Only used for the hover info; lakes draw like shallow water.
+{
+  const seen = new Uint8Array(width * height);
+  for (let start = 0; start < isLake.length; start++) {
+    if (!isLake[start] || isLand[start] || seen[start]) continue;
+    const lake = [start];
+    const shore: number[] = [];
+    seen[start] = 1;
+    for (let k = 0; k < lake.length; k++) {
+      for (const n of neighbours4(lake[k])) {
+        if (isLand[n]) shore.push(elevation[n]);
+        else if (!seen[n]) {
+          seen[n] = 1;
+          lake.push(n);
+        }
+      }
+    }
+    shore.sort((a, b) => a - b);
+    const surface = shore[Math.floor(shore.length / 4)] ?? 0;
+    for (const i of lake) elevation[i] = surface;
   }
 }
 
@@ -341,6 +427,396 @@ for (let y = 0; y < height; y++) {
       terrain[i] = nearLand(x, y) ? Terrain.ShallowWater : Terrain.Ocean;
     }
   }
+}
+
+// --- Rivers ------------------------------------------------------------------------
+// Each river becomes a line of River pixels exactly 1 pixel wide and 4-connected: every
+// pixel touches the next one by a side, never only by a corner. So the river cleanly
+// splits the land on its two banks: nothing can slip diagonally between two river pixels.
+// River beats every land terrain except Ice. Where a river crosses the sea or a big lake,
+// that stretch is simply that water.
+//
+// "Water" for rivers means a real body of water: the sea, one of the big lakes, or any
+// patch of water of at least MIN_WATER_BODY pixels. Some estuaries (the Amazon's, the St.
+// Lawrence's) come out of the coastline data as a chain of single water pixels touching
+// only at the corners; a river runs straight through those to the open water.
+
+/** When a line loops back or runs right next to itself within this many pixels, cut the loop off. */
+const RIVER_SHORTCUT_WINDOW = 40;
+/** A river end this close (pixels) to water or another piece of river gets joined to it (small gaps in the data). */
+const RIVER_JOIN_GAP = 3;
+/** How far (pixels) a river's mouth may be from the sea, lake or river it flows into; the gap is filled in. */
+const RIVER_MOUTH_REACH = 25;
+/** Smaller patches of water (not counting the big lakes) don't count as somewhere a river can flow into. */
+const MIN_WATER_BODY = 20;
+
+/** The 4 side neighbours of a pixel (across the east–west seam too; none past the top/bottom). */
+function neighbours4(i: number): number[] {
+  const x = i % width, y = (i - x) / width;
+  const out = [y * width + ((x + 1) % width), y * width + ((x - 1 + width) % width)];
+  if (y > 0) out.push(i - width);
+  if (y < height - 1) out.push(i + width);
+  return out;
+}
+
+/** Pixel offsets of the 3×3 block around a pixel, clockwise from the top-left. */
+const RING: [number, number][] = [[-1, -1], [0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0]];
+
+/** 1 for every pixel of a real body of water (see above). */
+const openWater = new Uint8Array(width * height);
+{
+  const seen = new Uint8Array(width * height);
+  for (let start = 0; start < openWater.length; start++) {
+    if (isLand[start] || seen[start]) continue;
+    const body = [start];
+    seen[start] = 1;
+    let hasLake = false;
+    for (let k = 0; k < body.length; k++) {
+      if (isLake[body[k]]) hasLake = true;
+      for (const n of neighbours4(body[k])) {
+        if (!isLand[n] && !seen[n]) {
+          seen[n] = 1;
+          body.push(n);
+        }
+      }
+    }
+    if (hasLake || body.length >= MIN_WATER_BODY) for (const i of body) openWater[i] = 1;
+  }
+}
+
+/** True for pixels a river can be drawn on: land (except Ice) and specks of water too small to count. */
+const canHoldRiver = (i: number): boolean => !openWater[i] && terrain[i] !== Terrain.Ice;
+
+/**
+ * The pixels a straight line from (x0, y0) to (x1, y1) passes through, in order. It steps
+ * one pixel left/right or up/down at a time, never diagonally, so the result is 4-connected.
+ * x isn't wrapped here, so a line can run past the map's edge (it's wrapped when drawn).
+ */
+function traceSegment(x0: number, y0: number, x1: number, y1: number, out: [number, number][]): void {
+  let cx = Math.floor(x0), cy = Math.floor(y0);
+  const ex = Math.floor(x1), ey = Math.floor(y1);
+  const dx = x1 - x0, dy = y1 - y0;
+  const sx = Math.sign(dx), sy = Math.sign(dy);
+  // How far along the line (0..1) the next pixel edge left/right (tx) and up/down (ty) is.
+  let tx = dx ? ((sx > 0 ? cx + 1 : cx) - x0) / dx : Infinity;
+  let ty = dy ? ((sy > 0 ? cy + 1 : cy) - y0) / dy : Infinity;
+  if (out.length === 0 || out[out.length - 1][0] !== cx || out[out.length - 1][1] !== cy) out.push([cx, cy]);
+  for (let n = Math.abs(ex - cx) + Math.abs(ey - cy); n > 0; n--) {
+    // Cross whichever pixel edge the line reaches first.
+    if (cy === ey || (cx !== ex && tx < ty)) {
+      cx += sx;
+      tx += Math.abs(1 / dx);
+    } else {
+      cy += sy;
+      ty += Math.abs(1 / dy);
+    }
+    out.push([cx, cy]);
+  }
+}
+
+/**
+ * Cleans up a traced line: where it comes back to a pixel it already passed, or runs right
+ * next to one, the loop in between is cut off. What's left is a clean 1-pixel line with
+ * no 2×2 clumps and no wiggles back and forth inside one pixel.
+ */
+function simplifyPath(cells: [number, number][]): [number, number][] {
+  const out: [number, number][] = [];
+  const at = new Map<number, number>(); // pixel -> its index in out
+  const key = (x: number, y: number): number => (x + 4 * width) * height + y;
+  const cutTo = (length: number): void => {
+    while (out.length > length) {
+      const [x, y] = out.pop()!;
+      if (at.get(key(x, y)) === out.length) at.delete(key(x, y));
+    }
+  };
+  for (const [x, y] of cells) {
+    const recent = out.length - RIVER_SHORTCUT_WINDOW;
+    const same = at.get(key(x, y));
+    if (same !== undefined && same >= recent) {
+      cutTo(same + 1);
+      continue;
+    }
+    let cut = out.length;
+    for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
+      const k = at.get(key(nx, ny));
+      if (k !== undefined && k >= recent && k < cut) cut = k;
+    }
+    if (cut < out.length) cutTo(cut + 1);
+    at.set(key(x, y), out.length);
+    out.push([x, y]);
+  }
+  return out;
+}
+
+/** The (unwrapped) pixels of a lon/lat line. Longitudes are unwrapped so a line crossing 180° doesn't jump across the map. */
+function traceLine(line: Position[]): [number, number][] {
+  const cells: [number, number][] = [];
+  let prev: [number, number] | null = null;
+  let offset = 0;
+  for (let k = 0; k < line.length; k++) {
+    const [lon, lat] = line[k];
+    if (k > 0) {
+      const diff = lon - line[k - 1][0];
+      if (diff > 180) offset -= 360;
+      else if (diff < -180) offset += 360;
+    }
+    const p = lonLatToPixel(projection, lon + offset, lat);
+    if (prev) traceSegment(prev[0], prev[1], p[0], p[1], cells);
+    else cells.push([Math.floor(p[0]), Math.floor(p[1])]);
+    prev = p;
+  }
+  return simplifyPath(cells);
+}
+
+/** The map pixel index for a lon/lat point. */
+function pixelOf(lon: number, lat: number): number {
+  const [x, y] = lonLatToPixel(projection, lon, lat);
+  const px = ((Math.floor(x) % width) + width) % width;
+  return Math.min(height - 1, Math.max(0, Math.floor(y))) * width + px;
+}
+
+interface River {
+  name: string;
+  pixels: Set<number>;
+  /** Loose ends of its lines (lon/lat): the source, the mouth, delta branch ends, gaps in the data. */
+  ends: Position[];
+}
+
+const riverFeatures = (await loadNaturalEarth<LineString | MultiLineString>(RIVERS_FILE, "Natural Earth rivers")).features;
+const rivers: River[] = water.rivers.map((cfg) => {
+  const lines: Position[][] = [];
+  const inBox = ([lon, lat]: Position): boolean =>
+    !cfg.bbox || (lon >= cfg.bbox[0] && lat >= cfg.bbox[1] && lon <= cfg.bbox[2] && lat <= cfg.bbox[3]);
+  const dropped = (line: Position[]): boolean =>
+    [line[0], line[line.length - 1]].some(([lon, lat]) =>
+      (cfg.dropLines ?? []).some(([dLon, dLat]) => Math.abs(lon - dLon) < 0.02 && Math.abs(lat - dLat) < 0.02),
+    );
+  for (const f of riverFeatures) {
+    if (!f.geometry || !cfg.parts.includes(f.properties?.name)) continue;
+    const parts = f.geometry.type === "LineString" ? [f.geometry.coordinates] : f.geometry.coordinates;
+    for (const line of parts) if (line.some(inBox) && !dropped(line)) lines.push(line);
+  }
+  lines.push(...(cfg.extraLines ?? []));
+  if (lines.length === 0) console.warn(`River ${cfg.name}: no lines found for ${cfg.parts.join(", ")}`);
+
+  const pixels = new Set<number>();
+  for (const line of lines) {
+    for (const [x, y] of traceLine(line)) {
+      if (y < 0 || y >= height) continue;
+      const i = y * width + (((x % width) + width) % width);
+      if (canHoldRiver(i)) pixels.add(i);
+    }
+  }
+
+  // Loose ends: line ends that don't meet another line of the same river (within ~1 km).
+  const endKey = ([lon, lat]: Position): string => `${lon.toFixed(2)},${lat.toFixed(2)}`;
+  const uses = new Map<string, number>();
+  for (const line of lines) for (const p of [line[0], line[line.length - 1]]) uses.set(endKey(p), (uses.get(endKey(p)) ?? 0) + 1);
+  const ends = lines.flatMap((line) => [line[0], line[line.length - 1]]).filter((p) => uses.get(endKey(p)) === 1);
+  return { name: cfg.name, pixels, ends };
+});
+
+/** How many rivers each pixel belongs to. */
+const riverCount = new Uint8Array(width * height);
+for (const r of rivers) for (const i of r.pixels) riverCount[i]++;
+
+/**
+ * Shortest side-by-side path over land from `start` to the nearest pixel where `isTarget`
+ * is true, at most `reach` steps, not passing through `avoid`. Returns the pixels in between
+ * (start and target not included), or null if there's nothing in reach.
+ */
+function pathTo(start: number, reach: number, isTarget: (j: number) => boolean, avoid: Set<number>): number[] | null {
+  const prev = new Map<number, number>([[start, -1]]);
+  let frontier = [start];
+  for (let d = 0; d < reach && frontier.length > 0; d++) {
+    const next: number[] = [];
+    for (const i of frontier) {
+      for (const n of neighbours4(i)) {
+        if (prev.has(n) || avoid.has(n)) continue;
+        prev.set(n, i);
+        if (isTarget(n)) {
+          const path: number[] = [];
+          for (let k = i; k !== start; k = prev.get(k)!) path.push(k);
+          return path;
+        }
+        if (canHoldRiver(n)) next.push(n);
+      }
+    }
+    frontier = next;
+  }
+  return null;
+}
+
+/** All pixels of `river` connected (side by side) to pixel `start`. */
+function riverPiece(river: River, start: number): Set<number> {
+  const piece = new Set([start]);
+  const todo = [start];
+  while (todo.length > 0) {
+    for (const n of neighbours4(todo.pop()!)) {
+      if (river.pixels.has(n) && !piece.has(n)) {
+        piece.add(n);
+        todo.push(n);
+      }
+    }
+  }
+  return piece;
+}
+
+// Join each loose end that stops just short of something:
+// - any end close to another piece of the same river or to water: a small gap in the data;
+// - the mouth (the lowest loose end): to the sea, lake or river it flows into, even if the
+//   data stops a bit before the coast.
+// Only the mouth may join a *different* river, so a source that happens to be near another
+// river (the Danube's, next to the Rhine) doesn't get linked to it.
+for (const river of rivers) {
+  if (river.ends.length === 0) continue;
+  const mouth = river.ends.reduce((a, b) => (sampleGrid(etopo, b[0], b[1]) < sampleGrid(etopo, a[0], a[1]) ? b : a));
+  const inOtherRiver = (j: number): boolean => riverCount[j] > (river.pixels.has(j) ? 1 : 0);
+  for (const end of river.ends) {
+    const p = pixelOf(end[0], end[1]);
+    if (!river.pixels.has(p)) continue; // ends in the sea, a lake or on ice
+    if (neighbours4(p).some((n) => openWater[n])) continue; // already at the water
+    if (end === mouth && (inOtherRiver(p) || neighbours4(p).some(inOtherRiver))) continue; // already flows into another river
+    const piece = riverPiece(river, p);
+    let path = pathTo(p, RIVER_JOIN_GAP, (j) => openWater[j] === 1 || (river.pixels.has(j) && !piece.has(j)), piece);
+    if (!path && end === mouth) path = pathTo(p, RIVER_MOUTH_REACH, (j) => openWater[j] === 1 || inOtherRiver(j), piece);
+    if (path) {
+      for (const i of path) {
+        river.pixels.add(i);
+        riverCount[i]++;
+      }
+      if (path.length > 1) console.log(`River ${river.name}: joined the end at ${end.map((v) => v.toFixed(2))} (${path.length} px)`);
+    } else if (end === mouth) {
+      console.warn(`River ${river.name}: mouth at ${end.map((v) => v.toFixed(2))} doesn't reach water`);
+    }
+  }
+}
+
+// A source right next to a different river (the Danube's starts ~25 km from the Rhine,
+// under 2 pixels) would make the two touch, as if they were one river. Shorten such a
+// source by a few pixels until there's land between them.
+const RIVER_SOURCE_TRIM = 6;
+for (const river of rivers) {
+  if (river.ends.length === 0) continue;
+  const mouth = river.ends.reduce((a, b) => (sampleGrid(etopo, b[0], b[1]) < sampleGrid(etopo, a[0], a[1]) ? b : a));
+  const inOtherRiver = (j: number): boolean => riverCount[j] > (river.pixels.has(j) ? 1 : 0);
+  for (const end of river.ends) {
+    if (end === mouth) continue;
+    // Walk the first few pixels from the source tip; cut back past the last one that touches another river.
+    const tip = pixelOf(end[0], end[1]);
+    if (neighbours4(tip).filter((n) => river.pixels.has(n)).length !== 1) continue; // not the tip of a line
+    const walk: number[] = [];
+    for (let p = tip; walk.length < RIVER_SOURCE_TRIM && river.pixels.has(p); ) {
+      walk.push(p);
+      const next = neighbours4(p).filter((n) => river.pixels.has(n) && !walk.includes(n));
+      if (next.length !== 1) break; // a fork: not a plain line any more
+      p = next[0];
+    }
+    const touches = (p: number): boolean => {
+      const x = p % width, y = (p - x) / width;
+      return inOtherRiver(p) || RING.some(([dx, dy]) => y + dy >= 0 && y + dy < height && inOtherRiver((y + dy) * width + ((x + dx + width) % width)));
+    };
+    let last = -1;
+    walk.forEach((p, k) => {
+      if (touches(p)) last = k;
+    });
+    for (const p of walk.slice(0, last + 1)) {
+      river.pixels.delete(p);
+      riverCount[p]--;
+    }
+    if (last >= 0) console.log(`River ${river.name}: shortened the source at ${end.map((v) => v.toFixed(2))} by ${last + 1} px, away from another river`);
+  }
+}
+
+// Where two rivers meet (or a joined gap runs alongside a line) there can be a 2×2 clump
+// of river. Thin it: remove a pixel of the clump whose neighbours stay connected without
+// it, so the line doesn't break. A pixel next to water is only removed if a
+// river pixel around it touches the water too, so mouths stay joined.
+const isRiver = (i: number): boolean => riverCount[i] > 0;
+function canThin(i: number): boolean {
+  const x = i % width, y = (i - x) / width;
+  if (y === 0 || y === height - 1) return false;
+  const wet = (j: number): boolean => neighbours4(j).some((n) => openWater[n]);
+  const at = ([dx, dy]: [number, number]): number => (y + dy) * width + ((x + dx + width) % width);
+  if (wet(i) && !RING.some((d) => isRiver(at(d)) && wet(at(d)))) return false;
+  // The river pixels around it, going round the ring. They stay connected without the middle
+  // pixel only if they form one unbroken run along the ring, where a run may only turn a
+  // corner through a corner pixel (two side pixels with an empty corner between them only
+  // touch diagonally).
+  const ring = RING.map((d) => isRiver(at(d)));
+  const sides = [1, 3, 5, 7].filter((k) => ring[k]);
+  if (sides.length < 2) return false; // a line end, or it would cut the line
+  let runs = 0;
+  for (let k = 0; k < 8; k++) if (ring[k] && !ring[(k + 7) % 8]) runs++;
+  return runs === 1;
+}
+/** A 1-pixel stub sticking out of a river junction (left over where lines meet). */
+function isStub(i: number): boolean {
+  if (!isRiver(i) || neighbours4(i).some((n) => openWater[n])) return false;
+  const next = neighbours4(i).filter(isRiver);
+  return next.length === 1 && neighbours4(next[0]).filter(isRiver).length >= 3;
+}
+for (let changed = true; changed; ) {
+  changed = false;
+  for (let i = 0; i < riverCount.length; i++) {
+    if (isStub(i)) {
+      riverCount[i] = 0;
+      changed = true;
+    }
+  }
+  for (let y = 0; y + 1 < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const block = [y * width + x, y * width + ((x + 1) % width), (y + 1) * width + x, (y + 1) * width + ((x + 1) % width)];
+      if (!block.every(isRiver)) continue;
+      const thin = block.find(canThin);
+      if (thin !== undefined) {
+        riverCount[thin] = 0;
+        changed = true;
+      }
+    }
+  }
+}
+
+// (A river through a speck of sea water gets height 0 there, not the sea depth.)
+for (let i = 0; i < riverCount.length; i++) {
+  if (riverCount[i]) {
+    terrain[i] = Terrain.River;
+    elevation[i] = Math.max(0, elevation[i]);
+  }
+}
+
+// Checks: every connected stretch of river must reach water, and none may be 2 pixels wide.
+{
+  const seen = new Uint8Array(width * height);
+  let pieces = 0, dry = 0, clumps = 0;
+  for (let i = 0; i < terrain.length; i++) {
+    if (terrain[i] !== Terrain.River || seen[i]) continue;
+    pieces++;
+    let wet = false;
+    const todo = [i];
+    seen[i] = 1;
+    while (todo.length > 0) {
+      for (const n of neighbours4(todo.pop()!)) {
+        if (openWater[n]) wet = true;
+        else if (terrain[n] === Terrain.River && !seen[n]) {
+          seen[n] = 1;
+          todo.push(n);
+        }
+      }
+    }
+    if (!wet) {
+      dry++;
+      const x = i % width, y = (i - x) / width;
+      console.warn(`A river stretch near (${x}, ${y}) doesn't reach the sea or a lake`);
+    }
+  }
+  for (let y = 0; y + 1 < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = y * width + x, r = y * width + ((x + 1) % width);
+      if ([i, r, i + width, r + width].every((j) => terrain[j] === Terrain.River)) clumps++;
+    }
+  }
+  console.log(`Rivers (${rivers.length}): ${pieces} connected stretches, ${dry} not reaching water, ${clumps} 2×2 clumps`);
 }
 
 // --- Write PNGs + metadata ----------------------------------------------------------
