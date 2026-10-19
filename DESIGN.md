@@ -28,9 +28,9 @@ Victoria-style simulation as they grow, ally and fight over pixels like OpenFron
 - **Art style:** OpenFront-style. Each terrain type has its own base colour, and it gets
   lighter with height, so the relief is visible (plains green → highlands tan →
   mountains white). Nations will be coloured overlays on top.
-- **Terrain** comes from real data: elevation from NOAA ETOPO1, coastlines from
-  Natural Earth, forests from satellite land-cover data. **Keep the list short** — only
-  add a terrain type when it looks clearly different *and* plays differently.
+- **Terrain** comes from real data: elevation from NOAA ETOPO1 and coastlines from
+  Natural Earth. **Keep the list short** — only add a terrain type when it looks clearly
+  different *and* plays differently. **No forest/biome types** (decided 2026-10-19).
 
   | Terrain | What it is | Later gameplay idea |
   |---|---|---|
@@ -38,13 +38,10 @@ Victoria-style simulation as they grow, ally and fight over pixels like OpenFron
   | Plains | Land below 700 m | Fast expansion, high population |
   | Highlands | 700–2000 m | Slower expansion, some defence bonus |
   | Mountains | 2000 m and up | Very slow to conquer, strong defence |
-  | Rainforest | Tropical rainforest (Amazon, Congo, SE Asia) | Very slow to conquer & supply, low population, rich resources |
-  | Forest | Any other dense forest (taiga, temperate woods) | Slow expansion, defence bonus, timber |
   | Snow | Cold far north beyond the tree line | Slow, low population |
   | Ice | Greenland, Antarctica | Barely habitable |
 
-  **Priority** when several apply: Ice > Mountains > Snow > Rainforest / Forest >
-  Highlands / Plains. A forest on high ground is still shaded by its height.
+  **Priority** when several apply: Ice > Mountains > Snow > Highlands / Plains.
 - **Map data vs. looks:** the map's *data* (one exact colour per terrain type, so it can
   be edited like a modding file) is kept separate from the *heightmap* used for
   shading. Game logic only reads the terrain data.
@@ -138,7 +135,6 @@ The wheel setup is fully configurable, per wheel:
    - **1b. Map polish:** east–west wrapping, no visible void past the edges. ✅ Done (PR #1).
    - **1c. Terrain:** OpenFront-style terrain from real elevation (plains, highlands,
      mountains, ice, snow), shaded relief, Antarctica, map 1500 px wide. ✅ Done (PR #2).
-   - **1d. Forests:** Rainforest and Forest from satellite land-cover data.
 2. **Wheel (cosmetic)** — wheel UI with words/numbers only; results are stored and shown
    on the nation but have **no effect** yet. Includes the customizable wheel setup
    (modes, options, bonus Continent wheel), random editable names, start year choice.
