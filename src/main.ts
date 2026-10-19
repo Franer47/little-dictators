@@ -41,7 +41,11 @@ async function main(): Promise<void> {
     const ns = lat >= 0 ? "N" : "S";
     const ew = lon >= 0 ? "E" : "W";
     const metres = map.elevationAt(x, y);
-    const height = terrain.isWater ? `${(-metres).toLocaleString("en-US")} m deep` : `${metres.toLocaleString("en-US")} m`;
+    // Water below sea level shows its depth; rivers and lakes above sea level show their height.
+    const height =
+      terrain.isWater && metres < 0
+        ? `${(-metres).toLocaleString("en-US")} m deep`
+        : `${metres.toLocaleString("en-US")} m${terrain.isWater ? " above sea level" : ""}`;
     return `${terrain.name} · ${height} · (${x}, ${y}) · ${Math.abs(lat).toFixed(1)}°${ns} ${Math.abs(lon).toFixed(1)}°${ew}`;
   };
 

@@ -6,6 +6,14 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 ## Unreleased
 
 ### Added
+- **Lakes and rivers** on the Earth map. Big lakes (the Great Lakes, Victoria,
+  Baikal, Ladoga, Titicaca… 28 in all) are now water instead of land. 36 major
+  rivers (Amazon, Nile, Mississippi, Volga, Danube, Yangtze…) are drawn as a new
+  River terrain: a bright blue line 1 pixel wide with no diagonal gaps, running all
+  the way to the sea. Hover shows "River". The list is in `scripts/earth-water.json`.
+- Rivers always meet each other and the sea edge to edge, never only at a corner;
+  `npm run build:map` now stops with an error if a corner-only link ever appears.
+- Hovering a lake or river shows its height above sea level instead of a depth.
 - This changelog.
 
 ### Design

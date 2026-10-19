@@ -42,6 +42,7 @@ src/
   input/cameraControls.ts mouse + keyboard camera controls
 scripts/
   build-earth-map.ts      generates the Earth map from real-world data
+  earth-water.json        which lakes and rivers go on the Earth map (editable)
 public/maps/              map files (see below)
 data/raw/                 downloaded source data for the map builder (not committed)
 ```
@@ -66,7 +67,8 @@ Terrain comes from real elevation, averaged over each pixel:
 
 | Terrain | Rule |
 |---|---|
-| Ocean / Shallow water | Water; shallow if within 2 pixels of land |
+| Ocean / Shallow water | Water (the sea and big lakes); shallow if within 2 pixels of land |
+| River | Major rivers: a line exactly 1 pixel wide (see below). Beats every land type except Ice. |
 | Plains | Land below 700 m |
 | Highlands | Land from 700 m to 2000 m |
 | Mountains | Land 2000 m and higher |
@@ -79,13 +81,34 @@ far north in Norway (~70°N, warmed by the Gulf Stream) and far south around Hud
 (~57°N). Every 140 m of height counts as one degree further north, and a little noise
 keeps the edge from looking like a drawn line.
 
+### Lakes and rivers
+
+Big lakes are ordinary water, the same Ocean / Shallow water as the sea: every natural
+lake of at least 5,000 km² (the Great Lakes, Victoria, Tanganyika, Baikal, Ladoga,
+Titicaca, Great Bear / Great Slave, Winnipeg, Balkhash…) plus the Aral Sea. Dry salt
+pans (Lake Eyre, Lake Torrens) and reservoirs are left out.
+
+Rivers are the River terrain: about 35 major rivers, each an unbroken line exactly 1 pixel
+wide that steps only sideways or up/down, never diagonally. So a river cleanly splits the
+land on its two banks (nothing can slip through a diagonal gap), and every river runs on
+to the sea, lake or river it flows into. River counts as water for drawing and hover, but
+unlike the sea, armies will be able to cross it (`crossableByArmies` in
+`src/map/terrain.ts`).
+
+Which lakes and rivers are used is set in `scripts/earth-water.json`: the lake size
+cutoff, and for each river the Natural Earth names of its pieces (the Yangtze is
+"Yangtze", "Chang Jiang", "Jinsha"…), plus a few hand fixes: `dropLines` to leave out side
+branches of a delta, `extraLines` to draw stretches the data is missing. Edit it and run
+`npm run build:map` again.
+
 ### Regenerating it
 
 ```bash
 npm run build:map
 ```
 
-The first run downloads the elevation data (about 50 MB) into `data/raw/etopo1-5min.asc`.
+The first run downloads the elevation data (about 50 MB) into `data/raw/etopo1-5min.asc`,
+and the Natural Earth lakes and rivers (under 1 MB each) into `data/raw/ne_50m_*.geojson`.
 If the download fails, get it by hand from
 [this NOAA ERDDAP link](https://coastwatch.pfeg.noaa.gov/erddap/griddap/etopo180.esriAscii?altitude%5B(-90):5:(90)%5D%5B(-180):5:(180)%5D)
 (ETOPO1 Ice Surface, every 5th arc-minute, "ESRI ASCII" format) and save it under that name.
@@ -94,6 +117,9 @@ If the download fails, get it by hand from
 
 - Coastlines and Greenland: [Natural Earth](https://www.naturalearthdata.com/) 1:50m
   (public domain), via the `world-atlas` package.
+- Lakes and rivers: [Natural Earth](https://www.naturalearthdata.com/) 1:50m "Lakes" and
+  "Rivers + lake centerlines" (public domain), version 5.1.2, downloaded from the
+  [natural-earth-vector](https://github.com/nvkelso/natural-earth-vector) repository.
 - Elevation and sea depth: NOAA **ETOPO1** 1 Arc-Minute Global Relief Model, Ice Surface
   version (U.S. Government work, free to use and redistribute), served by NOAA's
   [ERDDAP](https://coastwatch.pfeg.noaa.gov/erddap/griddap/etopo180.html). Amante, C. and
