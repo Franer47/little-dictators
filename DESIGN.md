@@ -22,22 +22,29 @@ Victoria-style simulation as they grow, ally and fight over pixels like OpenFron
 ### 1. World setup
 - **Map:** real Earth first, **including Antarctica** (like OpenFront). Generated / other
   maps come later.
-- **Resolution:** ~1500 px wide (1.5× the first version); even larger maps and other
-  modes later.
+- **Size & projection:** 1500 × 833 px, 84°N to the South Pole, Patterson projection
+  (looks like Miller in the middle, squeezes the poles so Antarctica isn't huge).
+  Even larger maps and other modes later.
 - **Art style:** OpenFront-style. Each terrain type has its own base colour, and it gets
   lighter with height, so the relief is visible (plains green → highlands tan →
   mountains white). Nations will be coloured overlays on top.
-- **Terrain** comes from real elevation data:
+- **Terrain** comes from real data: elevation from NOAA ETOPO1, coastlines from
+  Natural Earth, forests from satellite land-cover data. **Keep the list short** — only
+  add a terrain type when it looks clearly different *and* plays differently.
 
   | Terrain | What it is | Later gameplay idea |
   |---|---|---|
   | Ocean / shallow water | Deep sea and coastal water | Naval movement, needs tech |
-  | Plains | Low land | Fast expansion, high population |
-  | Highlands | Hills and plateaus | Slower expansion, some defence bonus |
-  | Mountains | High peaks | Very slow to conquer, strong defence |
+  | Plains | Land below 700 m | Fast expansion, high population |
+  | Highlands | 700–2000 m | Slower expansion, some defence bonus |
+  | Mountains | 2000 m and up | Very slow to conquer, strong defence |
+  | Rainforest | Tropical rainforest (Amazon, Congo, SE Asia) | Very slow to conquer & supply, low population, rich resources |
+  | Forest | Any other dense forest (taiga, temperate woods) | Slow expansion, defence bonus, timber |
+  | Snow | Cold far north beyond the tree line | Slow, low population |
   | Ice | Greenland, Antarctica | Barely habitable |
 
-  Forest, desert etc. may come later from land-cover data.
+  **Priority** when several apply: Ice > Mountains > Snow > Rainforest / Forest >
+  Highlands / Plains. A forest on high ground is still shaded by its height.
 - **Map data vs. looks:** the map's *data* (one exact colour per terrain type, so it can
   be edited like a modding file) is kept separate from the *heightmap* used for
   shading. Game logic only reads the terrain data.
@@ -130,7 +137,8 @@ The wheel setup is fully configurable, per wheel:
    pan/zoom, click a pixel to inspect it. ✅ Done (first version).
    - **1b. Map polish:** east–west wrapping, no visible void past the edges. ✅ Done (PR #1).
    - **1c. Terrain:** OpenFront-style terrain from real elevation (plains, highlands,
-     mountains, ice), shaded relief, Antarctica, map ~1500 px wide.
+     mountains, ice, snow), shaded relief, Antarctica, map 1500 px wide. ✅ Done (PR #2).
+   - **1d. Forests:** Rainforest and Forest from satellite land-cover data.
 2. **Wheel (cosmetic)** — wheel UI with words/numbers only; results are stored and shown
    on the nation but have **no effect** yet. Includes the customizable wheel setup
    (modes, options, bonus Continent wheel), random editable names, start year choice.
