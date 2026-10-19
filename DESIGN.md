@@ -20,12 +20,37 @@ Victoria-style simulation as they grow, ally and fight over pixels like OpenFron
 ## A game in three phases
 
 ### 1. World setup
-- **Map:** real Earth first. Generated / other maps come later.
-- **Resolution:** medium (~1000×500) first; large (~2000×1000) and other modes later.
-- **Art style:** flat colours — one clean colour per terrain, nations as coloured overlays.
-- Each pixel has terrain (plains, forest, mountain, desert, water…), later also a
-  resource and an owner.
+- **Map:** real Earth first, **including Antarctica** (like OpenFront). Generated / other
+  maps come later.
+- **Resolution:** ~1500 px wide (1.5× the first version); even larger maps and other
+  modes later.
+- **Art style:** OpenFront-style. Each terrain type has its own base colour, and it gets
+  lighter with height, so the relief is visible (plains green → highlands tan →
+  mountains white). Nations will be coloured overlays on top.
+- **Terrain** comes from real elevation data:
+
+  | Terrain | What it is | Later gameplay idea |
+  |---|---|---|
+  | Ocean / shallow water | Deep sea and coastal water | Naval movement, needs tech |
+  | Plains | Low land | Fast expansion, high population |
+  | Highlands | Hills and plateaus | Slower expansion, some defence bonus |
+  | Mountains | High peaks | Very slow to conquer, strong defence |
+  | Ice | Greenland, Antarctica | Barely habitable |
+
+  Forest, desert etc. may come later from land-cover data.
+- **Map data vs. looks:** the map's *data* (one exact colour per terrain type, so it can
+  be edited like a modding file) is kept separate from the *heightmap* used for
+  shading. Game logic only reads the terrain data.
+- Each pixel has terrain, later also a resource and an owner.
 - The map is split into named regions/continents so the wheel can target them.
+- **Map edges:** each map says whether it wraps east–west (`wrapX`).
+  - **Earth wraps east–west**, like HOI4: scrolling past the Pacific loops back around.
+    The map never wraps north–south; the camera can't zoom out or move far enough
+    to see past the top or bottom edge.
+  - Maps that don't wrap (some made-up maps) keep the camera inside the map on all
+    sides.
+  - The simulation must treat a wrapping map's left and right edges as neighbours
+    (e.g. Alaska ↔ Chukotka), for borders, expansion and war.
 - **Start year:** the player picks it (e.g. 1800, 1900, 2000). The year sets the starting
   technology level and how much of the world is already claimed.
 - **Empty land:** the player can choose how full the map is, but the default depends on
@@ -102,7 +127,10 @@ The wheel setup is fully configurable, per wheel:
 ## Milestones
 
 1. **Map** — load and render the real-Earth pixel map (~1000×500, flat colours),
-   pan/zoom, click a pixel to inspect it.
+   pan/zoom, click a pixel to inspect it. ✅ Done (first version).
+   - **1b. Map polish:** east–west wrapping, no visible void past the edges. ✅ Done (PR #1).
+   - **1c. Terrain:** OpenFront-style terrain from real elevation (plains, highlands,
+     mountains, ice), shaded relief, Antarctica, map ~1500 px wide.
 2. **Wheel (cosmetic)** — wheel UI with words/numbers only; results are stored and shown
    on the nation but have **no effect** yet. Includes the customizable wheel setup
    (modes, options, bonus Continent wheel), random editable names, start year choice.
