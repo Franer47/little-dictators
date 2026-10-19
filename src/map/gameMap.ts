@@ -5,6 +5,8 @@ export interface MapMeta extends MapProjection {
   name: string;
   image: string;
   projection: string;
+  /** True if the map loops east–west: the right edge joins the left edge. */
+  wrapX?: boolean;
 }
 
 /** The world grid: one terrain value per pixel. Game logic works on this, not on images. */
@@ -22,8 +24,28 @@ export class GameMap {
     return this.meta.height;
   }
 
+  /** True if the map loops east–west. It never loops north–south. */
+  get wraps(): boolean {
+    return this.meta.wrapX ?? false;
+  }
+
   inBounds(x: number, y: number): boolean {
     return x >= 0 && y >= 0 && x < this.width && y < this.height;
+  }
+
+  /** On a wrapping map, brings any x back into 0..width-1 (e.g. -1 becomes width-1). */
+  wrapX(x: number): number {
+    if (!this.wraps) return x;
+    return ((x % this.width) + this.width) % this.width;
+  }
+
+  /**
+   * Turns any pixel position into the real map pixel it stands for, or null if it's off
+   * the map. Use this to find neighbours across the left/right seam (Alaska ↔ Chukotka).
+   */
+  normalize(x: number, y: number): [number, number] | null {
+    const wx = this.wrapX(x);
+    return this.inBounds(wx, y) ? [wx, y] : null;
   }
 
   terrainAt(x: number, y: number): Terrain {

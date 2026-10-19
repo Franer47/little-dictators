@@ -138,10 +138,9 @@ for (let i = 0; i < terrain.length; i++) {
   png.data[i * 4 + 3] = 255;
 }
 writeFileSync("public/maps/earth.png", PNG.sync.write(png));
-writeFileSync(
-  "public/maps/earth.json",
-  JSON.stringify({ name: "Earth", image: "earth.png", projection: "miller", ...projection }, null, 2) + "\n",
-);
+// wrapX: the map loops east–west (walking off the right edge brings you back on the left).
+const meta = { name: "Earth", image: "earth.png", projection: "miller", ...projection, wrapX: true };
+writeFileSync("public/maps/earth.json", JSON.stringify(meta, null, 2) + "\n");
 
 const landCount = isLand.reduce((sum, v) => sum + v, 0);
 console.log(`Wrote public/maps/earth.png (${width}x${height}, ${landCount} land pixels)`);

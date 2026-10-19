@@ -10,7 +10,7 @@ async function main(): Promise<void> {
   const tileInfo = document.querySelector<HTMLDivElement>("#tile-info")!;
 
   const map = await loadMap("earth");
-  const camera = new Camera(map.width, map.height);
+  const camera = new Camera(map.width, map.height, map.wraps);
   const renderer = new MapRenderer(canvas, map, camera);
 
   // Handy for poking at the game from the browser console while developing.
@@ -30,10 +30,9 @@ async function main(): Promise<void> {
   };
 
   const pixelUnder = (sx: number, sy: number): [number, number] | null => {
+    // On a wrapping map the point may be on a copy left/right of the real map; normalize finds the real pixel.
     const [mx, my] = camera.screenToMap(sx, sy);
-    const x = Math.floor(mx);
-    const y = Math.floor(my);
-    return map.inBounds(x, y) ? [x, y] : null;
+    return map.normalize(Math.floor(mx), Math.floor(my));
   };
 
   const describe = (x: number, y: number): string => {
@@ -44,12 +43,19 @@ async function main(): Promise<void> {
     return `${terrain.name} · (${x}, ${y}) · ${Math.abs(lat).toFixed(1)}°${ns} ${Math.abs(lon).toFixed(1)}°${ew}`;
   };
 
+  // Last mouse position, so the hover info stays right when the map moves under a still mouse (e.g. holding D).
+  let pointer: [number, number] | null = null;
+  const updateHover = (): void => {
+    renderer.hovered = pointer ? pixelUnder(...pointer) : null;
+    tileInfo.textContent = renderer.hovered ? describe(...renderer.hovered) : "Hover the map";
+    requestRender();
+  };
+
   new CameraControls(canvas, camera, {
-    onChange: requestRender,
+    onChange: updateHover,
     onHover: (sx, sy) => {
-      renderer.hovered = pixelUnder(sx, sy);
-      tileInfo.textContent = renderer.hovered ? describe(...renderer.hovered) : "Hover the map";
-      requestRender();
+      pointer = [sx, sy];
+      updateHover();
     },
     onClick: (sx, sy) => {
       const p = pixelUnder(sx, sy);
@@ -57,8 +63,12 @@ async function main(): Promise<void> {
     },
     onFit: () => {
       camera.fitToMap();
-      requestRender();
+      updateHover();
     },
+  });
+  canvas.addEventListener("pointerleave", () => {
+    pointer = null;
+    updateHover();
   });
 
   window.addEventListener("resize", () => {
