@@ -12,6 +12,9 @@ npm install      # once, downloads the tools
 npm run dev      # starts the game at http://localhost:5173
 ```
 
+The game opens on a start screen (alpha): pick a map and press **Start** (or Enter, or
+double-click a map). To pick another map, reload the page.
+
 ## Controls
 
 | Action | Input |
@@ -33,6 +36,7 @@ Each map says whether it wraps with `"wrapX"` in its `public/maps/<name>.json`;
 ```
 src/
   main.ts                 starts the game
+  ui/startMenu.ts         the start screen: pick a map
   map/terrain.ts          terrain types and their (data) colours
   map/projection.ts       turns longitude/latitude into map pixels
   map/gameMap.ts          loads a map into a grid of terrain values + elevation
@@ -65,8 +69,9 @@ The builder makes the same map in more than one size, from the same data and rul
 | `earth` | 2000 × 1111 | Natural Earth 1:10m | The main map: the game loads this one. |
 | `earth-1500` | 1500 × 833 | Natural Earth 1:50m | The earlier, smaller map, kept for a future map-size option. |
 
-To look at the smaller one, add `?map=earth-1500` to the address, e.g.
-<http://localhost:5173/?map=earth-1500>. (Any map in `public/maps/` works this way.)
+Pick either one on the start screen. The list is `MAP_CHOICES` in `src/ui/startMenu.ts`.
+For quick testing you can also skip the start screen by naming a map in the address, e.g.
+<http://localhost:5173/?map=earth-1500> (any map in `public/maps/` works this way).
 
 The sizes are listed in `MAPS` at the top of `scripts/build-earth-map.ts`; adding a size
 is one line. Settings measured in pixels (how far the shallow water reaches, the size of

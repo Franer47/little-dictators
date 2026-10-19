@@ -8,7 +8,16 @@
   </head>
   <body>
     <canvas id="map"></canvas>
-    <div id="hud">
+    <div id="start-menu" hidden>
+      <div class="panel">
+        <h1>Little Dictators</h1>
+        <div class="version">alpha</div>
+        <div class="label">Map</div>
+        <div class="map-list"></div>
+        <button class="start">Start</button>
+      </div>
+    </div>
+    <div id="hud" hidden>
       <div class="title">Little Dictators</div>
       <div id="tile-info">Hover the map</div>
       <div class="help">Drag / WASD: move · Wheel / Q E: zoom · F: fit map</div>

@@ -6,6 +6,8 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 ## Unreleased
 
 ### Added
+- **Start screen** (alpha): pick which map to play on, Earth (2000 × 1111, the
+  default) or Earth (small) (1500 × 833), then press Start.
 - **Lakes and rivers** on the Earth map. Big lakes (the Great Lakes, Victoria,
   Baikal, Ladoga, Titicaca… 28 in all) are now water instead of land. 36 major
   rivers (Amazon, Nile, Mississippi, Volga, Danube, Yangtze…) are drawn as a new
@@ -21,9 +23,8 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
   detailed coastlines (Natural Earth 1:10m), so fjords, island chains and small
   islands come out sharper. It looks the same otherwise: same terrain, lakes,
   rivers (still 1 pixel wide), snow and Antarctica.
-- The 1500 × 833 map is kept as a second map, `earth-1500`. Open the game with
-  `?map=earth-1500` at the end of the address to see it. `npm run build:map`
-  builds both.
+- The 1500 × 833 map is kept as a second map, `earth-1500`, which you can pick
+  on the start screen. `npm run build:map` builds both.
 
 ### Design
 - Main map will grow to ~2000 px wide; the 1500 px map is kept as a second size

@@ -4,18 +4,22 @@ import { pixelToLonLat } from "./map/projection.ts";
 import { Camera } from "./render/camera.ts";
 import { MapRenderer } from "./render/mapRenderer.ts";
 import { CameraControls } from "./input/cameraControls.ts";
+import { chooseMap } from "./ui/startMenu.ts";
 
 async function main(): Promise<void> {
   const canvas = document.querySelector<HTMLCanvasElement>("#map")!;
   const tileInfo = document.querySelector<HTMLDivElement>("#tile-info")!;
 
-  // Which map to load: "earth" (2000 px wide) unless the address says otherwise, e.g.
-  // ?map=earth-1500 for the smaller saved size. Any name in public/maps/ works.
+  // Which map to load: picked on the start screen, unless the address names one, e.g.
+  // ?map=earth-1500 (skips the start screen; any name in public/maps/ works).
   const requested = new URLSearchParams(location.search).get("map");
-  const mapName = requested && /^[\w-]+$/.test(requested) ? requested : "earth";
+  const choice = requested && /^[\w-]+$/.test(requested) ? { name: requested, done: () => {} } : await chooseMap();
+  const mapName = choice.name;
   const startTime = performance.now();
   const map = await loadMap(mapName);
   const loadedTime = performance.now();
+  choice.done();
+  document.querySelector<HTMLDivElement>("#hud")!.hidden = false;
   const camera = new Camera(map.width, map.height, map.wraps);
   const renderer = new MapRenderer(canvas, map, camera);
 
