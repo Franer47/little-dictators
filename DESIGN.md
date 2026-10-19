@@ -1,6 +1,6 @@
 # Little Dictators — Design Doc
 
-*Living document. Last updated 2026-10-18.*
+*Living document. Last updated 2026-10-19.*
 
 ## Pitch
 
@@ -34,7 +34,8 @@ Victoria-style simulation as they grow, ally and fight over pixels like OpenFron
 
   | Terrain | What it is | Later gameplay idea |
   |---|---|---|
-  | Ocean / shallow water | Deep sea and coastal water | Naval movement, needs tech |
+  | Ocean / shallow water | Deep sea, coastal water, and big lakes | Naval movement, needs tech |
+  | River | Major rivers, a thin 1-pixel blue line | Armies can cross, but attacking across a defended river is hard |
   | Plains | Land below 700 m | Fast expansion, high population |
   | Highlands | 700–2000 m | Slower expansion, some defence bonus |
   | Mountains | 2000 m and up | Very slow to conquer, strong defence |
@@ -42,6 +43,11 @@ Victoria-style simulation as they grow, ally and fight over pixels like OpenFron
   | Ice | Greenland, Antarctica | Barely habitable |
 
   **Priority** when several apply: Ice > Mountains > Snow > Highlands / Plains.
+- **Lakes** are ordinary water (same types as the sea), not a separate type. Only big
+  lakes are on the map (Caspian, Great Lakes, Victoria, Baikal, Ladoga, Titicaca…).
+- **Rivers:** only the major ones (~30–40: Nile, Amazon, Mississippi, Volga, Danube,
+  Yangtze…). They are drawn as an unbroken line with no diagonal gaps, so a river
+  cleanly separates its two banks.
 - **Map data vs. looks:** the map's *data* (one exact colour per terrain type, so it can
   be edited like a modding file) is kept separate from the *heightmap* used for
   shading. Game logic only reads the terrain data.
@@ -108,6 +114,17 @@ The wheel setup is fully configurable, per wheel:
   rivalries, wars, and **technology alliances**.
 - **War:** front lines move pixel by pixel. Reach depends on technology (railways,
   naval supply, air supply…).
+  - **River crossings:** armies can cross rivers, but breaking through is hard when the
+    enemy defends the other bank.
+- **Water ownership & national waters:**
+  - A river that runs *between* two nations is a border and belongs to neither. A
+    river (or lake) fully inside one nation belongs to it.
+  - Nations have **national waters**: the sea, lake and river pixels next to their
+    coast. Foreign military may not enter them unless the two are at war, allied, or
+    have some kind of access agreement.
+- **Canals:** a nation can dig a canal, turning land pixels into water to join two
+  water bodies (think Suez or Panama). It gives up that land and costs a lot of time
+  and resources, but can be worth it for trade and navies.
 - **Events** change stats (revolutions, collapses, splits…).
 - **Game end:** endless sandbox by default, with optional goals (end year, one nation
   controlling X% of the map, etc.).
@@ -135,6 +152,9 @@ The wheel setup is fully configurable, per wheel:
    - **1b. Map polish:** east–west wrapping, no visible void past the edges. ✅ Done (PR #1).
    - **1c. Terrain:** OpenFront-style terrain from real elevation (plains, highlands,
      mountains, ice, snow), shaded relief, Antarctica, map 1500 px wide. ✅ Done (PR #2).
+   - **1d. Lakes & rivers:** big lakes as water, major rivers as a River terrain line.
+     Map only; ownership, national waters, crossings and canals come with milestones
+     4–6.
 2. **Wheel (cosmetic)** — wheel UI with words/numbers only; results are stored and shown
    on the nation but have **no effect** yet. Includes the customizable wheel setup
    (modes, options, bonus Continent wheel), random editable names, start year choice.
@@ -144,9 +164,10 @@ The wheel setup is fully configurable, per wheel:
 4. **Ticks + basic simulation** — the clock runs; growth and peaceful expansion into empty
    land. Kept simple, upgraded later.
 5. **Conquest** — wars and pixel-by-pixel front lines. Two modes: push on all borders, or
-   influence a single army to follow a specific path/pattern. Overseas invasions.
+   influence a single army to follow a specific path/pattern. Overseas invasions,
+   river crossings, national waters.
 6. **Depth** — events, resources, history effects, revolutions, technology (research,
-   spread, tech alliances), and **procedurally generated flags** based on the nation's
+   spread, tech alliances), canals, and **procedurally generated flags** based on the nation's
    stats (government → layout/symbol, ideology → colours, etc.).
 7. **Influence + polish** — influence system (limited + sandbox), UI/UX polish,
    balancing, Steam build, large map, mobile support. Multiplayer as a possible final
