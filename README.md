@@ -18,7 +18,15 @@ npm run dev      # starts the game at http://localhost:5173
 |---|---|
 | Move camera | Drag with the mouse, or WASD / arrow keys (hold Shift for faster) |
 | Zoom | Mouse wheel, or Q / E |
-| Fit whole map | F |
+| Zoom all the way out | F |
+
+## Map edges
+
+The Earth wraps east–west: keep panning right and you come back around from the left,
+like in Hearts of Iron. It doesn't wrap north–south: at the furthest zoom the map's
+height exactly fills the screen, and you can't pan past the top or bottom edge.
+Each map says whether it wraps with `"wrapX"` in its `public/maps/<name>.json`;
+`GameMap.wrapX()` / `normalize()` find the real pixel for any x, e.g. a neighbour across the seam.
 
 ## Project layout
 
