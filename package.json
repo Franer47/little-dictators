@@ -1,0 +1,24 @@
+{
+  "name": "little-dictators",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "build:map": "tsx scripts/build-earth-map.ts"
+  },
+  "devDependencies": {
+    "@types/geojson": "^7946.0.16",
+    "@types/node": "^26.6.5",
+    "@types/pngjs": "^6.0.5",
+    "@types/topojson-client": "^3.1.5",
+    "pngjs": "^7.0.0",
+    "topojson-client": "^3.1.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4",
+    "world-atlas": "^2.0.2"
+  }
+}

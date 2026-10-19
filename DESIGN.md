@@ -1,0 +1,142 @@
+# Little Dictators — Design Doc
+
+*Living document. Last updated 2026-10-18.*
+
+## Pitch
+
+Spin wheels to create nations on a pixel map, then watch (and nudge) a lightweight
+Victoria-style simulation as they grow, ally and fight over pixels like OpenFront.io.
+
+- **Platform:** browser first, Steam later. Desktop (mouse + keyboard) first, mobile later.
+- **Players:** single-player first; multiplayer is a possible add-on at the very end.
+- **Player role:** observer + influencer. There is **no full-control "ruler" mode** —
+  the player never directly runs a nation, only nudges the world.
+- **Release:** free in the browser, paid on Steam (with extras such as bigger maps,
+  mod support, achievements).
+- **Language:** English, with all game text kept in one place so translations can be
+  added later.
+- **Modding:** wheels, governments, techs, events etc. live in simple editable data files.
+
+## A game in three phases
+
+### 1. World setup
+- **Map:** real Earth first. Generated / other maps come later.
+- **Resolution:** medium (~1000×500) first; large (~2000×1000) and other modes later.
+- **Art style:** flat colours — one clean colour per terrain, nations as coloured overlays.
+- Each pixel has terrain (plains, forest, mountain, desert, water…), later also a
+  resource and an owner.
+- The map is split into named regions/continents so the wheel can target them.
+- **Start year:** the player picks it (e.g. 1800, 1900, 2000). The year sets the starting
+  technology level and how much of the world is already claimed.
+- **Empty land:** the player can choose how full the map is, but the default depends on
+  the start year (earlier = more unclaimed land to expand into).
+
+### 2. Nation creation — the wheel
+For each nation, the player goes through a set of wheels, e.g.:
+
+| Wheel | Example results |
+|---|---|
+| Continent / region | Europe, Africa, "Northern Isles"… |
+| Government | Monarchy, Democracy, Junta, Theocracy, Communist state… |
+| Land size | Tiny, Small, Medium, Large, Huge |
+| Population | tier → estimated number |
+| GDP | tier → estimated number |
+| Culture / ideology | … |
+| Resource focus | Grain, Iron, Oil, Gold… |
+| History cards (1–2) | "Former empire", "Colonial empire", "Recent civil war"… |
+
+**Stat display:** word stats (government, ideology, culture…) stay words. Number stats
+are shown as **estimates** (e.g. "~42M people", "~$340B GDP").
+
+**Names:** generated from the nation's stats (e.g. "Holy Kingdom of Varnia"); the player
+can rename.
+
+**Territory shape:**
+- A nation starts mostly as one connected area around its starting pixel, growing to
+  its rolled land size.
+- It can also start with some extra land if there's an island nearby, or if it is very
+  powerful or a colonial empire (history card).
+- Nations without overseas land at the start can get it later by invading, choosing
+  where to expand.
+
+Repeat until the map is as full as wanted, or auto-fill the rest.
+
+#### Customizable wheel
+The wheel setup is fully configurable, per wheel:
+
+- **Mode** — *Spin* (animated wheel), *Choose* (player picks the value), *Random*
+  (rolled instantly, no animation), or *Off* (wheel not used).
+- **Options & weights** — add/remove/rename slices and change how likely each is.
+- **Bonus wheels** — optional extra wheels such as *Continent*: if the player doesn't
+  want to pick where a nation spawns, the wheel decides. Leaving more wheels on
+  *Random* means more of the world is left to chance.
+- **Presets** — save/load wheel configurations ("Realistic", "Chaos", "All random"…).
+
+### 3. Simulation
+- Time moves in ticks (e.g. 1 tick = 1 month) with pause / speed controls.
+- **Economy:** population & GDP grow based on government, land, resources, stability.
+- **Diplomacy:** opinions between nations (borders, ideology, history) → alliances,
+  rivalries, wars, and **technology alliances**.
+- **War:** front lines move pixel by pixel. Reach depends on technology (railways,
+  naval supply, air supply…).
+- **Events** change stats (revolutions, collapses, splits…).
+- **Game end:** endless sandbox by default, with optional goals (end year, one nation
+  controlling X% of the map, etc.).
+
+#### Technology
+- A simple list of techs (railways, naval supply, air supply…) that add stats or
+  abilities.
+- **You can't get ahead of your time** — techs are capped by the current year/era.
+- Each nation researches on its own; richer nations research faster.
+- **Tech spreads:** when one nation gets a tech, nearby nations get it faster — more so
+  if the inventor is open (e.g. a democracy).
+- Nations can form tech alliances to share research.
+
+### Player influence
+- Spend influence on nudges: fund rebels, push an alliance, trigger a crisis.
+- Military nudges: tell a nation to push on all fronts, or direct a single army along a
+  path you draw.
+- **Limits are a setting:** influence points that refill over time by default, with a
+  sandbox toggle for unlimited influence.
+
+## Milestones
+
+1. **Map** — load and render the real-Earth pixel map (~1000×500, flat colours),
+   pan/zoom, click a pixel to inspect it.
+2. **Wheel (cosmetic)** — wheel UI with words/numbers only; results are stored and shown
+   on the nation but have **no effect** yet. Includes the customizable wheel setup
+   (modes, options, bonus Continent wheel), random editable names, start year choice.
+   Place nations and grow territory. Save/load.
+3. **Stats matter** — wheel results turn into real numbers: derived values such as army
+   strength, growth rate, stability, economy.
+4. **Ticks + basic simulation** — the clock runs; growth and peaceful expansion into empty
+   land. Kept simple, upgraded later.
+5. **Conquest** — wars and pixel-by-pixel front lines. Two modes: push on all borders, or
+   influence a single army to follow a specific path/pattern. Overseas invasions.
+6. **Depth** — events, resources, history effects, revolutions, technology (research,
+   spread, tech alliances), and **procedurally generated flags** based on the nation's
+   stats (government → layout/symbol, ideology → colours, etc.).
+7. **Influence + polish** — influence system (limited + sandbox), UI/UX polish,
+   balancing, Steam build, large map, mobile support. Multiplayer as a possible final
+   step.
+
+## Tech direction (proposed)
+
+- **TypeScript + Vite**, running in the browser.
+- **Rendering:** HTML canvas (raw `ImageData` or PixiJS). ~1000×500 is ~500k pixels,
+  which is fine.
+- **Simulation separate from rendering** — plain deterministic game logic (later in a
+  Web Worker). Makes saving trivial (save = state) and keeps multiplayer possible.
+- **Game data in data files** (JSON) — wheels, governments, techs, events, text strings.
+  This gives modding and translation support almost for free.
+- **Saves:** IndexedDB in the browser + export/import as a file.
+- **Real-world map:** a PNG where each colour means a terrain type, plus a region mask.
+- **Generated maps (later):** noise-based terrain generation.
+- **Steam:** wrap the same build with Electron or Tauri later.
+
+## Open questions
+
+- Exact list of wheels and their slices for milestone 2.
+- Which start years / eras to offer, and roughly what the world looks like in each.
+- Tick length and game speed options.
+- First list of technologies.

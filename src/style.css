@@ -1,0 +1,50 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #1b3354;
+  font-family: system-ui, sans-serif;
+  color: #eef2f6;
+}
+
+#map {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  cursor: grab;
+  touch-action: none;
+}
+
+#map.dragging {
+  cursor: grabbing;
+}
+
+#hud {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  padding: 10px 14px;
+  background: rgba(14, 22, 34, 0.82);
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  pointer-events: none;
+  min-width: 220px;
+}
+
+#hud .title {
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+
+#hud .help {
+  margin-top: 6px;
+  opacity: 0.6;
+  font-size: 12px;
+}

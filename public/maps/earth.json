@@ -1,0 +1,9 @@
+{
+  "name": "Earth",
+  "image": "earth.png",
+  "projection": "miller",
+  "width": 1000,
+  "height": 502,
+  "latTop": 83,
+  "latBottom": -60
+}
