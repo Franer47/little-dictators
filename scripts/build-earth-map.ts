@@ -6,6 +6,8 @@
 // - NOAA ETOPO1 elevation (data/raw/, downloaded automatically the first time): how high
 //   the land is and how deep the sea is. Used to split land into plains / highlands /
 //   mountains and for the shaded look.
+// - NASA MODIS land cover (data/raw/, downloaded automatically the first time): where the
+//   forests are (Rainforest / Forest).
 //
 // Outputs (in public/maps/):
 // - earth.png: the terrain data, one exact colour per terrain type (see src/map/terrain.ts).
@@ -18,7 +20,7 @@ import { PNG } from "pngjs";
 import { feature } from "topojson-client";
 import type { Topology, GeometryCollection } from "topojson-specification";
 import type { MultiPolygon, Polygon, Position } from "geojson";
-import { TERRAINS, Terrain } from "../src/map/terrain.ts";
+import { TERRAINS, Terrain, colorKey } from "../src/map/terrain.ts";
 import { lonLatToPixel, pixelToLonLat, projectedHeight, type MapProjection } from "../src/map/projection.ts";
 
 // --- Map size and projection -------------------------------------------------
@@ -82,6 +84,29 @@ const SNOW_METRES_PER_DEGREE = 140;
 /** How much (in degrees) the snow edge wiggles, so it doesn't look like a smooth drawn line. */
 const SNOW_EDGE_NOISE = 0.8;
 
+// Forests come from satellite land cover (see "Land cover" below). A pixel is forest when
+// at least this share of its land is forest (after a little smoothing with its neighbours).
+const FOREST_FROM = 0.5;
+/** Evergreen broadleaf forest within this many degrees of the equator is Rainforest; further out it's Forest. */
+const TROPICS = 25;
+/** How much (in degrees) the rainforest and taiga edges (TROPICS, TAIGA_FROM) wiggle. */
+const FOREST_EDGE_NOISE = 2;
+/**
+ * North of this latitude, "woody savanna" counts as Forest too, and so does "savanna" outside
+ * Europe. In the north these are the more open, spruce- and larch-dotted parts of the taiga
+ * (Finland and Sweden, eastern Siberia, much of Canada), which the satellite classes call
+ * savanna because less than 60% of the ground is under the trees' crowns. Further south they
+ * really are savanna and stay plains.
+ */
+const TAIGA_FROM = 50;
+/**
+ * Between these longitudes (Europe) plain "savanna" stays open land even in the north: there
+ * it's farmland with hedges and scattered trees, e.g. most of Britain and Ireland.
+ */
+const EUROPE_LON: [west: number, east: number] = [-30, 30];
+/** Patches of forest, and gaps in forest, smaller than this (in pixels) are merged into what surrounds them. */
+const MIN_FOREST_PATCH = 6;
+
 // --- Elevation data (NOAA ETOPO1) ------------------------------------------------
 // ETOPO1 "ice surface" (top of the Greenland/Antarctic ice sheets), every 5th arc-minute,
 // served by NOAA's ERDDAP as a plain-text grid. About 50 MB.
@@ -100,14 +125,18 @@ interface Grid {
   values: Int16Array;
 }
 
+/** Downloads `url` to `file` unless it's already there. */
+async function download(file: string, url: string, what: string): Promise<void> {
+  if (existsSync(file)) return;
+  console.log(`Downloading ${what} to ${file} (only the first time)...`);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Download failed (${res.status}). Get it by hand from:\n${url}`);
+  mkdirSync("data/raw", { recursive: true });
+  writeFileSync(file, Buffer.from(await res.arrayBuffer()));
+}
+
 async function loadEtopo(): Promise<Grid> {
-  if (!existsSync(ETOPO_FILE)) {
-    console.log(`Downloading elevation data to ${ETOPO_FILE} (about 50 MB, once)...`);
-    const res = await fetch(ETOPO_URL);
-    if (!res.ok) throw new Error(`Download failed (${res.status}). Get it by hand from:\n${ETOPO_URL}`);
-    mkdirSync("data/raw", { recursive: true });
-    writeFileSync(ETOPO_FILE, Buffer.from(await res.arrayBuffer()));
-  }
+  await download(ETOPO_FILE, ETOPO_URL, "elevation data (about 50 MB)");
   // ESRI ASCII grid: 6 header lines ("ncols 4321" ...), then rows of numbers, north first.
   const text = readFileSync(ETOPO_FILE, "latin1");
   const header: Record<string, number> = {};
@@ -152,6 +181,73 @@ function sampleGrid(g: Grid, lon: number, lat: number): number {
   const top = v[r0 * w + c0] * (1 - fc) + v[r0 * w + c1] * fc;
   const bottom = v[r1 * w + c0] * (1 - fc) + v[r1 * w + c1] * fc;
   return top * (1 - fr) + bottom * fr;
+}
+
+// --- Land cover (NASA MODIS) --------------------------------------------------------
+// MODIS yearly land cover (MCD12Q1, IGBP classes) for 2024, as one image of the whole world
+// at 0.05° per pixel (7200x3600), from NASA's GIBS map server. Every pixel is the exact
+// colour of its class. About 2 MB.
+const LANDCOVER_FILE = "data/raw/modis-igbp-2024-7200x3600.png";
+const LANDCOVER_URL =
+  "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0" +
+  "&LAYERS=MODIS_Combined_L3_IGBP_Land_Cover_Type_Annual&STYLES=&CRS=EPSG:4326&BBOX=-90,-180,90,180" +
+  "&WIDTH=7200&HEIGHT=3600&FORMAT=image/png&TIME=2024-01-01";
+
+/** What a land cover class counts as here. */
+enum Cover {
+  /** Water, or no data: doesn't count either way. */
+  None,
+  /** Not forest: grass, savanna, shrubs, crops, towns, desert... */
+  Open,
+  /** Evergreen broadleaf forest: Rainforest in the tropics, Forest elsewhere. */
+  Broadleaf,
+  /** Any other dense forest. */
+  Forest,
+  /** Woody savanna: Forest in the north (taiga), open land elsewhere. */
+  WoodySavanna,
+  /** Savanna: Forest in the north outside Europe (taiga), open land elsewhere. */
+  Savanna,
+}
+
+// The IGBP classes by their colour in the GIBS image (GIBS colour map "MODIS_IGBP_Land_Cover_Type").
+const COVER_BY_COLOR = new Map<number, Cover>([
+  [colorKey(33, 138, 33), Cover.Forest], // 1 evergreen needleleaf forest
+  [colorKey(49, 204, 49), Cover.Broadleaf], // 2 evergreen broadleaf forest
+  [colorKey(152, 204, 49), Cover.Forest], // 3 deciduous needleleaf forest
+  [colorKey(150, 250, 150), Cover.Forest], // 4 deciduous broadleaf forest
+  [colorKey(141, 186, 141), Cover.Forest], // 5 mixed forest
+  [colorKey(186, 141, 141), Cover.Open], // 6 closed shrubland
+  [colorKey(245, 222, 179), Cover.Open], // 7 open shrubland
+  [colorKey(218, 235, 157), Cover.WoodySavanna], // 8 woody savanna
+  [colorKey(255, 213, 0), Cover.Savanna], // 9 savanna
+  [colorKey(240, 185, 103), Cover.Open], // 10 grassland
+  [colorKey(71, 131, 181), Cover.Open], // 11 permanent wetland
+  [colorKey(250, 239, 115), Cover.Open], // 12 cropland
+  [colorKey(255, 0, 0), Cover.Open], // 13 urban
+  [colorKey(153, 147, 86), Cover.Open], // 14 cropland / natural vegetation mosaic
+  [colorKey(255, 255, 255), Cover.Open], // 15 permanent snow and ice
+  [colorKey(191, 191, 189), Cover.Open], // 16 barren
+  [colorKey(134, 202, 227), Cover.None], // 17 water
+  [colorKey(100, 100, 100), Cover.None], // unclassified
+]);
+
+interface LandCover {
+  cols: number;
+  rows: number;
+  cover: Uint8Array;
+}
+
+async function loadLandCover(): Promise<LandCover> {
+  await download(LANDCOVER_FILE, LANDCOVER_URL, "land cover data (about 2 MB)");
+  const png = PNG.sync.read(readFileSync(LANDCOVER_FILE));
+  const cover = new Uint8Array(png.width * png.height);
+  for (let i = 0; i < cover.length; i++) {
+    const key = colorKey(png.data[i * 4], png.data[i * 4 + 1], png.data[i * 4 + 2]);
+    const c = COVER_BY_COLOR.get(key);
+    if (c === undefined) throw new Error(`${LANDCOVER_FILE}: unknown colour ${png.data.slice(i * 4, i * 4 + 3).join(",")}`);
+    cover[i] = c;
+  }
+  return { cols: png.width, rows: png.height, cover };
 }
 
 // --- Load polygons -------------------------------------------------------------
@@ -271,6 +367,118 @@ for (let y = 0; y < height; y++) {
   }
 }
 
+// --- Forests --------------------------------------------------------------------
+// Each map pixel covers about 20 land cover pixels. Count how much of its land is
+// rainforest and how much is other forest, smooth those shares a little with the
+// neighbours (so forest edges aren't speckled), then call the pixel forest if forest
+// covers at least half of it.
+const landCover = await loadLandCover();
+const rainShare = new Float32Array(width * height);
+const forestShare = new Float32Array(width * height);
+{
+  const { cols, rows, cover } = landCover;
+  const broadleaf = new Uint16Array(width * height);
+  const forest = new Uint16Array(width * height);
+  const woodySavanna = new Uint16Array(width * height);
+  const savanna = new Uint16Array(width * height);
+  const land = new Uint16Array(width * height);
+  // Which map column / row each land cover column / row falls in.
+  const colX = Int32Array.from({ length: cols }, (_, c) =>
+    Math.floor(lonLatToPixel(projection, -180 + ((c + 0.5) * 360) / cols, 0)[0]),
+  );
+  for (let r = 0; r < rows; r++) {
+    const y = Math.floor(lonLatToPixel(projection, 0, 90 - ((r + 0.5) * 180) / rows)[1]);
+    if (y < 0 || y >= height) continue;
+    for (let c = 0; c < cols; c++) {
+      const i = y * width + ((colX[c] % width) + width) % width;
+      const kind = cover[r * cols + c];
+      if (kind === Cover.None) continue;
+      land[i]++;
+      if (kind === Cover.Broadleaf) broadleaf[i]++;
+      else if (kind === Cover.Forest) forest[i]++;
+      else if (kind === Cover.WoodySavanna) woodySavanna[i]++;
+      else if (kind === Cover.Savanna) savanna[i]++;
+    }
+  }
+
+  // Shares per pixel. `known` marks land pixels that had land cover data.
+  const known = new Uint8Array(width * height);
+  for (let y = 0; y < height; y++) {
+    const [, lat] = pixelToLonLat(projection, 0, y + 0.5);
+    for (let x = 0; x < width; x++) {
+      const i = y * width + x;
+      if (!isLand[i] || land[i] === 0) continue;
+      const wiggle = 0.65 * smoothNoise(x, y, 30) + 0.35 * smoothNoise(x, y, 10);
+      const tropical = Math.abs(lat) + FOREST_EDGE_NOISE * wiggle <= TROPICS;
+      const [lon] = pixelToLonLat(projection, x + 0.5, 0);
+      const north = lat + FOREST_EDGE_NOISE * wiggle >= TAIGA_FROM;
+      const europe = lon > EUROPE_LON[0] && lon < EUROPE_LON[1];
+      const rain = tropical ? broadleaf[i] : 0;
+      const taiga = north ? woodySavanna[i] + (europe ? 0 : savanna[i]) : 0;
+      const other = forest[i] + (tropical ? 0 : broadleaf[i]) + taiga;
+      rainShare[i] = rain / land[i];
+      forestShare[i] = other / land[i];
+      known[i] = 1;
+    }
+  }
+
+  // Bits of Natural Earth coast that the land cover sees as water: copy from the neighbours.
+  for (let changed = true; changed; ) {
+    changed = false;
+    const filled: [number, number, number][] = [];
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const i = y * width + x;
+        if (!isLand[i] || known[i]) continue;
+        let rain = 0, other = 0, n = 0;
+        forNeighbours(x, y, (j) => {
+          if (known[j]) (rain += rainShare[j]), (other += forestShare[j]), n++;
+        });
+        if (n) filled.push([i, rain / n, other / n]);
+      }
+    }
+    for (const [i, rain, other] of filled) {
+      rainShare[i] = rain;
+      forestShare[i] = other;
+      known[i] = 1;
+      changed = true;
+    }
+  }
+
+  // Smooth: average each land pixel with its land neighbours.
+  const rain = rainShare.slice(), other = forestShare.slice();
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = y * width + x;
+      if (!known[i]) continue;
+      let sumRain = rain[i], sumOther = other[i], n = 1;
+      forNeighbours(x, y, (j) => {
+        if (known[j]) (sumRain += rain[j]), (sumOther += other[j]), n++;
+      });
+      rainShare[i] = sumRain / n;
+      forestShare[i] = sumOther / n;
+    }
+  }
+}
+
+/** Calls `fn` with the index of each of the 8 pixels around (x, y). The map wraps east–west. */
+function forNeighbours(x: number, y: number, fn: (i: number) => void): void {
+  for (let dy = -1; dy <= 1; dy++) {
+    const ny = y + dy;
+    if (ny < 0 || ny >= height) continue;
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      fn(ny * width + (x + dx + width) % width);
+    }
+  }
+}
+
+/** Rainforest, Forest, or undefined (not forest) for a land pixel. */
+function forestAt(i: number): Terrain | undefined {
+  if (rainShare[i] + forestShare[i] < FOREST_FROM) return undefined;
+  return rainShare[i] >= forestShare[i] ? Terrain.Rainforest : Terrain.Forest;
+}
+
 // --- Assign terrain -------------------------------------------------------------
 function nearLand(x: number, y: number): boolean {
   for (let dy = -SHALLOW_RADIUS; dy <= SHALLOW_RADIUS; dy++) {
@@ -335,11 +543,50 @@ for (let y = 0; y < height; y++) {
       if (isGreenland[i] || lat < ANTARCTIC_ICE_SOUTH_OF) terrain[i] = Terrain.Ice;
       else if (h >= MOUNTAINS_FROM) terrain[i] = Terrain.Mountains;
       else if (lat > 0 && isSnowy(x, y, lon, lat, h)) terrain[i] = Terrain.Snow;
-      else if (h >= HIGHLANDS_FROM) terrain[i] = Terrain.Highlands;
-      else terrain[i] = Terrain.Plains;
+      else terrain[i] = forestAt(i) ?? openLand(h);
     } else {
       terrain[i] = nearLand(x, y) ? Terrain.ShallowWater : Terrain.Ocean;
     }
+  }
+}
+
+/** Plains or Highlands, by height. */
+function openLand(h: number): Terrain {
+  return h >= HIGHLANDS_FROM ? Terrain.Highlands : Terrain.Plains;
+}
+
+// Clean up: a patch of Rainforest / Forest / open land (Plains + Highlands count as one)
+// smaller than MIN_FOREST_PATCH pixels takes on whatever surrounds it most. Ice, mountains,
+// snow and water stay as they are, and a patch with nothing else around it (e.g. a small
+// forested island) is kept.
+{
+  const kindOf = (t: Terrain): number =>
+    t === Terrain.Rainforest ? 1 : t === Terrain.Forest ? 2 : t === Terrain.Plains || t === Terrain.Highlands ? 0 : -1;
+  const kindTerrain = (kind: number, i: number): Terrain =>
+    kind === 1 ? Terrain.Rainforest : kind === 2 ? Terrain.Forest : openLand(elevation[i]);
+  const seen = new Uint8Array(width * height);
+  for (let start = 0; start < terrain.length; start++) {
+    const kind = kindOf(terrain[start]);
+    if (seen[start] || kind < 0) continue;
+    // Flood-fill the patch, counting what borders it.
+    const patch = [start];
+    const around = [0, 0, 0];
+    seen[start] = 1;
+    for (let k = 0; k < patch.length; k++) {
+      const i = patch[k];
+      forNeighbours(i % width, Math.floor(i / width), (j) => {
+        const other = kindOf(terrain[j]);
+        if (other === kind) {
+          if (!seen[j]) (seen[j] = 1), patch.push(j);
+        } else if (other >= 0) {
+          around[other]++;
+        }
+      });
+    }
+    if (patch.length >= MIN_FOREST_PATCH) continue;
+    const best = around.indexOf(Math.max(...around));
+    if (around[best] === 0) continue;
+    for (const i of patch) terrain[i] = kindTerrain(best, i);
   }
 }
 

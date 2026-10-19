@@ -13,6 +13,10 @@ export enum Terrain {
   Ice = 5,
   /** Cold, snowy land in the far north (the tundra beyond the tree line). */
   Snow = 6,
+  /** Tropical rainforest (Amazon, Congo, Southeast Asia, New Guinea...). */
+  Rainforest = 7,
+  /** Any other dense forest: boreal taiga and temperate forest. */
+  Forest = 8,
 }
 
 export interface TerrainInfo {
@@ -30,6 +34,8 @@ export const TERRAINS: TerrainInfo[] = [
   { id: Terrain.Mountains, name: "Mountains", color: [150, 146, 140], isWater: false },
   { id: Terrain.Ice, name: "Ice", color: [228, 236, 240], isWater: false },
   { id: Terrain.Snow, name: "Snow", color: [196, 206, 212], isWater: false },
+  { id: Terrain.Rainforest, name: "Rainforest", color: [40, 120, 50], isWater: false },
+  { id: Terrain.Forest, name: "Forest", color: [50, 92, 76], isWater: false },
 ];
 
 export function colorKey(r: number, g: number, b: number): number {
