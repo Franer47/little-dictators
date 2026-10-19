@@ -71,8 +71,13 @@ Terrain comes from real elevation, averaged over each pixel:
 | Highlands | Land from 700 m to 2000 m |
 | Mountains | Land 2000 m and higher |
 | Ice | Greenland, and all land south of 60°S (Antarctica) |
+| Snow | The cold far north: plains and highlands beyond the Arctic tree line (tundra), e.g. northern Canada, Alaska, the Russian Arctic, Chukotka. Higher ground turns snowy further south. |
 
-The thresholds are constants at the top of `scripts/build-earth-map.ts`.
+The thresholds are constants at the top of `scripts/build-earth-map.ts`. The Snow edge
+follows a table of the real tree line's latitude around the globe (`TREE_LINE`): it's
+far north in Norway (~70°N, warmed by the Gulf Stream) and far south around Hudson Bay
+(~57°N). Every 140 m of height counts as one degree further north, and a little noise
+keeps the edge from looking like a drawn line.
 
 ### Regenerating it
 

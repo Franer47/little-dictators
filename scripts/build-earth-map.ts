@@ -48,6 +48,40 @@ const ANTARCTIC_ICE_SOUTH_OF = -60;
 /** Water pixels this many pixels (or fewer) from land are Shallow water. */
 const SHALLOW_RADIUS = 2;
 
+// Snow: the cold north beyond the Arctic tree line (tundra), where the land is snowy most
+// of the year. The tree line isn't at one latitude: the Gulf Stream keeps Norway mild up
+// to ~70°N, while around Hudson Bay tundra reaches down to ~57°N. This table gives its
+// rough latitude at points around the globe (west to east); in between it's interpolated.
+const TREE_LINE: [lon: number, lat: number][] = [
+  [-180, 62], // Chukotka / Bering Sea
+  [-165, 61], // western Alaska coast
+  [-150, 67.5], // Brooks Range, northern Alaska
+  [-135, 68.5], // Mackenzie delta
+  [-115, 64], // Great Bear / Great Slave lakes
+  [-100, 60],
+  [-94, 58.5], // Churchill, Hudson Bay
+  [-80, 56], // east of Hudson Bay
+  [-70, 57.5], // Ungava
+  [-60, 56], // Labrador coast
+  [-40, 61], // Greenland (Ice anyway)
+  [-20, 65], // Iceland
+  [10, 69.5], // Norway
+  [25, 69.5], // Lapland
+  [35, 68], // Kola
+  [50, 67], // Pechora
+  [65, 66.5], // Urals, Yamal
+  [85, 69], // Yenisei
+  [102, 72], // Taymyr (the world's northernmost forest)
+  [130, 71], // Lena delta
+  [150, 69], // Indigirka, Kolyma
+  [165, 64],
+  [180, 62], // same as -180, so the line closes around the globe
+];
+/** Higher ground is colder: every this many metres of height counts as one degree further north. */
+const SNOW_METRES_PER_DEGREE = 140;
+/** How much (in degrees) the snow edge wiggles, so it doesn't look like a smooth drawn line. */
+const SNOW_EDGE_NOISE = 0.8;
+
 // --- Elevation data (NOAA ETOPO1) ------------------------------------------------
 // ETOPO1 "ice surface" (top of the Greenland/Antarctic ice sheets), every 5th arc-minute,
 // served by NOAA's ERDDAP as a plain-text grid. About 50 MB.
@@ -249,6 +283,47 @@ function nearLand(x: number, y: number): boolean {
   return false;
 }
 
+/** Latitude of the tree line at a longitude, interpolated from TREE_LINE. */
+function treeLineLat(lon: number): number {
+  for (let k = 1; k < TREE_LINE.length; k++) {
+    const [lon1, lat1] = TREE_LINE[k];
+    if (lon <= lon1) {
+      const [lon0, lat0] = TREE_LINE[k - 1];
+      return lat0 + ((lon - lon0) / (lon1 - lon0)) * (lat1 - lat0);
+    }
+  }
+  return TREE_LINE[TREE_LINE.length - 1][1];
+}
+
+/** Pseudo-random number in -1..1 for a grid point; the same inputs always give the same number. */
+function hash(cx: number, cy: number): number {
+  let h = Math.imul(cx, 374761393) ^ Math.imul(cy, 668265263);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 2147483648 - 1;
+}
+
+/**
+ * Smooth noise in -1..1 (blended random values on a grid of `cell`-pixel squares). The
+ * grid repeats every map width, so the noise matches up across the east–west seam.
+ */
+function smoothNoise(x: number, y: number, cell: number): number {
+  const cols = Math.round(width / cell);
+  const fx = x / cell, fy = y / cell;
+  const cx = Math.floor(fx), cy = Math.floor(fy);
+  const tx = fx - cx, ty = fy - cy;
+  const sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty);
+  const at = (i: number, j: number): number => hash(((i % cols) + cols) % cols, j);
+  const top = at(cx, cy) + (at(cx + 1, cy) - at(cx, cy)) * sx;
+  const bottom = at(cx, cy + 1) + (at(cx + 1, cy + 1) - at(cx, cy + 1)) * sx;
+  return top + (bottom - top) * sy;
+}
+
+/** True if a land pixel is cold enough to be Snow. */
+function isSnowy(x: number, y: number, lon: number, lat: number, h: number): boolean {
+  const wiggle = SNOW_EDGE_NOISE * (0.65 * smoothNoise(x, y, 30) + 0.35 * smoothNoise(x, y, 10));
+  return lat + Math.max(0, h) / SNOW_METRES_PER_DEGREE + wiggle >= treeLineLat(lon);
+}
+
 const terrain = new Uint8Array(width * height);
 for (let y = 0; y < height; y++) {
   const [, lat] = pixelToLonLat(projection, 0, y + 0.5);
@@ -256,8 +331,10 @@ for (let y = 0; y < height; y++) {
     const i = y * width + x;
     if (isLand[i]) {
       const h = elevation[i];
+      const [lon] = pixelToLonLat(projection, x + 0.5, 0);
       if (isGreenland[i] || lat < ANTARCTIC_ICE_SOUTH_OF) terrain[i] = Terrain.Ice;
       else if (h >= MOUNTAINS_FROM) terrain[i] = Terrain.Mountains;
+      else if (lat > 0 && isSnowy(x, y, lon, lat, h)) terrain[i] = Terrain.Snow;
       else if (h >= HIGHLANDS_FROM) terrain[i] = Terrain.Highlands;
       else terrain[i] = Terrain.Plains;
     } else {

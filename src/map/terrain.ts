@@ -11,6 +11,8 @@ export enum Terrain {
   Highlands = 3,
   Mountains = 4,
   Ice = 5,
+  /** Cold, snowy land in the far north (the tundra beyond the tree line). */
+  Snow = 6,
 }
 
 export interface TerrainInfo {
@@ -27,6 +29,7 @@ export const TERRAINS: TerrainInfo[] = [
   { id: Terrain.Highlands, name: "Highlands", color: [190, 166, 116], isWater: false },
   { id: Terrain.Mountains, name: "Mountains", color: [150, 146, 140], isWater: false },
   { id: Terrain.Ice, name: "Ice", color: [228, 236, 240], isWater: false },
+  { id: Terrain.Snow, name: "Snow", color: [196, 206, 212], isWater: false },
 ];
 
 export function colorKey(r: number, g: number, b: number): number {

@@ -26,6 +26,7 @@ const LAND_RAMPS: Partial<Record<Terrain, Ramp>> = {
   [Terrain.Highlands]: { from: 700, to: 2000, low: [206, 188, 140], high: [234, 216, 172] },
   [Terrain.Mountains]: { from: 2000, to: 5500, low: [218, 214, 206], high: [252, 252, 250] },
   [Terrain.Ice]: { from: 0, to: 4000, low: [222, 232, 240], high: [248, 251, 255] },
+  [Terrain.Snow]: { from: 0, to: 1500, low: [214, 222, 222], high: [240, 244, 244] },
 };
 
 const SEA_SHALLOW: RGB = [84, 146, 192];
