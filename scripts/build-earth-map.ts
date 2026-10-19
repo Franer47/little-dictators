@@ -756,32 +756,99 @@ function isStub(i: number): boolean {
   const next = neighbours4(i).filter(isRiver);
   return next.length === 1 && neighbours4(next[0]).filter(isRiver).length >= 3;
 }
-for (let changed = true; changed; ) {
-  changed = false;
-  for (let i = 0; i < riverCount.length; i++) {
-    if (isStub(i)) {
-      riverCount[i] = 0;
-      changed = true;
-    }
-  }
-  for (let y = 0; y + 1 < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const block = [y * width + x, y * width + ((x + 1) % width), (y + 1) * width + x, (y + 1) * width + ((x + 1) % width)];
-      if (!block.every(isRiver)) continue;
-      const thin = block.find(canThin);
-      if (thin !== undefined) {
-        riverCount[thin] = 0;
+/** Terrain before rivers are drawn, to put back where a river pixel is removed. */
+const baseTerrain = terrain.slice();
+function removeRiver(i: number): void {
+  riverCount[i] = 0;
+  terrain[i] = baseTerrain[i];
+}
+function thinRivers(): void {
+  for (let changed = true; changed; ) {
+    changed = false;
+    for (let i = 0; i < riverCount.length; i++) {
+      if (isStub(i)) {
+        removeRiver(i);
         changed = true;
+      }
+    }
+    for (let y = 0; y + 1 < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const block = [y * width + x, y * width + ((x + 1) % width), (y + 1) * width + x, (y + 1) * width + ((x + 1) % width)];
+        if (!block.every(isRiver)) continue;
+        const thin = block.find(canThin);
+        if (thin !== undefined) {
+          removeRiver(thin);
+          changed = true;
+        }
       }
     }
   }
 }
+thinRivers();
 
 // (A river through a speck of sea water gets height 0 there, not the sea depth.)
 for (let i = 0; i < riverCount.length; i++) {
   if (riverCount[i]) {
     terrain[i] = Terrain.River;
     elevation[i] = Math.max(0, elevation[i]);
+  }
+}
+
+// Final pass, now that every pixel's terrain is decided: no corner-only links. Wherever two
+// River pixels touch only at a corner (with land in both pixels between them), or a river
+// meets the sea / a lake only at a corner, one of the two in-between land pixels becomes
+// River, so rivers join each other and the water edge to edge. Ice and water never become
+// River. (Two river pixels with water on both in-between pixels are already sealed.)
+const isWaterTerrain = (t: number): boolean => t === Terrain.Ocean || t === Terrain.ShallowWater;
+/** Corner-only links, as [pixel, pixel, in-between, in-between]. */
+function cornerLinks(): [number, number, number, number][] {
+  const links: [number, number, number, number][] = [];
+  for (let y = 0; y + 1 < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const tl = y * width + x, tr = y * width + ((x + 1) % width);
+      const bl = tl + width, br = tr + width;
+      for (const [a, b, c1, c2] of [[tl, br, tr, bl], [tr, bl, tl, br]]) {
+        const ta = terrain[a], tb = terrain[b];
+        const linked =
+          (ta === Terrain.River && (tb === Terrain.River || isWaterTerrain(tb))) ||
+          (tb === Terrain.River && isWaterTerrain(ta));
+        if (!linked) continue;
+        // River to river: the corner must be filled with River, unless both in-between pixels
+        // are water. River to water: fine if either in-between pixel is River or water.
+        const riverOrWater = (j: number): boolean => terrain[j] === Terrain.River || isWaterTerrain(terrain[j]);
+        const ok =
+          ta === Terrain.River && tb === Terrain.River
+            ? terrain[c1] === Terrain.River || terrain[c2] === Terrain.River || (isWaterTerrain(terrain[c1]) && isWaterTerrain(terrain[c2]))
+            : riverOrWater(c1) || riverOrWater(c2);
+        if (!ok) links.push([a, b, c1, c2]);
+      }
+    }
+  }
+  return links;
+}
+// Filling a corner can make a 2×2 clump where two rivers run side by side, so thin again after.
+for (let pass = 0, links = cornerLinks(); links.length > 0 && pass < 10; pass++, links = cornerLinks()) {
+  for (const [, , c1, c2] of links) {
+    const usable = [c1, c2].filter((j) => terrain[j] !== Terrain.Ice && !isWaterTerrain(terrain[j]) && terrain[j] !== Terrain.River);
+    // Prefer the pixel that doesn't make a 2×2 clump of river.
+    const makesClump = (j: number): boolean => {
+      const x = j % width, y = (j - x) / width;
+      const river = (dx: number, dy: number): boolean =>
+        dx === 0 && dy === 0 ? true : y + dy >= 0 && y + dy < height && terrain[(y + dy) * width + ((x + dx + width) % width)] === Terrain.River;
+      return [[-1, -1], [0, -1], [-1, 0], [0, 0]].some(([ox, oy]) => river(ox, oy) && river(ox + 1, oy) && river(ox, oy + 1) && river(ox + 1, oy + 1));
+    };
+    const fill = usable.find((j) => !makesClump(j)) ?? usable[0];
+    if (fill === undefined) continue;
+    terrain[fill] = Terrain.River;
+    riverCount[fill] = 1;
+  }
+  thinRivers();
+}
+{
+  const left = cornerLinks();
+  if (left.length > 0) {
+    const where = left.slice(0, 10).map(([a]) => `(${a % width}, ${Math.floor(a / width)})`).join(", ");
+    throw new Error(`${left.length} river pixels still touch another river or the water only at a corner: ${where}`);
   }
 }
 
