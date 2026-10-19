@@ -16,6 +16,15 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 - Hovering a lake or river shows its height above sea level instead of a depth.
 - This changelog.
 
+### Changed
+- **The Earth map is bigger: 2000 × 1111 pixels** (was 1500 × 833), with more
+  detailed coastlines (Natural Earth 1:10m), so fjords, island chains and small
+  islands come out sharper. It looks the same otherwise: same terrain, lakes,
+  rivers (still 1 pixel wide), snow and Antarctica.
+- The 1500 × 833 map is kept as a second map, `earth-1500`. Open the game with
+  `?map=earth-1500` at the end of the address to see it. `npm run build:map`
+  builds both.
+
 ### Design
 - Main map will grow to ~2000 px wide; the 1500 px map is kept as a second size
   for a future map-size option.

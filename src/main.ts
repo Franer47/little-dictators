@@ -9,7 +9,13 @@ async function main(): Promise<void> {
   const canvas = document.querySelector<HTMLCanvasElement>("#map")!;
   const tileInfo = document.querySelector<HTMLDivElement>("#tile-info")!;
 
-  const map = await loadMap("earth");
+  // Which map to load: "earth" (2000 px wide) unless the address says otherwise, e.g.
+  // ?map=earth-1500 for the smaller saved size. Any name in public/maps/ works.
+  const requested = new URLSearchParams(location.search).get("map");
+  const mapName = requested && /^[\w-]+$/.test(requested) ? requested : "earth";
+  const startTime = performance.now();
+  const map = await loadMap(mapName);
+  const loadedTime = performance.now();
   const camera = new Camera(map.width, map.height, map.wraps);
   const renderer = new MapRenderer(canvas, map, camera);
 
@@ -84,6 +90,15 @@ async function main(): Promise<void> {
 
   renderer.resize();
   camera.fitToMap();
+  renderer.render();
+  needsRender = false;
+  if (import.meta.env.DEV) {
+    const ms = (t: number): string => `${Math.round(t)} ms`;
+    console.log(
+      `Map "${mapName}" (${map.width}x${map.height}): loaded in ${ms(loadedTime - startTime)}, ` +
+        `painted + first draw in ${ms(performance.now() - loadedTime)}`,
+    );
+  }
   requestAnimationFrame(frame);
 }
 

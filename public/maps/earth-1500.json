@@ -1,0 +1,14 @@
+{
+  "name": "Earth",
+  "image": "earth-1500.png",
+  "projection": "patterson",
+  "width": 1500,
+  "height": 833,
+  "latTop": 84,
+  "latBottom": -90,
+  "wrapX": true,
+  "heightmap": {
+    "image": "earth-1500-height.png",
+    "offset": -32768
+  }
+}
