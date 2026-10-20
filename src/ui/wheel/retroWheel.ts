@@ -41,7 +41,9 @@ const W = 2 * R + MARGIN * 2 + POINTER_LEN - 8 + SHADOW.x;
 const H = 2 * R + MARGIN * 2 + SHADOW.y;
 const STUDS = 24;
 const LINE_GAP = 2;
+const LETTER_GAP = 2; // empty pixels between letters on the wheel
 // Where each label pixel is sampled (in pixels), so thin rotated strokes don't vanish.
+const CENTRE = [[0, 0]];
 const SUBSAMPLES = [
   [-0.3, -0.3],
   [0.3, -0.3],
@@ -67,6 +69,8 @@ interface SliceArt {
   maskH: number;
   /** Distance from the wheel centre where the mask starts. */
   maskU: number;
+  /** Sample the label a little thicker (for small letters). */
+  thicken: boolean;
 }
 
 export class RetroWheelView implements WheelView {
@@ -112,34 +116,61 @@ export class RetroWheelView implements WheelView {
     });
   }
 
-  /** Lays out a slice's label along its middle line, reading outward, pushed against the rim. */
-  private labelMask(label: string, sliceAngle: number): Pick<SliceArt, "mask" | "maskW" | "maskH" | "maskU"> {
-    const inner = HUB + 4;
-    const outer = R - RIM - 4;
+  /**
+   * Lays out a slice's label along its middle line, reading outward. Letters are drawn as
+   * big as the slice allows: twice the font size where there's room, stretched a little
+   * longer along the slice, and centred between the hub and the rim.
+   */
+  private labelMask(label: string, sliceAngle: number): Pick<SliceArt, "mask" | "maskW" | "maskH" | "maskU" | "thicken"> {
+    const inner = HUB + 3;
+    const outer = R - RIM - 3;
     const room = outer - inner;
-    let lines = wrapText(label.toUpperCase(), room);
-    const fits = (ls: string[]): boolean => {
-      const h = ls.length * (GLYPH_HEIGHT + LINE_GAP) - LINE_GAP;
-      const widest = Math.max(...ls.map(textWidth));
-      // The text's inner end must sit where the slice is tall enough for it.
-      const u = outer - widest;
-      return widest <= room && 2 * u * Math.tan(Math.min(sliceAngle / 2, 1.2)) >= h;
-    };
-    if (lines.length > 3 || !fits(lines)) {
-      // Too long or the slice is too thin: shorten until it fits, or give up on the label.
-      let text = lines.join(" ");
-      while (text.length > 1 && !fits([text])) text = text.slice(0, -1);
-      lines = text.length > 1 && fits([text + "."]) ? [text + "."] : [];
+    const tanHalf = Math.tan(Math.min(sliceAngle / 2, 1.2));
+    const text = label.toUpperCase();
+    const measure = (t: string): number => textWidth(t, LETTER_GAP);
+
+    // Try 2× letters, then 1.5×, then 1×. For each, stretch along the slice as far as it fits: the text
+    // must not run past the hub or the rim, and its inner end must sit where the slice is
+    // tall enough for it.
+    let layout: { lines: string[]; sx: number; sy: number } | null = null;
+    for (const sy of [2, 1.5, 1]) {
+      const lines = wrapText(text, room / sy, measure);
+      if (lines.length > 2) continue;
+      const widest = Math.max(...lines.map(measure));
+      const h = (lines.length * (GLYPH_HEIGHT + LINE_GAP) - LINE_GAP) * sy + 2;
+      const sx = Math.min(sy * 1.3, room / widest, (room + 2 * inner - h / tanHalf) / widest);
+      if (sx >= sy * 0.9) {
+        layout = { lines, sx, sy };
+        break;
+      }
     }
-    const widest = lines.length ? Math.max(...lines.map(textWidth)) : 0;
-    const maskW = widest + 2;
-    const maskH = Math.max(0, lines.length * (GLYPH_HEIGHT + LINE_GAP) - LINE_GAP) + 2;
-    const mask = new Uint8Array(maskW * maskH);
+    if (!layout) {
+      // Too long or the slice is too thin: shorten until it fits at 1×, or give up on the label.
+      let short = text;
+      const fits = (t: string): boolean => measure(t) <= room && 2 * tanHalf * (outer - measure(t)) >= GLYPH_HEIGHT + 2;
+      while (short.length > 1 && !fits(short + ".")) short = short.slice(0, -1);
+      layout = { lines: short.length > 1 ? [short + "."] : [], sx: 1, sy: 1 };
+    }
+
+    // The letters at 1×, each line centred.
+    const { lines, sx, sy } = layout;
+    const rawW = lines.length ? Math.max(...lines.map(measure)) : 0;
+    const rawH = Math.max(0, lines.length * (GLYPH_HEIGHT + LINE_GAP) - LINE_GAP);
+    const raw = new Uint8Array(rawW * rawH);
     lines.forEach((line, k) => {
-      const x = 1 + widest - textWidth(line);
-      const y = 1 + k * (GLYPH_HEIGHT + LINE_GAP);
-      drawText(line, x, y, (gx, gy) => (mask[gy * maskW + gx] = 2));
+      const x = Math.floor((rawW - measure(line)) / 2);
+      drawText(line, x, k * (GLYPH_HEIGHT + LINE_GAP), (gx, gy) => (raw[gy * rawW + gx] = 1), LETTER_GAP);
     });
+
+    // Scaled up (nearest pixel), with a 1-pixel border for the outline.
+    const textW = Math.round(rawW * sx);
+    const textH = Math.round(rawH * sy);
+    const maskW = textW + 2;
+    const maskH = textH + 2;
+    const mask = new Uint8Array(maskW * maskH);
+    for (let y = 0; y < textH; y++)
+      for (let x = 0; x < textW; x++)
+        if (raw[Math.floor(y / sy) * rawW + Math.floor(x / sx)]) mask[(y + 1) * maskW + x + 1] = 2;
     // A 1-pixel dark outline around the letters keeps them readable on any colour.
     for (let y = 0; y < maskH; y++)
       for (let x = 0; x < maskW; x++) {
@@ -151,7 +182,9 @@ export class RetroWheelView implements WheelView {
             if (nx >= 0 && ny >= 0 && nx < maskW && ny < maskH && mask[ny * maskW + nx] === 2) mask[y * maskW + x] = 1;
           }
       }
-    return { mask, maskW, maskH, maskU: outer - maskW + 1 };
+    // Small letters are sampled a bit thicker so turned strokes don't break up; big ones are
+    // thick enough already, and thickening them would make letters run together.
+    return { mask, maskW, maskH, maskU: inner + (room - textW) / 2 - 1, thicken: sy < 1.5 };
   }
 
   resize(width: number, height: number): void {
@@ -254,7 +287,7 @@ export class RetroWheelView implements WheelView {
         const v = r * Math.sin(delta) + art.maskH / 2 - 0.5;
         let m = 0;
         if (u > -1 && v > -1 && u < art.maskW && v < art.maskH) {
-          for (const [ox, oy] of SUBSAMPLES) {
+          for (const [ox, oy] of art.thicken ? SUBSAMPLES : CENTRE) {
             const mx = Math.round(u + ox);
             const my = Math.round(v + oy);
             if (mx >= 0 && my >= 0 && mx < art.maskW && my < art.maskH) m = Math.max(m, art.mask[my * art.maskW + mx]);

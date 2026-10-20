@@ -28,6 +28,9 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
   calmer and darker slice colours with outlined white letters, short slice names on the
   wheel (the full name shows big when it lands), and the wheel comes to rest near the
   middle of the winning slice so its label sits level.
+- Retro wheel labels are drawn as big as each slice allows (up to double size),
+  run from near the centre out toward the rim, and have wider gaps between letters
+  so they don't run together.
 - All wheel slices, odds (weights), ranges, name parts and screen text live in
   `public/data/wheels.json`. Testing shortcuts `?wheel=skip` and `?seed=123`.
 - **Start screen** (alpha): pick which map to play on, Earth (2000 × 1111, the
