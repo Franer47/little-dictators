@@ -161,8 +161,10 @@ The wheel setup is fully configurable, per wheel:
    - **1d. Lakes & rivers:** big lakes as water, major rivers as a River terrain line.
      Map only; ownership, national waters, crossings and canals come with milestones
      4–6. ✅ Done (PR #4).
-   - **1e. Bigger map:** main Earth map ~2000 px wide; keep the 1500 px map as a
-     second size.
+   - **1e. Bigger map:** main Earth map 2000 × 1111 (Natural Earth 1:10m coasts); the
+     1500 × 833 map is kept as "Earth (small)". ✅ Done (PR #5).
+   - **Start screen (alpha):** pick a map, then Start. It will grow into the game
+     setup screen (start year, how full the map is, wheel settings…) in milestone 2.
 2. **Wheel (cosmetic)** — wheel UI with words/numbers only; results are stored and shown
    on the nation but have **no effect** yet. Includes the customizable wheel setup
    (modes, options, bonus Continent wheel), random editable names, start year choice.
