@@ -607,7 +607,7 @@ class WheelScreen {
     } else {
       const rect = (big ? this.el.card : this.view.canvas).getBoundingClientRect();
       const tip = big ? { x: rect.width / 2, y: rect.height * 0.2 } : this.view.pointerTip();
-      const pixel = Math.max(2, Math.round(parseFloat(this.view.canvas.style.width) / this.view.canvas.width) || 3);
+      const pixel = Math.max(2, Math.round((this.view as RetroWheelView).pixelSize));
       const colors =
         kind === "rare"
           ? dooms

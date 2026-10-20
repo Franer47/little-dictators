@@ -1,16 +1,19 @@
 // The "Retro pixel" wheel: drawn pixel by pixel on a small canvas each frame, then scaled
-// up with no smoothing, so every pixel stays a crisp square however the wheel turns.
+// up with no smoothing, so every pixel stays a crisp square however the wheel turns. The
+// slice labels are drawn on top at full screen resolution in a pixel-style font, so they
+// stay sharp and easy to read at any angle.
 
 import type { Wheel } from "../../game/wheels.ts";
-import { GLYPH_HEIGHT, drawText, textWidth, wrapText } from "./pixelFont.ts";
-import { TAU, sliceColor, sliceEdges, specialColors, type WheelFrame, type WheelView } from "./wheelView.ts";
+import { DOOM_RED, TAU, sliceColor, sliceEdges, specialColors, wrapText, type WheelFrame, type WheelView } from "./wheelView.ts";
+
+/** The slice labels' font: Pixelify Sans, a pixel font made for legibility. */
+const LABEL_FONT = '700 {size}px "Pixelify Sans", monospace';
 
 /** The retro palette: a few earthy map colours plus some bright accents. */
 export const RETRO_PALETTE = {
   outline: "#0b1020",
   shadow: "#000000",
   text: "#fffbea",
-  textDim: "#a8a8b8",
   rim: ["#6e4a1c", "#a8742a", "#d9a441"],
   studOff: "#5a3a14",
   studOn: ["#fff3b0", "#ffd84a"],
@@ -40,17 +43,6 @@ const CY = R + MARGIN;
 const W = 2 * R + MARGIN * 2 + POINTER_LEN - 8 + SHADOW.x;
 const H = 2 * R + MARGIN * 2 + SHADOW.y;
 const STUDS = 24;
-const LINE_GAP = 2;
-const LETTER_GAP = 2; // empty pixels between letters on the wheel
-// Where each label pixel is sampled (in pixels), so thin rotated strokes don't vanish.
-const CENTRE = [[0, 0]];
-const SUBSAMPLES = [
-  [-0.3, -0.3],
-  [0.3, -0.3],
-  [-0.3, 0.3],
-  [0.3, 0.3],
-];
-
 // 4×4 ordered-dither thresholds (0..1), for the classic checkered shading.
 const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16);
 
@@ -63,31 +55,34 @@ function px(hex: string, alpha = 255): number {
 interface SliceArt {
   colors: [number, number, number];
   center: number; // fraction of a turn
-  /** Label mask: 0 = nothing, 1 = outline, 2 = text. */
-  mask: Uint8Array;
-  maskW: number;
-  maskH: number;
-  /** Distance from the wheel centre where the mask starts. */
-  maskU: number;
-  /** Sample the label a little thicker (for small letters). */
-  thicken: boolean;
+  /** Its label, drawn once into its own canvas (screen pixels), reading outward. */
+  label: HTMLCanvasElement | null;
+  /** Distance from the wheel centre where the label starts, in screen pixels. */
+  labelAt: number;
+  /** A rare slice: no label, glowing red edges. */
+  rare: boolean;
 }
 
 export class RetroWheelView implements WheelView {
   readonly canvas = document.createElement("canvas");
   private ctx: CanvasRenderingContext2D;
+  /** The wheel at its own small size, one canvas pixel per wheel pixel. */
+  private low = document.createElement("canvas");
+  private lowCtx: CanvasRenderingContext2D;
   private image: ImageData;
   private pixels: Uint32Array;
+  private wheel: Wheel | null = null;
   private edges: number[] = [0, 1];
   private slices: SliceArt[] = [];
   private kick = 0;
+  /** CSS pixels per wheel pixel. */
   private scale = 2;
+  private dpr = 1;
 
   private readonly c = {
     outline: px(RETRO_PALETTE.outline),
+    doomRed: px(DOOM_RED),
     shadow: px(RETRO_PALETTE.shadow, 90),
-    text: px(RETRO_PALETTE.text),
-    textDim: px(RETRO_PALETTE.textDim),
     rim: RETRO_PALETTE.rim.map((h) => px(h)),
     studOff: px(RETRO_PALETTE.studOff),
     studOn: RETRO_PALETTE.studOn.map((h) => px(h)),
@@ -96,96 +91,112 @@ export class RetroWheelView implements WheelView {
   };
 
   constructor() {
-    this.canvas.width = W;
-    this.canvas.height = H;
     this.canvas.className = "wheel-canvas retro";
     this.ctx = this.canvas.getContext("2d")!;
-    this.image = this.ctx.createImageData(W, H);
+    this.low.width = W;
+    this.low.height = H;
+    this.lowCtx = this.low.getContext("2d")!;
+    this.image = this.lowCtx.createImageData(W, H);
     this.pixels = new Uint32Array(this.image.data.buffer);
+    // Draw the labels again once the font has loaded.
+    document.fonts?.load(this.font(40)).then(() => this.renderLabels()).catch(() => {});
+  }
+
+  /** CSS pixels per wheel pixel (the size of one "big pixel"), for matching effects. */
+  get pixelSize(): number {
+    return this.scale;
+  }
+
+  private font(size: number): string {
+    return LABEL_FONT.replace("{size}", String(size));
   }
 
   setWheel(wheel: Wheel): void {
+    this.wheel = wheel;
     this.edges = sliceEdges(wheel);
-    const n = wheel.slices.length;
-    const palette = RETRO_PALETTE.slices;
-    this.slices = wheel.slices.map((slice, i) => {
-      const colors = (specialColors(wheel, slice, i) ?? palette[sliceColor(i, n, palette.length)]).map((h) => px(h)) as [number, number, number];
-      const start = this.edges[i];
-      const end = this.edges[i + 1];
-      return { colors, center: (start + end) / 2, ...this.labelMask(slice.rare ? "" : (slice.short ?? slice.shown), (end - start) * TAU) };
-    });
+    this.renderLabels();
   }
 
   /**
-   * Lays out a slice's label along its middle line, reading outward. Letters are drawn as
-   * big as the slice allows: twice the font size where there's room, stretched a little
-   * longer along the slice, and centred between the hub and the rim.
+   * Lays out each slice's label along its middle line, reading outward, centred between
+   * the hub and the rim, white with a dark outline so it reads on every colour. All labels
+   * on a wheel share one size where they can, so the wheel reads evenly; a very long one
+   * may go a little smaller rather than shrink everything.
    */
-  private labelMask(label: string, sliceAngle: number): Pick<SliceArt, "mask" | "maskW" | "maskH" | "maskU" | "thicken"> {
-    if (!label) return { mask: new Uint8Array(0), maskW: 0, maskH: 0, maskU: 0, thicken: false }; // no label (rare slices)
-    const inner = HUB + 3;
-    const outer = R - RIM - 3;
+  private renderLabels(): void {
+    const wheel = this.wheel;
+    if (!wheel) return;
+    const k = this.scale * this.dpr; // screen pixels per wheel pixel
+    const n = wheel.slices.length;
+    const palette = RETRO_PALETTE.slices;
+    const g = document.createElement("canvas").getContext("2d")!;
+    const inner = (HUB + 4) * k;
+    const outer = (R - RIM - 4) * k;
     const room = outer - inner;
-    const tanHalf = Math.tan(Math.min(sliceAngle / 2, 1.2));
-    const text = label.toUpperCase();
-    const measure = (t: string): number => textWidth(t, LETTER_GAP);
+    const biggest = Math.round(R * k * 0.15);
+    const smallest = R * k * 0.05;
 
-    // Try 2× letters, then 1.5×, then 1×. For each, stretch along the slice as far as it fits: the text
-    // must not run past the hub or the rim, and its inner end must sit where the slice is
-    // tall enough for it.
-    let layout: { lines: string[]; sx: number; sy: number } | null = null;
-    for (const sy of [2, 1.5, 1]) {
-      const lines = wrapText(text, room / sy, measure);
-      if (lines.length > 2) continue;
-      const widest = Math.max(...lines.map(measure));
-      const h = (lines.length * (GLYPH_HEIGHT + LINE_GAP) - LINE_GAP) * sy + 2;
-      const sx = Math.min(sy * 1.3, room / widest, (room + 2 * inner - h / tanHalf) / widest);
-      if (sx >= sy * 0.9) {
-        layout = { lines, sx, sy };
-        break;
-      }
-    }
-    if (!layout) {
-      // Too long or the slice is too thin: shorten until it fits at 1×, or give up on the label.
-      let short = text;
-      const fits = (t: string): boolean => measure(t) <= room && 2 * tanHalf * (outer - measure(t)) >= GLYPH_HEIGHT + 2;
-      while (short.length > 1 && !fits(short + ".")) short = short.slice(0, -1);
-      layout = { lines: short.length > 1 ? [short + "."] : [], sx: 1, sy: 1 };
-    }
-
-    // The letters at 1×, each line centred.
-    const { lines, sx, sy } = layout;
-    const rawW = lines.length ? Math.max(...lines.map(measure)) : 0;
-    const rawH = Math.max(0, lines.length * (GLYPH_HEIGHT + LINE_GAP) - LINE_GAP);
-    const raw = new Uint8Array(rawW * rawH);
-    lines.forEach((line, k) => {
-      const x = Math.floor((rawW - measure(line)) / 2);
-      drawText(line, x, k * (GLYPH_HEIGHT + LINE_GAP), (gx, gy) => (raw[gy * rawW + gx] = 1), LETTER_GAP);
+    // Where a label of this size would go, or null if it doesn't fit: up to two lines, no
+    // further out than the rim, and the slice must be tall enough where its inner end sits.
+    const fit = (text: string, tanHalf: number, size: number) => {
+      g.font = this.font(size);
+      const lines = wrapText(text, room, (t) => g.measureText(t).width);
+      if (lines.length > 2) return null;
+      const widest = Math.max(...lines.map((l) => g.measureText(l).width));
+      const pad = Math.max(1, Math.round(size / 11)); // outline thickness
+      const tall = lines.length * size * 0.95 + pad * 2;
+      const at = Math.max(inner + (room - widest) / 2, tall / 2 / tanHalf);
+      return at + widest > outer ? null : { lines, size, widest, pad, at };
+    };
+    const info = wheel.slices.map((slice, i) => {
+      const [start, end] = [this.edges[i], this.edges[i + 1]];
+      const tanHalf = Math.tan(Math.min(((end - start) * TAU) / 2, 1.2));
+      const text = slice.rare ? "" : (slice.short ?? slice.shown); // rare slices have no label
+      let best = 0;
+      for (let size = biggest; text && size >= smallest; size = Math.floor(size * 0.94))
+        if (fit(text, tanHalf, size)) {
+          best = size;
+          break;
+        }
+      return { start, end, tanHalf, text, best };
     });
+    // One size for the wheel: the smallest that every label fits at, but not dragged below
+    // 90% of the typical label by one very long name (that one just goes smaller).
+    const fitting = info.map((x) => x.best).filter((x) => x > 0).sort((p, q) => p - q);
+    const median = fitting[Math.floor(fitting.length / 2)] ?? 0;
+    const shared = Math.max(fitting[0] ?? 0, Math.floor(median * 0.9));
 
-    // Scaled up (nearest pixel), with a 1-pixel border for the outline.
-    const textW = Math.round(rawW * sx);
-    const textH = Math.round(rawH * sy);
-    const maskW = textW + 2;
-    const maskH = textH + 2;
-    const mask = new Uint8Array(maskW * maskH);
-    for (let y = 0; y < textH; y++)
-      for (let x = 0; x < textW; x++)
-        if (raw[Math.floor(y / sy) * rawW + Math.floor(x / sx)]) mask[(y + 1) * maskW + x + 1] = 2;
-    // A 1-pixel dark outline around the letters keeps them readable on any colour.
-    for (let y = 0; y < maskH; y++)
-      for (let x = 0; x < maskW; x++) {
-        if (mask[y * maskW + x]) continue;
-        for (let oy = -1; oy <= 1; oy++)
-          for (let ox = -1; ox <= 1; ox++) {
-            const nx = x + ox;
-            const ny = y + oy;
-            if (nx >= 0 && ny >= 0 && nx < maskW && ny < maskH && mask[ny * maskW + nx] === 2) mask[y * maskW + x] = 1;
-          }
+    this.slices = info.map((x, i) => {
+      const slice = wheel.slices[i];
+      const colors = (specialColors(wheel, slice, i) ?? palette[sliceColor(i, n, palette.length)]).map((h) => px(h)) as [number, number, number];
+      const art: SliceArt = { colors, center: (x.start + x.end) / 2, label: null, labelAt: 0, rare: !!slice.rare };
+      const layout = x.best > 0 ? fit(x.text, x.tanHalf, Math.min(x.best, shared)) : null;
+      if (layout) {
+        art.label = this.drawLabel(layout.lines, layout.size, layout.widest, layout.pad);
+        art.labelAt = layout.at - layout.pad;
       }
-    // Small letters are sampled a bit thicker so turned strokes don't break up; big ones are
-    // thick enough already, and thickening them would make letters run together.
-    return { mask, maskW, maskH, maskU: inner + (room - textW) / 2 - 1, thicken: sy < 1.5 };
+      return art;
+    });
+  }
+
+  private drawLabel(lines: string[], size: number, widest: number, pad: number): HTMLCanvasElement {
+    const lineH = size * 0.95;
+    const label = document.createElement("canvas");
+    label.width = Math.ceil(widest + pad * 2);
+    label.height = Math.ceil(lines.length * lineH + pad * 3);
+    const g = label.getContext("2d")!;
+    g.font = this.font(size);
+    g.textAlign = "center";
+    g.textBaseline = "middle";
+    const write = (dx: number, dy: number): void =>
+      lines.forEach((line, i) => g.fillText(line, label.width / 2 + dx, pad + lineH * (i + 0.5) + dy));
+    // A hard-edged outline: the text in dark, nudged to all sides, then white on top.
+    g.fillStyle = RETRO_PALETTE.outline;
+    for (let dy = -pad; dy <= pad; dy += pad) for (let dx = -pad; dx <= pad; dx += pad) write(dx, dy);
+    write(pad, pad * 2); // a little extra shadow below-right
+    g.fillStyle = RETRO_PALETTE.text;
+    write(0, 0);
+    return label;
   }
 
   resize(width: number, height: number): void {
@@ -195,8 +206,12 @@ export class RetroWheelView implements WheelView {
     const whole = Math.floor(deviceScale);
     if (whole >= 2 && whole / deviceScale > 0.9) deviceScale = whole;
     this.scale = deviceScale / dpr;
+    this.dpr = dpr;
+    this.canvas.width = Math.round(W * deviceScale);
+    this.canvas.height = Math.round(H * deviceScale);
     this.canvas.style.width = `${W * this.scale}px`;
     this.canvas.style.height = `${H * this.scale}px`;
+    this.renderLabels();
   }
 
   tickStops(): number[] {
@@ -279,28 +294,13 @@ export class RetroWheelView implements WheelView {
         let i = 0;
         while (i < n - 1 && frac >= edges[i + 1]) i++;
         const edgeDist = Math.min(frac - edges[i], edges[i + 1] - frac) * TAU * r;
-        if (edgeDist < 0.7) {
-          pixels[p] = c.outline;
+        const art = slices[i];
+        if (art.rare && edgeDist < 1.7) {
+          pixels[p] = c.doomRed; // a rare slice's red edges
           continue;
         }
-        const art = slices[i];
-        // Label: turn this pixel into the slice's own frame and look it up in the mask.
-        let delta = (frac - art.center) * TAU;
-        if (delta > Math.PI) delta -= TAU;
-        if (delta < -Math.PI) delta += TAU;
-        const u = r * Math.cos(delta) - art.maskU;
-        const v = r * Math.sin(delta) + art.maskH / 2 - 0.5;
-        let m = 0;
-        if (u > -1 && v > -1 && u < art.maskW && v < art.maskH) {
-          for (const [ox, oy] of art.thicken ? SUBSAMPLES : CENTRE) {
-            const mx = Math.round(u + ox);
-            const my = Math.round(v + oy);
-            if (mx >= 0 && my >= 0 && mx < art.maskW && my < art.maskH) m = Math.max(m, art.mask[my * art.maskW + mx]);
-          }
-        }
-        if (m) {
-          const dim = f.winner !== null && f.winner !== i;
-          pixels[p] = m === 1 ? c.outline : dim ? c.textDim : c.text;
+        if (edgeDist < 0.7) {
+          pixels[p] = c.outline;
           continue;
         }
         const s = light * Math.max(0, (r - (sliceOuter - 40)) / 40);
@@ -313,7 +313,24 @@ export class RetroWheelView implements WheelView {
       }
     }
     this.drawPointer();
-    this.ctx.putImageData(this.image, 0, 0);
+    this.lowCtx.putImageData(this.image, 0, 0);
+
+    // Scale the pixel wheel up with no smoothing, then put the sharp labels on top.
+    const ctx = this.ctx;
+    const k = this.scale * this.dpr;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(this.low, 0, 0, this.canvas.width, this.canvas.height);
+    slices.forEach((art, i) => {
+      if (!art.label) return;
+      ctx.save();
+      ctx.translate(CX * k, CY * k);
+      ctx.rotate(f.angle + art.center * TAU);
+      if (f.winner !== null && f.winner !== i) ctx.globalAlpha = 0.5;
+      ctx.drawImage(art.label, art.labelAt, -art.label.height / 2);
+      ctx.restore();
+    });
   }
 
   /** The red arrow on the right, pointing at the wheel. It jumps a little at each tick. */

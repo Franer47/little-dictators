@@ -109,3 +109,19 @@ export function sliceColor(index: number, count: number, paletteSize: number): n
   const k = index % paletteSize;
   return index === count - 1 && count > 1 && k === 0 ? 1 % paletteSize : k;
 }
+
+/** Splits text into lines no wider than maxWidth, breaking between words. */
+export function wrapText(text: string, maxWidth: number, measure: (s: string) => number): string[] {
+  const lines: string[] = [];
+  let line = "";
+  for (const word of text.split(/\s+/)) {
+    const tryLine = line ? `${line} ${word}` : word;
+    if (!line || measure(tryLine) <= maxWidth) line = tryLine;
+    else {
+      lines.push(line);
+      line = word;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}

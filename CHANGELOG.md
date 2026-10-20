@@ -88,6 +88,11 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 - This changelog.
 
 ### Changed
+- **Retro wheel slice labels are much easier to read.** They are now drawn sharp at full
+  screen resolution in Pixelify Sans Bold (a pixel font made for legibility), white with
+  a dark pixel outline, on top of the chunky pixel wheel. All labels on a wheel share one
+  size where they can, so the wheel reads evenly. (Tried against VT323 and Silkscreen;
+  see docs/retro-label-fonts.jpg.) The hand-made 5×7 pixel font is gone.
 - Wheel data is split by era: `public/data/wheels.json` picks the era and holds the
   screen text, and `public/data/eras/1500.json` holds the 1500 wheels, number ranges
   (with notes on where they come from) and name parts. Culture and Religion wheels are
