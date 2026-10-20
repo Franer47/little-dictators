@@ -206,8 +206,13 @@ The wheel setup is fully configurable, per wheel:
        whether Culture/Religion come back, and more rare results.
    - **2c. Later polish:** flags and really advanced generation scripts (names, flags,
      history) come with the polishing phase.
-   - **2d. Placing nations:** click a start spot, or let the wheel pick one ("Surprise
-     me", later the Continent wheel). Territory grows over land to the rolled size.
+   - **2d. Placing nations (Europe test):** click a start spot or "Surprise me". Territory
+     grows from there like a natural blob: prefers plains, slow through highlands and
+     mountains, stops at the sea and at other nations; real km² per pixel, so it matches
+     the rolled land size. Each nation gets its own **colour** (its flag for now). Test it
+     by filling **Europe with ~15 nations** one after another. **Only land size matters**
+     here: no stats or bonuses affect it yet. Once it works it becomes the normal start.
+
 3. **Stats matter** — wheel results turn into real numbers: derived values such as army
    strength, growth rate, stability, economy.
 4. **Ticks + basic simulation** — the clock runs; growth and peaceful expansion into empty
