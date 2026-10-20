@@ -6,6 +6,8 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 ## Unreleased
 
 ### Fixed
+- **Buttons that are switched on (the chosen style, Skip animation) are easy to read again.**
+  Their text was light on the yellow; it's now dark with a thin light outline, in both styles.
 - **"Reveal nation" froze the game in the Retro style.** When the wheel hid behind the
   finished nation card its size became zero, and the retro label sizing then looped
   forever. A hidden wheel now keeps its size, and the label sizing always stops.

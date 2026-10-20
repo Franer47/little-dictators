@@ -169,15 +169,23 @@
   border-radius: 999px;
 }
 
-.ws-style button[aria-checked="true"],
-.ws-toggle[aria-pressed="true"] {
+/* "#wheel-screen" so these win over "#wheel-screen button { color: inherit }" above. */
+#wheel-screen .ws-style button[aria-checked="true"],
+#wheel-screen .ws-toggle[aria-pressed="true"] {
   background: var(--accent);
   color: #1d0838;
+  /* Dark letters with a thin light edge, so the word stands out on the yellow. */
+  text-shadow:
+    1px 0 0 rgba(255, 255, 255, 0.8),
+    -1px 0 0 rgba(255, 255, 255, 0.8),
+    0 1px 0 rgba(255, 255, 255, 0.8),
+    0 -1px 0 rgba(255, 255, 255, 0.8);
 }
 
-.ws-mute[aria-pressed="true"] {
+#wheel-screen .ws-mute[aria-pressed="true"] {
   background: rgba(255, 255, 255, 0.08);
   color: var(--muted);
+  text-shadow: none;
 }
 
 .ws-style button:hover:not([aria-checked="true"]),
@@ -206,8 +214,8 @@
     inset 0 -3px 0 0 #0d1a33;
 }
 
-.style-retro .ws-style button[aria-checked="true"],
-.style-retro .ws-toggle[aria-pressed="true"] {
+#wheel-screen.style-retro .ws-style button[aria-checked="true"],
+#wheel-screen.style-retro .ws-toggle[aria-pressed="true"] {
   background: var(--accent);
   color: var(--edge);
   box-shadow:
@@ -218,7 +226,7 @@
     inset 0 -3px 0 0 #b07d22;
 }
 
-.style-retro .ws-mute[aria-pressed="true"] {
+#wheel-screen.style-retro .ws-mute[aria-pressed="true"] {
   background: var(--panel);
   color: var(--muted);
 }
