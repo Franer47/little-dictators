@@ -14,6 +14,8 @@ export interface CameraControlsOptions {
 
 /** Mouse and keyboard controls for moving the camera around. */
 export class CameraControls {
+  /** Off while another screen (e.g. the wheel) is in front of the map. */
+  enabled = true;
   private keys = new Set<string>();
   private dragStart: { x: number; y: number } | null = null;
   private lastPointer = { x: 0, y: 0 };
@@ -81,6 +83,8 @@ export class CameraControls {
   };
 
   private onKeyDown = (e: KeyboardEvent): void => {
+    // Not while typing (e.g. renaming the nation) or while the map is covered.
+    if (!this.enabled || (e.target as HTMLElement | null)?.closest?.("input, textarea")) return;
     this.keys.add(e.code);
     if (e.code === "KeyF") {
       this.opts.onFit();

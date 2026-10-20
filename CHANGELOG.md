@@ -6,6 +6,21 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 ## Unreleased
 
 ### Added
+- **Wheel beta: create your nation.** After picking a map, spin one big wheel for
+  Government, Land size, Population, GDP and Ideology. Land, population and GDP are spun
+  twice: first a range (e.g. 70M–200M people), then a wheel of 10 numbers in that range
+  for the exact number. Results fill a nation card; at the end the nation gets a random
+  name (rename it or roll a new one), then you continue to the map, which loads in the
+  background meanwhile. Cosmetic for now: the results don't affect the game yet.
+- Two wheel looks to compare, switchable on the wheel screen and remembered:
+  **Retro pixel** (chunky pixel wheel, pixel font, 8-bit blips) and **Game show**
+  (bright slices, chasing lights, a flapper that ticks over pegs, confetti). Sound
+  effects are made in the browser; a mute button and a "Skip animation" option.
+- **Nation panel** in the bottom-right corner of the map: flag placeholder, name and key
+  results. Click it for the **creation record**: every roll with its odds, the date, the
+  map and the random seed.
+- All wheel slices, odds (weights), ranges, name parts and screen text live in
+  `public/data/wheels.json`. Testing shortcuts `?wheel=skip` and `?seed=123`.
 - **Start screen** (alpha): pick which map to play on, Earth (2000 × 1111, the
   default) or Earth (small) (1500 × 833), then press Start.
 - **Lakes and rivers** on the Earth map. Big lakes (the Great Lakes, Victoria,

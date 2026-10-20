@@ -1,0 +1,199 @@
+/* The nation panel (bottom-right of the map) and its creation record. */
+
+#nation-panel {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  max-width: calc(100vw - 24px);
+  pointer-events: none; /* only the boxes themselves catch clicks; the map stays usable around them */
+  animation: np-in 0.5s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+@keyframes np-in {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+}
+
+#nation-panel > * {
+  pointer-events: auto;
+}
+
+.np-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 340px;
+  padding: 10px 14px 10px 10px;
+  font: inherit;
+  color: #eef2f6;
+  text-align: left;
+  background: rgba(14, 22, 34, 0.86);
+  border: 1px solid rgba(127, 180, 230, 0.35);
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.np-summary:hover,
+#nation-panel.open .np-summary {
+  border-color: #7fb4e6;
+  background: rgba(18, 30, 48, 0.92);
+}
+
+.np-summary .flag-frame {
+  width: 54px;
+  height: 40px;
+  color: #7fb4e6;
+}
+
+.np-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.np-name {
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.np-facts {
+  margin: 3px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgba(238, 242, 246, 0.85);
+}
+
+.np-fact-name {
+  color: rgba(238, 242, 246, 0.5);
+}
+
+.np-fact-name::after {
+  content: ":";
+}
+
+.np-record {
+  width: min(400px, calc(100vw - 24px));
+  max-height: calc(100vh - 150px);
+  overflow: auto;
+  padding: 14px 16px 12px;
+  background: rgba(14, 22, 34, 0.94);
+  border: 1px solid rgba(127, 180, 230, 0.35);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  font-size: 13px;
+  animation: np-open 0.2s ease-out;
+}
+
+.np-record[hidden] {
+  display: none;
+}
+
+@keyframes np-open {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+}
+
+.np-record header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.np-record h2 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #7fb4e6;
+}
+
+.np-close {
+  width: 28px;
+  height: 28px;
+  font-size: 20px;
+  line-height: 1;
+  color: #eef2f6;
+  background: rgba(255, 255, 255, 0.06);
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.np-close:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.np-record-name {
+  margin: 6px 0 10px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.np-record table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.np-record th,
+.np-record td {
+  padding: 6px 4px;
+  text-align: left;
+  vertical-align: top;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.np-record th {
+  font-weight: 500;
+  color: rgba(238, 242, 246, 0.55);
+  white-space: nowrap;
+}
+
+.np-result {
+  font-weight: 600;
+}
+
+.np-est {
+  color: #9cc6ee;
+}
+
+.np-odds {
+  font-size: 11px;
+  color: rgba(238, 242, 246, 0.45);
+  text-align: right !important;
+  white-space: nowrap;
+}
+
+.np-record dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 10px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 12px;
+}
+
+.np-record dt {
+  color: rgba(238, 242, 246, 0.55);
+}
+
+.np-record dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}

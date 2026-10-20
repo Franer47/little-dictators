@@ -5,26 +5,53 @@ import { Camera } from "./render/camera.ts";
 import { MapRenderer } from "./render/mapRenderer.ts";
 import { CameraControls } from "./input/cameraControls.ts";
 import { chooseMap } from "./ui/startMenu.ts";
+import { exactWheel, loadWheelData, simulateSpins, type WheelData } from "./game/wheels.ts";
+import { rollNation } from "./game/nation.ts";
+import { createRng } from "./game/random.ts";
+import { runWheelScreen } from "./ui/wheel/wheelScreen.ts";
+import { showNationPanel } from "./ui/nationPanel.ts";
 
 async function main(): Promise<void> {
   const canvas = document.querySelector<HTMLCanvasElement>("#map")!;
   const tileInfo = document.querySelector<HTMLDivElement>("#tile-info")!;
 
-  // Which map to load: picked on the start screen, unless the address names one, e.g.
-  // ?map=earth-1500 (skips the start screen; any name in public/maps/ works).
-  const requested = new URLSearchParams(location.search).get("map");
+  // Testing shortcuts in the address: ?map=earth-1500 skips the start screen (any name in
+  // public/maps/ works), ?wheel=skip rolls the nation instantly, ?seed=123 fixes the rolls.
+  const params = new URLSearchParams(location.search);
+  const requested = params.get("map");
+  const seedParam = params.get("seed");
+  const seed = seedParam && /^\d+$/.test(seedParam) ? Number(seedParam) : undefined;
+
+  // Which map to load: picked on the start screen, unless the address names one.
   const choice = requested && /^[\w-]+$/.test(requested) ? { name: requested, done: () => {} } : await chooseMap();
   const mapName = choice.name;
+  const wheelsLoading = loadWheelData();
+  // The map loads in the background while the player spins the wheels.
   const startTime = performance.now();
-  const map = await loadMap(mapName);
-  const loadedTime = performance.now();
+  const mapLoading = loadMap(mapName);
+  let wheels: WheelData;
+  try {
+    wheels = await wheelsLoading;
+  } catch (e) {
+    showFatalError((e as Error).message);
+    return;
+  }
   choice.done();
-  document.querySelector<HTMLDivElement>("#hud")!.hidden = false;
-  const camera = new Camera(map.width, map.height, map.wraps);
-  const renderer = new MapRenderer(canvas, map, camera);
+  const nationReady =
+    params.get("wheel") === "skip"
+      ? Promise.resolve(rollNation(wheels, mapName, createRng(seed)))
+      : runWheelScreen({ data: wheels, mapName, mapReady: mapLoading, seed });
 
   // Handy for poking at the game from the browser console while developing.
-  if (import.meta.env.DEV) Object.assign(window, { game: { map, camera, renderer } });
+  // game.checkWeights() spins every wheel 100,000 times and compares the wins with the weights.
+  const debug: Record<string, unknown> = { wheels, checkWeights: () => checkWeights(wheels) };
+  if (import.meta.env.DEV) Object.assign(window, { game: debug });
+
+  const map = await mapLoading;
+  const loadedTime = performance.now();
+  const camera = new Camera(map.width, map.height, map.wraps);
+  const renderer = new MapRenderer(canvas, map, camera);
+  Object.assign(debug, { map, camera, renderer });
 
   // Only redraw when something changed, instead of every frame.
   let needsRender = true;
@@ -67,7 +94,7 @@ async function main(): Promise<void> {
     requestRender();
   };
 
-  new CameraControls(canvas, camera, {
+  const controls = new CameraControls(canvas, camera, {
     onChange: updateHover,
     onHover: (sx, sy) => {
       pointer = [sx, sy];
@@ -104,6 +131,42 @@ async function main(): Promise<void> {
     );
   }
   requestAnimationFrame(frame);
+
+  // The map waits behind the wheel screen until the nation is made.
+  controls.enabled = false;
+  const nation = await nationReady;
+  controls.enabled = true;
+  document.querySelector<HTMLDivElement>("#hud")!.hidden = false;
+  showNationPanel(nation, wheels);
+  debug.nation = nation;
+}
+
+/** Dev check that spins land as often as their weights say (see game.checkWeights above). */
+function checkWeights(data: WheelData): Record<string, ReturnType<typeof simulateSpins>> {
+  const rng = createRng();
+  const results: Record<string, ReturnType<typeof simulateSpins>> = {};
+  for (const wheel of data.wheels) {
+    console.log(`${wheel.name} (100,000 spins):`);
+    results[wheel.id] = simulateSpins(wheel, rng);
+    console.table(results[wheel.id]);
+    if (wheel.estimate) {
+      // Also the exact-number wheel that follows its first slice.
+      const exact = exactWheel(wheel, wheel.slices[0], data);
+      console.log(`${wheel.name}, exact numbers for ${wheel.slices[0].shown}:`);
+      results[exact.id] = simulateSpins(exact, rng);
+      console.table(results[exact.id]);
+    }
+  }
+  return results;
+}
+
+/** Shows an error the player can read, e.g. a mistake in a data file. */
+function showFatalError(message: string): void {
+  const box = document.createElement("div");
+  box.id = "fatal-error";
+  box.textContent = message;
+  document.body.append(box);
+  console.error(message);
 }
 
 main();
