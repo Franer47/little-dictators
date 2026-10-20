@@ -178,6 +178,10 @@ The wheel setup is fully configurable, per wheel:
      switchable before spinning: **Retro pixel** (chunky, 8-bit sounds) and **Bold game
      show** (bright slices, ticking pointer, pop on the result), with a mute button.
      Wheel contents live in an editable data file. Purely cosmetic.
+     After picking the map, a short **zoom-into-the-map transition** leads into the wheel.
+   - **2b. Wheel polish (later):** better generated nation names (more variety, names that
+     fit the culture/region), the rest of the wheels (Continent, Resource focus, History
+     cards…), tuned odds per slice, and more effects.
 3. **Stats matter** — wheel results turn into real numbers: derived values such as army
    strength, growth rate, stability, economy.
 4. **Ticks + basic simulation** — the clock runs; growth and peaceful expansion into empty
