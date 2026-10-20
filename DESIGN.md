@@ -180,20 +180,30 @@ The wheel setup is fully configurable, per wheel:
      show** (bright slices, ticking pointer, pop on the result), with a mute button.
      Wheel contents live in an editable data file. Purely cosmetic.
      After picking the map, a short **zoom-into-the-map transition** leads into the wheel. ✅ Done (PR #6).
-   - **2b. Wheel content & realistic numbers (1500 start):**
-     - **Era-based wheels:** wheel contents depend on the start year; one set per era in
-       the data file. Build the **1500** set first (kingdoms, sultanates, merchant
-       republics, khanates… no anachronisms like communism). Later eras get their own sets.
-     - **Spins:** Culture, Religion, Government, Land size, Population density, Wealth,
-       Resource focus, Ideology/outlook, History, Stability, Acceptance of the government.
-       Way more options per wheel than the beta.
-     - **Realistic chained numbers:** land size (**max 1.5× Germany ≈ 535,000 km²**) →
-       density spin → population → wealth spin → GDP from population. All within
-       1500-era ranges. GDP shown as an estimate **in today's dollars**.
-     - **Names** generated from the Culture spin (names that sound like that culture).
-     - **Odds:** placeholder weights for now. Percentages, the government and ideology
-       lists, and rare "insane" slices (e.g. an *Eternal Republic*) get discussed in
-       detail later.
+   - **2b. Wheel content & realistic numbers (1500 start):** ✅ Done (PRs #7–#10).
+     - **Era-based wheels:** `public/data/eras/1500.json`; one file per era. Spin rules
+       live in `src/game/roller.ts`, shared by the wheel screen and instant rolls (same
+       seed → same nation).
+     - **11 spins:** Government → Land size → Population density → Wealth → Bonus
+       resources (×3, no repeats) → Ideology → History → Stability → Popularity → Bonus
+       spin → Golden spin. **Culture and Religion are switched off** for now (lists kept
+       in the data file with `"off": true`).
+     - **Chained numbers:** land 2,000–535,000 km² (max 1.5× Germany) with a size
+       comparison; density 0.5–60/km²; output $900–3,100 per person (Maddison 1500, in
+       today's dollars). Population = land × density, GDP = population × output.
+     - **Rare pulls:** a thin black slice (1.5%) on Government and Ideology opens a dark
+       wheel of 7 rare results (Eternal Republic, Necrocracy… / Eternalism, Apocalypticism…).
+       At most one per nation (~3% of nations).
+     - **Nation chart:** every result moves the nation's dot left/right (liberal & peaceful
+       ↔ nationalist & tyrannical) and up/down (good life ↔ miserable).
+     - **Bonus spin:** ~20 traits ("Seeks revenge", "Open borders"…); slices are bigger
+       the nearer they sit to the nation's dot on the chart.
+     - **Golden spin:** a chance wheel (higher toward the chart's corners, up to 60%;
+       ~1 nation in 14 wins), then a gold wheel: double land / people / wealth, or a
+       special trait.
+     - **Names** come from government + ideology (titles and 24 syllable sets).
+     - **Still to discuss:** final odds/percentages, the government and ideology lists,
+       whether Culture/Religion come back, and more rare results.
    - **2c. Later polish:** flags and really advanced generation scripts (names, flags,
      history) come with the polishing phase.
    - **2d. Placing nations:** click a start spot, or let the wheel pick one ("Surprise
