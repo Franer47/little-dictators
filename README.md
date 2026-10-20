@@ -20,14 +20,41 @@ the wheel (below) while the map loads in the background.
 
 ![The game show wheel](docs/wheel-gameshow.jpg)
 
-One big wheel, spun once per question: **Government**, **Land size**, **Population**,
-**GDP** and **Ideology**. The number wheels (land, population, GDP) are spun twice: first
-for a range (e.g. 70M–200M people), then on a second wheel of 10 numbers spread through
-that range, which gives the exact number (e.g. 82M people). The results collect on the
-nation card; after the last spin the nation gets a random name (click it to rename, or
-press the dice for a new one), and **Continue to map** takes you to the map. The nation
-panel in the bottom-right corner shows the name and key results; click it for the
-**creation record** (every roll, its odds, the date and the random seed). Esc closes it.
+The game starts in **1500**, and every wheel fits that time: kingdoms, sultanates,
+khanates and merchant republics, no juntas or GDP talk. One big wheel is spun once per
+question, **9 spins** in this order:
+
+1. **Government**: Feudal Monarchy, Absolute Monarchy, Elected Monarchy, Sultanate,
+   Khanate, Imperial Bureaucracy, Merchant Republic, Noble Republic, City-State,
+   Theocracy, Knightly Order, Tribal Confederation, Chiefdom, Despot Rule, Warlord Rule,
+   Regency, and a **rare** Eternal Republic.
+2. **Land size**: a range, then the exact area in km² (never more than 535,000 km², which is
+   1.5× Germany), with a comparison such as "≈ the size of Portugal".
+3. **Population density**: Empty … Crowded, then the exact people per km². **Population =
+   land × density**, so a tiny land can never hold millions of people.
+4. **Wealth**: Very poor … Very rich, then the exact output per person.
+   **GDP = population × output per person**, in today's dollars.
+5. **Bonus resources**: spun **3 times**, never the same one twice (grain, iron, silk,
+   spices, furs…). Other resources will come from the land itself later.
+6. **Ideology**: Traditionalist, Expansionist, Trade-minded, Fanatical, Humanist,
+   Isolationist, Militarist, Reformist, Honour-bound, Tolerant, Seafaring, Scholarly,
+   Pragmatic, and a **rare** Satanist.
+7. **History**: one story card, e.g. "Recent civil war", "Former empire", "Golden age".
+8. **Stability**: Collapsing … Rock solid.
+9. **Popularity**: Hated … Revered.
+
+On the number wheels (land, density, wealth) the second spin's slices show what you'd get
+(e.g. "1.4M" people or "$4.2B"), so you can see the numbers add up. **Rare slices** are
+thin gold slivers; landing on one gets a "Rare!" badge and extra confetti.
+
+The results collect on the nation card in groups (Power, Land & wealth, Story). After the
+last spin the nation gets a name made from its government and ideology, e.g. "Sultanate of
+Al-Basra", "Iron Khanate of Kharkhorum" or "Holy Prince-Bishopric of Witenberg" (click it
+to rename, or press the dice for a new one), and **Continue to map** takes you to the map.
+The nation panel in the bottom-right corner shows the name and key results; click it for
+the **creation record** (every roll, its odds, the date and the random seed). Esc closes it.
+
+![The finished nation card](docs/nation-card-1500.jpg)
 
 For now this is cosmetic: the results are stored and shown but don't change the game yet,
 and nothing is saved when you reload.
@@ -38,34 +65,57 @@ and nothing is saved when you reload.
 | Switch look | **Retro pixel** or **Game show** (top right; remembered) |
 | Sound on/off | Speaker button (remembered). Sound starts after your first click or key press. |
 | Quick spins for testing | **Skip animation** |
+| Roll every wheel that's left at once | **Spin the rest** |
 
-![The retro pixel wheel](docs/wheel-retro.jpg)
+![The retro pixel wheel](docs/wheel-retro-1500.jpg)
 
 ### Tuning the wheels
 
-Everything on the wheels is in **`public/data/wheels.json`**, so you can change it without
-touching code (reload the page after saving):
+Everything on the wheels is in data files, so you can change it without touching code
+(reload the page after saving):
+
+- **`public/data/wheels.json`** says which era the game uses (`"era": "1500"`), where each
+  era's file is (`eras`), and has every word shown on the wheel screen, card and panel
+  (`text`).
+- **`public/data/eras/1500.json`** has the 1500 wheels, in spin order, plus the name parts.
+  Later eras get their own file next to it.
+
+In an era file:
 
 - **Slices**: each has a `label`, a `blurb` (the flavour line) and a `weight`, and
-  optionally a `short` label for the retro wheel (e.g. "Junta" for "Military Junta"). Weights
-  are relative odds: all 1 means equal chances, 2 is twice as likely as 1, 0 never comes
-  up. Slices take up room on the wheel in proportion to their weight, so what you see is
-  the real odds.
-- **Number wheels** (with an `estimate` block): each slice has a `range` of
-  `[low, high]`; `range` sets how the range is written on the wheel (e.g. `"${low}–{high}"`),
-  `exactSlices` how many numbers the second wheel has, and `format` how the result reads
-  (e.g. `"{value} people"`). Their labels (Small, Rich…) are only names in the file.
-- **Names**: `names.titles` lists title patterns per government ("Holy State of {place}"),
-  and `names.place` the syllables that make up place names.
-- **Screen text**: `text` has every word shown on the wheel screen, card and panel.
-- `panel.show` picks which results the corner panel shows.
+  optionally a `short` label for the wheel itself (the full label shows big when it
+  lands). Weights are relative odds: all 1 means equal chances, 2 is twice as likely as 1,
+  0 never comes up. Slices take up room on the wheel in proportion to their weight, so what
+  you see is the real odds. `"rare": true` draws a slice in gold and celebrates it.
+- **Wheels**: `"off": true` keeps a wheel in the file without spinning it (Culture and
+  Religion are kept like this for later); `"picks": 3` spins a wheel 3 times with no
+  repeats; `resultName` is what the card calls the result ("Population" for the density
+  wheel).
+- **Number wheels** (with a `number` block): each slice has a `range` of `[low, high]`.
+  `times` chains the wheel to an earlier one (density `times` land = population), `max`
+  caps the result, `exactSlices` sets how many numbers the second wheel has, and `range`,
+  `value`, `total`, `detail` say how things are written. The `notes` at the top of the
+  file say where the ranges come from.
+- **Groups**: `groups` sorts the results into sections on the card and in the record;
+  `panel.show` picks which results the corner panel shows.
+- **Names**: `names.titles` has title patterns per government ("Sultanate of {place}"),
+  each government's name `styles` (the syllable sets in `names.places`, e.g. Khanate uses
+  turkic and mongol), and `names.modifiers` adds a word from the ideology ("Great {name}",
+  "Kingdom of Greater {place}").
 
-If the file has a mistake (e.g. a negative weight), the game shows an error saying where.
+If the files have a mistake (e.g. a negative weight, or a range above the land `max`), the
+game shows an error saying which file and where.
 
 Testing shortcuts: `?wheel=skip` rolls the whole nation instantly, `?seed=123` makes the
-rolls repeatable, e.g. <http://localhost:5173/?map=earth-1500&wheel=skip&seed=123>. In the
-browser console (dev server only), `game.checkWeights()` spins every wheel 100,000 times
-and prints how often each slice won next to its expected odds.
+rolls repeatable (the same seed gives the same nation whether you spin or skip), e.g.
+<http://localhost:5173/?map=earth-1500&wheel=skip&seed=123>. In the browser console (dev
+server only):
+
+- `game.checkWeights()` spins every wheel 100,000 times and prints how often each slice
+  won next to its expected odds.
+- `game.checkNumbers()` rolls 10,000 nations and prints the smallest, typical and biggest
+  land, population and GDP, plus the smallest and biggest economy rolled.
+- `game.sampleNations(5)` prints a few whole rolled nations.
 
 ## Controls
 
@@ -92,7 +142,8 @@ src/
   ui/wheel/               the wheel screen: flow, the two wheel looks, sounds, confetti
   ui/nationPanel.ts       the nation panel in the corner and its creation record
   game/wheels.ts          loads the wheel data, spins (weighted random picks)
-  game/nation.ts          a nation and its creation record; name generator
+  game/nation.ts          a nation and its creation record; chained numbers; name generator
+  game/devChecks.ts       console checks: game.checkWeights(), checkNumbers(), sampleNations()
   game/random.ts          seeded random numbers for game logic
   map/terrain.ts          terrain types and their (data) colours
   map/projection.ts       turns longitude/latitude into map pixels
@@ -105,7 +156,8 @@ scripts/
   build-earth-map.ts      generates the Earth map from real-world data
   earth-water.json        which lakes and rivers go on the Earth map (editable)
 public/maps/              map files (see below)
-public/data/wheels.json   the nation wheels, names and screen text (editable)
+public/data/wheels.json   which era is used, and the screen text (editable)
+public/data/eras/1500.json the 1500 wheels, number ranges and name parts (editable)
 data/raw/                 downloaded source data for the map builder (not committed)
 ```
 

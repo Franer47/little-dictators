@@ -6,6 +6,8 @@ import { wrapText } from "./pixelFont.ts";
 import { TAU, sliceColor, sliceEdges, type WheelFrame, type WheelView } from "./wheelView.ts";
 
 export const GAME_SHOW_COLORS = ["#ff3b4e", "#ff9f1c", "#ffd60a", "#2ec95c", "#1fb5ff", "#4a5cff", "#b04dff", "#ff4fb3"];
+/** The colour of rare slices. */
+const RARE_GOLD = "#ffd84a";
 export const GAME_SHOW_FONT = '"Luckiest Guy", "Arial Black", system-ui, sans-serif';
 
 const BULBS = 28;
@@ -96,10 +98,10 @@ export class GameShowWheelView implements WheelView {
     const g = this.disc.getContext("2d")!;
     g.translate(d / 2, d / 2);
 
-    wheel.slices.forEach((_, i) => {
+    wheel.slices.forEach((slice, i) => {
       const a0 = this.edges[i] * TAU;
       const a1 = this.edges[i + 1] * TAU;
-      const base = GAME_SHOW_COLORS[sliceColor(i, wheel.slices.length, GAME_SHOW_COLORS.length)];
+      const base = slice.rare ? RARE_GOLD : GAME_SHOW_COLORS[sliceColor(i, wheel.slices.length, GAME_SHOW_COLORS.length)];
       const grad = g.createRadialGradient(0, 0, r * 0.1, 0, 0, r);
       grad.addColorStop(0, shade(base, 0.45));
       grad.addColorStop(0.55, base);
@@ -127,6 +129,22 @@ export class GameShowWheelView implements WheelView {
       g.stroke();
     }
 
+    // Rare slices are often only a sliver: a glowing gold line marks them.
+    wheel.slices.forEach((slice, i) => {
+      if (!slice.rare) return;
+      const a = ((this.edges[i] + this.edges[i + 1]) / 2) * TAU;
+      g.save();
+      g.shadowColor = "rgba(255, 230, 120, 0.95)";
+      g.shadowBlur = 10 * this.dpr;
+      g.beginPath();
+      g.moveTo(Math.cos(a) * r * 0.2, Math.sin(a) * r * 0.2);
+      g.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+      g.strokeStyle = RARE_GOLD;
+      g.lineWidth = 4 * this.dpr;
+      g.stroke();
+      g.restore();
+    });
+
     // Labels: along each slice, reading outward, pushed toward the rim.
     wheel.slices.forEach((slice, i) => {
       const a0 = this.edges[i] * TAU;
@@ -141,7 +159,7 @@ export class GameShowWheelView implements WheelView {
       let lines: string[] = [];
       for (; size > r * 0.035; size *= 0.93) {
         g.font = `${size}px ${GAME_SHOW_FONT}`;
-        lines = wrapText(slice.shown.toUpperCase(), room, (t) => g.measureText(t).width);
+        lines = wrapText((slice.short ?? slice.shown).toUpperCase(), room, (t) => g.measureText(t).width);
         const tall = lines.length * size * 1.0;
         const widest = Math.max(...lines.map((l) => g.measureText(l).width));
         const innerEnd = outer - widest;

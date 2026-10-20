@@ -1,114 +1,9 @@
 {
-  "about": "The nation-creation wheels. Edit freely: slice labels (and an optional \"short\" one for the retro wheel), blurbs, weights (higher = more likely; 0 = never), ranges, name parts and screen text. Reload the page to see changes. Number wheels (those with an \"estimate\") show each slice's range on the wheel, written with the estimate's \"range\" pattern; the result is a number drawn from that range. Their labels (Small, Rich...) are names for the data file and are not shown.",
+  "about": "The nation-creation wheels. This file says which era's wheels the game uses (\"era\") and where each era's file is (\"eras\"); the wheels, number ranges and name parts are in the era file (e.g. eras/1500.json). The \"text\" here is every word on the wheel screen, card and panel; an era file can override some. Reload the page to see changes.",
 
-  "wheels": [
-    {
-      "id": "government",
-      "name": "Government",
-      "question": "Who holds power?",
-      "slices": [
-        { "id": "absolute-monarchy", "label": "Absolute Monarchy", "short": "Absolutism", "weight": 1, "blurb": "One crowned ruler, answerable to no one." },
-        { "id": "constitutional-monarchy", "label": "Constitutional Monarchy", "short": "Const. Monarchy", "weight": 1, "blurb": "A crown for show, a parliament for business." },
-        { "id": "parliamentary-democracy", "label": "Parliamentary Democracy", "short": "Parliament", "weight": 1, "blurb": "Voters pick a parliament; parliament picks the leader." },
-        { "id": "presidential-republic", "label": "Presidential Republic", "short": "Presidency", "weight": 1, "blurb": "An elected president runs the show." },
-        { "id": "one-party-state", "label": "One-Party State", "short": "One Party", "weight": 1, "blurb": "Elections happen. The same party always wins." },
-        { "id": "military-junta", "label": "Military Junta", "short": "Junta", "weight": 1, "blurb": "The generals are in charge, for now." },
-        { "id": "theocracy", "label": "Theocracy", "weight": 1, "blurb": "The clergy rule in the name of heaven." },
-        { "id": "personal-dictatorship", "label": "Personal Dictatorship", "short": "Dictator", "weight": 1, "blurb": "One strongman, many statues." }
-      ]
-    },
-    {
-      "id": "land",
-      "name": "Land size",
-      "question": "How much land?",
-      "estimate": {
-        "format": "{value} km²", "style": "full", "range": "{low}–{high} km²",
-        "exactSlices": 10, "value": "{value}", "exactQuestion": "Somewhere in {range}. Exactly how big?"
-      },
-      "slices": [
-        { "id": "tiny", "label": "Tiny", "weight": 1, "range": [2000, 40000], "blurb": "You could drive across it before lunch." },
-        { "id": "small", "label": "Small", "weight": 1, "range": [40000, 200000], "blurb": "Cosy borders, short marches." },
-        { "id": "medium", "label": "Medium", "weight": 1, "range": [200000, 800000], "blurb": "Room to grow, room to defend." },
-        { "id": "large", "label": "Large", "weight": 1, "range": [800000, 3000000], "blurb": "Wide plains and long supply lines." },
-        { "id": "huge", "label": "Huge", "weight": 1, "range": [3000000, 12000000], "blurb": "It takes a week to cross by train." }
-      ]
-    },
-    {
-      "id": "population",
-      "name": "Population",
-      "question": "How many people?",
-      "estimate": {
-        "format": "{value} people", "style": "compact", "range": "{low}–{high}",
-        "exactSlices": 10, "value": "{value}", "exactQuestion": "Somewhere in {range} people. Exactly how many?"
-      },
-      "slices": [
-        { "id": "sparse", "label": "Sparse", "weight": 1, "range": [300000, 2000000], "blurb": "Everyone knows everyone." },
-        { "id": "small", "label": "Small", "weight": 1, "range": [2000000, 8000000], "blurb": "A few cities and a lot of countryside." },
-        { "id": "moderate", "label": "Moderate", "weight": 1, "range": [8000000, 25000000], "blurb": "Busy towns, a capital to be proud of." },
-        { "id": "large", "label": "Large", "weight": 1, "range": [25000000, 70000000], "blurb": "Crowded cities, big armies." },
-        { "id": "huge", "label": "Huge", "weight": 1, "range": [70000000, 200000000], "blurb": "A great power in numbers." },
-        { "id": "teeming", "label": "Teeming", "weight": 1, "range": [200000000, 1200000000], "blurb": "A sea of people." }
-      ]
-    },
-    {
-      "id": "gdp",
-      "name": "GDP",
-      "question": "How rich?",
-      "estimate": {
-        "format": "${value} GDP", "style": "compact", "range": "${low}–{high}",
-        "exactSlices": 10, "value": "${value}", "exactQuestion": "Somewhere in {range}. Exactly how rich?"
-      },
-      "slices": [
-        { "id": "destitute", "label": "Destitute", "weight": 1, "range": [1000000000, 10000000000], "blurb": "The treasury is a shoebox." },
-        { "id": "poor", "label": "Poor", "weight": 1, "range": [10000000000, 50000000000], "blurb": "Tight budgets, big dreams." },
-        { "id": "developing", "label": "Developing", "weight": 1, "range": [50000000000, 200000000000], "blurb": "Factories are going up." },
-        { "id": "middle-income", "label": "Middle-Income", "weight": 1, "range": [200000000000, 700000000000], "blurb": "Paved roads and a growing middle class." },
-        { "id": "rich", "label": "Rich", "weight": 1, "range": [700000000000, 2500000000000], "blurb": "Banks, ports and fat tax receipts." },
-        { "id": "very-rich", "label": "Very Rich", "weight": 1, "range": [2500000000000, 20000000000000], "blurb": "The world's money flows through here." }
-      ]
-    },
-    {
-      "id": "ideology",
-      "name": "Ideology",
-      "question": "What do they believe in?",
-      "slices": [
-        { "id": "nationalist", "label": "Nationalist", "weight": 1, "blurb": "The nation comes first." },
-        { "id": "liberal", "label": "Liberal", "weight": 1, "blurb": "Free markets, free speech, free trade." },
-        { "id": "conservative", "label": "Conservative", "weight": 1, "blurb": "Order, stability, and no sudden moves." },
-        { "id": "socialist", "label": "Socialist", "weight": 1, "blurb": "Strong unions, public services for all." },
-        { "id": "communist", "label": "Communist", "weight": 1, "blurb": "The state owns the factories." },
-        { "id": "traditionalist", "label": "Traditionalist", "weight": 1, "blurb": "The old ways and the old faith." },
-        { "id": "militarist", "label": "Militarist", "weight": 1, "blurb": "The army is the pride of the nation." },
-        { "id": "isolationist", "label": "Isolationist", "weight": 1, "blurb": "Close the borders, mind our own business." }
-      ]
-    }
-  ],
-
-  "panel": {
-    "about": "Which wheels the small nation panel on the map shows (by wheel id). The creation record shows them all.",
-    "show": ["government", "ideology", "population"]
-  },
-
-  "names": {
-    "about": "Nation names are a title (picked by government) with a made-up place name in it. {place} is replaced by the place name.",
-    "titles": {
-      "absolute-monarchy": ["Kingdom of {place}", "Empire of {place}", "Tsardom of {place}", "Grand Duchy of {place}", "Sultanate of {place}"],
-      "constitutional-monarchy": ["Kingdom of {place}", "United Kingdom of {place}", "Principality of {place}", "Grand Duchy of {place}", "Crown of {place}"],
-      "parliamentary-democracy": ["Republic of {place}", "Commonwealth of {place}", "Federation of {place}", "Free State of {place}"],
-      "presidential-republic": ["Republic of {place}", "Federal Republic of {place}", "United States of {place}", "Union of {place}"],
-      "one-party-state": ["People's Republic of {place}", "Democratic Republic of {place}", "Unified State of {place}", "National Republic of {place}"],
-      "military-junta": ["Military Junta of {place}", "Provisional Government of {place}", "National Directorate of {place}", "Martial State of {place}"],
-      "theocracy": ["Holy State of {place}", "Sacred Realm of {place}", "Divine Republic of {place}", "Holy Dominion of {place}"],
-      "personal-dictatorship": ["Glorious State of {place}", "Eternal Republic of {place}", "Great Realm of {place}", "Supreme State of {place}"]
-    },
-    "defaultTitles": ["Republic of {place}", "State of {place}"],
-    "place": {
-      "about": "A place name is a start + sometimes a middle + an end, e.g. Var + nia = Varnia.",
-      "starts": ["Var", "Ost", "Kes", "Bel", "Mor", "Tal", "Zan", "Ard", "Vel", "Kor", "Lys", "Dra", "Esk", "Gal", "Mar", "Nor", "Pal", "Rov", "Sar", "Tir", "Ul", "Vor", "Bran", "Cal", "Dun", "Eld", "Fen", "Hal", "Ist", "Jor", "Kel", "Lor", "Myr", "Ned", "Ord", "Quel", "Ran", "Sol", "Thal", "Uth", "Wes", "Yar", "Zel", "Brev", "Krat", "Stav", "Tor", "Alb", "Carn", "Drav"],
-      "middles": ["a", "e", "i", "o", "u", "an", "ar", "el", "en", "in", "or", "ur", "ov", "is"],
-      "middleChance": 0.45,
-      "ends": ["nia", "ava", "ar", "ia", "stan", "land", "mark", "heim", "grad", "ovia", "esh", "ora", "is", "ium", "enne", "ica", "avia", "ond", "uria", "eth", "mor", "ania", "istan", "ovo", "ene"]
-    }
+  "era": "1500",
+  "eras": {
+    "1500": "eras/1500.json"
   },
 
   "numberSuffixes": ["K", "M", "B", "T"],
@@ -118,10 +13,13 @@
     "screenTitle": "Create your nation",
     "spinOf": "Spin {n} / {total}",
     "spinOfExact": "Spin {n} / {total} · exact number",
+    "spinOfPick": "Spin {n} / {total} · pick {pick} of {picks}",
     "spin": "Spin!",
     "spinning": "Spinning…",
     "next": "Next wheel",
     "exact": "Exact number!",
+    "nextPick": "Next pick",
+    "rareHit": "Rare!",
     "finish": "Reveal nation",
     "spinHint": "Space, Enter or click the wheel",
     "styleLabel": "Style",
@@ -130,6 +28,8 @@
     "mute": "Mute",
     "unmute": "Sound on",
     "fast": "Skip animation",
+    "spinRest": "Spin the rest",
+    "spinRestHint": "Roll every wheel that's left at once",
     "cardTitle": "Your nation",
     "cardEmpty": "???",
     "nameUnknown": "Unnamed nation",
@@ -140,13 +40,14 @@
     "startOver": "Start over",
     "flagSoon": "Flag coming soon",
     "panelHint": "Click for the creation record",
+    "groupOther": "Other",
     "recordTitle": "Creation record",
     "recordCreated": "Created",
+    "recordEra": "Era",
     "recordMap": "Map",
     "recordSeed": "Random seed",
     "recordOdds": "odds {chance}",
     "recordFirstName": "First name rolled",
-    "recordPerPerson": "GDP per person",
     "close": "Close"
   }
 }

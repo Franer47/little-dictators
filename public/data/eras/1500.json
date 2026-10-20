@@ -1,0 +1,693 @@
+{
+  "about": "The wheels for a game starting around 1500. Edit freely: slice labels (plus an optional \"short\" one for the wheel itself; the full label shows when it lands), blurbs, weights (higher = more likely; 0 = never), number ranges, name parts. Reload the page to see changes; mistakes show an error saying where. Wheels are spun in the order listed here.",
+  "name": "c. 1500",
+
+  "notes": {
+    "about": "Where the numbers come from. Not shown in the game; for whoever tunes the ranges.",
+    "odds": "Placeholder weights for now: every normal slice is 1. Rare slices (\"rare\": true, drawn in gold, big celebration) get a small weight: Eternal Republic 0.016 (≈ 1 in 1,000 governments), Satanist 0.065 (≈ 1 in 200 ideologies). Culture and Religion are switched off (\"off\": true) but kept for later.",
+    "land": "Area in km². Hard max 535,000 km² (1.5 × Germany's 357,600 km²); bigger is never rolled. The smallest real states c. 1500 (Ragusa, Lucca, the Italian and German city-states) held a few hundred to a few thousand km², so the wheel starts at 2,000.",
+    "density": "People per km² c. 1500, after Colin McEvedy & Richard Jones, Atlas of World Population History (1978), and Angus Maddison's population tables: steppe, taiga and desert well under 1–2; Muscovy ~2–3; Poland-Lithuania ~5; Iberia ~13; England ~19; France ~27; the German lands ~30; Italy ~35; Japan ~40; the Low Countries, Lombardy and the Ganges valley ~40–60. Population = land × density, so a small land can never hold a huge population.",
+    "wealth": "Output (GDP) per person c. 1500 from Angus Maddison's estimates, The World Economy: Historical Statistics (2003), in 1990 international dollars: bare subsistence ~400, Africa and the Americas ~415, Eastern Europe ~500, Japan 500, India 550, China 600, Portugal 606, Spain 661, Germany 688, England 714, France 727, the Netherlands 761, Belgium 875, Italy 1,100. Converted to today's money ×2.4 (US consumer prices 1990 → 2024) and rounded. GDP = population × output per person.",
+    "check": "Sanity check: a vast (≈535,000 km²), dense (25–40/km²), comfortable-to-prosperous nation comes out at ~13–21M people and ~$25–45B, in line with France c. 1500 (~15M people, Maddison GDP 10.9B 1990$ ≈ $26B today) and Italy (~10.5M, ≈ $28B). A city-state that's empty and destitute is a few thousand people and a few million dollars. Run game.checkNumbers() in the browser console to see the spread."
+  },
+
+  "groups": [
+    { "name": "People", "wheels": ["culture", "religion"] },
+    { "name": "Power", "wheels": ["government", "ideology", "stability", "acceptance"] },
+    { "name": "Land & wealth", "wheels": ["land", "density", "wealth", "resource"] },
+    { "name": "Story", "wheels": ["history"] }
+  ],
+
+  "panel": {
+    "about": "Which results the small nation panel on the map shows (by wheel id). The creation record shows them all.",
+    "show": ["government", "ideology", "density", "wealth"]
+  },
+
+  "wheels": [
+    {
+      "id": "culture",
+      "off": true,
+      "name": "Culture",
+      "question": "Who are your people?",
+      "slices": [
+        { "id": "latin", "label": "Latin", "tags": ["latin", "european"], "weight": 1, "blurb": "Heirs of Rome: bankers, painters and quarrelling cities." },
+        { "id": "iberian", "label": "Iberian", "tags": ["european"], "weight": 1, "blurb": "Fresh from the Reconquista, eyes on the ocean." },
+        { "id": "french", "label": "French", "tags": ["european"], "weight": 1, "blurb": "Knights, vineyards and a very proud court." },
+        { "id": "germanic", "label": "Germanic", "tags": ["germanic", "european"], "weight": 1, "blurb": "A patchwork of princes, guilds and free towns." },
+        { "id": "norse", "label": "Norse", "tags": ["norse", "european"], "weight": 1, "blurb": "Fjords, longhouses and long winters." },
+        { "id": "slavic", "label": "Slavic", "tags": ["slavic", "european"], "weight": 1, "blurb": "Wide plains, deep forests, onion domes." },
+        { "id": "magyar", "label": "Magyar", "tags": ["european"], "weight": 1, "blurb": "Horsemen who settled down on the Danube." },
+        { "id": "greek", "label": "Greek", "tags": ["greek", "european"], "weight": 1, "blurb": "They remember Byzantium, and so should you." },
+        { "id": "arabic", "label": "Arabic", "tags": ["arabic", "islamic"], "weight": 1, "blurb": "Poets, caravans and the old centres of learning." },
+        { "id": "berber", "label": "Berber", "tags": ["islamic"], "weight": 1, "blurb": "Mountain villages and desert trade roads." },
+        { "id": "persian", "label": "Persian", "tags": ["persian", "islamic"], "weight": 1, "blurb": "Gardens, carpets and a very long memory." },
+        { "id": "turkic", "label": "Turkic", "tags": ["turkic", "steppe"], "weight": 1, "blurb": "From the steppe to the gates of Europe." },
+        { "id": "mongol", "label": "Mongol", "tags": ["steppe"], "weight": 1, "blurb": "Grandchildren of the greatest empire ever ridden." },
+        { "id": "han", "label": "Han", "tags": ["han", "east-asian"], "weight": 1, "blurb": "Exams, rice terraces and a mandate from heaven." },
+        { "id": "japanese", "label": "Japanese", "tags": ["japanese", "east-asian"], "weight": 1, "blurb": "Islands of warring lords and quiet temples." },
+        { "id": "korean", "label": "Korean", "tags": ["east-asian"], "weight": 1, "blurb": "Scholars, potters and a brand-new alphabet." },
+        { "id": "tai", "label": "Tai", "tags": ["southeast-asian"], "weight": 1, "blurb": "River kingdoms of rice, elephants and gold leaf." },
+        { "id": "indian", "label": "Indian", "tags": ["indian"], "weight": 1, "blurb": "A hundred languages and the world's cotton." },
+        { "id": "malay", "label": "Malay", "tags": ["malay", "southeast-asian"], "weight": 1, "blurb": "Sailors of the spice straits." },
+        { "id": "bantu", "label": "Bantu", "tags": ["african"], "weight": 1, "blurb": "Cattle, copper and great stone walls." },
+        { "id": "sahelian", "label": "Sahelian", "tags": ["sahel", "african"], "weight": 1, "blurb": "Gold, salt and mud-brick mosques." },
+        { "id": "ethiopian", "label": "Ethiopian", "tags": ["ethiopian", "african"], "weight": 1, "blurb": "An ancient highland realm with its own script." },
+        { "id": "andean", "label": "Andean", "tags": ["andean", "american"], "weight": 1, "blurb": "Mountain roads, terraces and knotted-string records." },
+        { "id": "mesoamerican", "label": "Mesoamerican", "short": "Mesoamer.", "tags": ["mesoamerican", "american"], "weight": 1, "blurb": "Lake cities, causeways and floating gardens." }
+      ]
+    },
+    {
+      "id": "religion",
+      "off": true,
+      "name": "Religion",
+      "question": "What do they worship?",
+      "slices": [
+        { "id": "catholic", "label": "Catholic", "tags": ["christian"], "weight": 1, "blurb": "Rome, the Pope and a lot of cathedrals." },
+        { "id": "orthodox", "label": "Orthodox", "tags": ["christian"], "weight": 1, "blurb": "Icons, incense and the patriarchs of the East." },
+        { "id": "hussite", "label": "Hussite", "tags": ["christian"], "weight": 1, "blurb": "Bohemian reformers who already defied Rome." },
+        { "id": "coptic", "label": "Coptic", "tags": ["christian"], "weight": 1, "blurb": "One of the oldest churches on Earth." },
+        { "id": "nestorian", "label": "Church of the East", "short": "Nestorian", "tags": ["christian"], "weight": 1, "blurb": "Christians who once reached all the way to China." },
+        { "id": "sunni", "label": "Sunni", "tags": ["muslim"], "weight": 1, "blurb": "The path of the Prophet's tradition." },
+        { "id": "shia", "label": "Shia", "tags": ["muslim"], "weight": 1, "blurb": "Followers of Ali and the Imams." },
+        { "id": "ibadi", "label": "Ibadi", "tags": ["muslim"], "weight": 1, "blurb": "A small, stubborn school of Islam." },
+        { "id": "jewish", "label": "Jewish", "weight": 1, "blurb": "Torah, Talmud and many scattered communities." },
+        { "id": "zoroastrian", "label": "Zoroastrian", "short": "Zoroastr.", "weight": 1, "blurb": "Keepers of the sacred fire." },
+        { "id": "hindu", "label": "Hindu", "weight": 1, "blurb": "Many gods, great temples and the cycle of rebirth." },
+        { "id": "jain", "label": "Jain", "weight": 1, "blurb": "Harm no living thing. Not even a mosquito." },
+        { "id": "theravada", "label": "Theravada", "tags": ["buddhist"], "weight": 1, "blurb": "The oldest school of the Buddha's teaching." },
+        { "id": "mahayana", "label": "Mahayana", "tags": ["buddhist"], "weight": 1, "blurb": "The great vehicle: bodhisattvas for everyone." },
+        { "id": "vajrayana", "label": "Vajrayana", "tags": ["buddhist"], "weight": 1, "blurb": "Lamas, mandalas and mountain monasteries." },
+        { "id": "shinto", "label": "Shinto", "weight": 1, "blurb": "Shrines to the spirits of every hill and stream." },
+        { "id": "confucian", "label": "Confucian", "weight": 1, "blurb": "Respect your elders, study hard, keep order." },
+        { "id": "taoist", "label": "Taoist", "weight": 1, "blurb": "Go with the flow of the Way." },
+        { "id": "tengri", "label": "Tengri", "weight": 1, "blurb": "The eternal blue sky watches over all." },
+        { "id": "animist", "label": "Animist", "weight": 1, "blurb": "Spirits live in rivers, trees and ancestors." },
+        { "id": "inti", "label": "Inti (Andean)", "short": "Inti", "weight": 1, "blurb": "The Sun is god, and the ruler is his son." },
+        { "id": "teotl", "label": "Mesoamerican", "short": "Teotl", "weight": 1, "blurb": "The sun must be fed, or the world will end." }
+      ]
+    },
+    {
+      "id": "government",
+      "name": "Government",
+      "question": "Who holds power?",
+      "slices": [
+        { "id": "feudal-monarchy", "label": "Feudal Monarchy", "short": "Feudal", "weight": 1, "blurb": "A crown on top, a tangle of oaths below." },
+        { "id": "absolute-monarchy", "label": "Absolute Monarchy", "short": "Absolute", "weight": 1, "blurb": "One ruler, answerable only to God." },
+        { "id": "elective-monarchy", "label": "Elected Monarchy", "short": "Elected", "weight": 1, "blurb": "The great lords vote for their king." },
+        { "id": "sultanate", "label": "Sultanate", "weight": 1, "blurb": "A sultan, his viziers and a very big palace." },
+        { "id": "khanate", "label": "Khanate", "weight": 1, "blurb": "A khan chosen by the clans, a horde behind him." },
+        { "id": "imperial-bureaucracy", "label": "Imperial Bureaucracy", "short": "Bureaucracy", "weight": 1, "blurb": "An emperor and an army of exam-passing officials." },
+        { "id": "merchant-republic", "label": "Merchant Republic", "short": "Merchants", "weight": 1, "blurb": "The richest families run the council." },
+        { "id": "noble-republic", "label": "Noble Republic", "short": "Nobles", "weight": 1, "blurb": "Every noble has a vote, and a veto." },
+        { "id": "city-state", "label": "City-State", "weight": 1, "blurb": "One great city rules the land around it." },
+        { "id": "theocracy", "label": "Theocracy", "weight": 1, "blurb": "The clergy rule in the name of heaven." },
+        { "id": "military-order", "label": "Knightly Order", "short": "Knights", "weight": 1, "blurb": "Warrior monks with a country of their own." },
+        { "id": "tribal-confederation", "label": "Tribal Confederation", "short": "Tribes", "weight": 1, "blurb": "Clans that agreed to stop fighting each other. Mostly." },
+        { "id": "chiefdom", "label": "Chiefdom", "weight": 1, "blurb": "A paramount chief and his kin." },
+        { "id": "despotate", "label": "Despot Rule", "short": "Despot", "weight": 1, "blurb": "A lord with a grand title and no one to check him." },
+        { "id": "warlord-rule", "label": "Warlord Rule", "short": "Warlord", "weight": 1, "blurb": "Whoever has the most soldiers this year." },
+        { "id": "regency", "label": "Regency", "weight": 1, "blurb": "The king is a child. Someone else is in charge." },
+        { "id": "eternal-republic", "label": "Eternal Republic", "short": "Eternal", "rare": true, "weight": 0.016, "blurb": "It has stood for a thousand years, and it will stand for a thousand more." }
+      ]
+    },
+    {
+      "id": "land",
+      "name": "Land size",
+      "resultName": "Land",
+      "question": "How much land?",
+      "number": {
+        "max": 535000,
+        "shows": "range",
+        "range": "{low}–{high} km²",
+        "value": "{value} km²",
+        "style": "full",
+        "exactSlices": 10,
+        "exactQuestion": "Somewhere in {range}. Exactly how big?",
+        "detail": "{compare}",
+        "compare": {
+          "about": "Modern places for a size comparison (km²). The nearest one is used.",
+          "near": "≈ the size of {place}",
+          "bigger": "a bit bigger than {place}",
+          "smaller": "a bit smaller than {place}",
+          "places": [
+            ["Luxembourg", 2586], ["Mallorca", 3640], ["Trinidad", 4768], ["Bali", 5780], ["Corsica", 8680],
+            ["Cyprus", 9251], ["Jamaica", 10991], ["Montenegro", 13812], ["Wales", 20779], ["Sicily", 25711],
+            ["Belgium", 30689], ["Switzerland", 41285], ["Croatia", 56594], ["Sri Lanka", 65610], ["Ireland", 70273],
+            ["Scotland", 77910], ["Austria", 83879], ["Portugal", 92212], ["Iceland", 103000], ["Cuba", 109884],
+            ["England", 130279], ["Nepal", 147181], ["Tunisia", 163610], ["Cambodia", 181035], ["Great Britain", 209331],
+            ["Romania", 238397], ["Italy", 301340], ["Germany", 357588], ["Iraq", 438317], ["Sweden", 450295],
+            ["Spain", 505990], ["France", 551695]
+          ]
+        }
+      },
+      "slices": [
+        { "id": "city-state", "label": "City-state", "weight": 1, "range": [2000, 8000], "blurb": "One proud city and the fields around it." },
+        { "id": "tiny", "label": "Tiny", "weight": 1, "range": [8000, 25000], "blurb": "A day's ride from end to end." },
+        { "id": "small", "label": "Small", "weight": 1, "range": [25000, 60000], "blurb": "A few towns and a castle on every hill." },
+        { "id": "modest", "label": "Modest", "weight": 1, "range": [60000, 120000], "blurb": "A proper realm, if not a big one." },
+        { "id": "medium", "label": "Medium", "weight": 1, "range": [120000, 220000], "blurb": "Room for a dozen dukes to quarrel." },
+        { "id": "large", "label": "Large", "weight": 1, "range": [220000, 360000], "blurb": "A week's march from border to border." },
+        { "id": "vast", "label": "Vast", "weight": 1, "range": [360000, 535000], "blurb": "As big as a realm gets in this age." }
+      ]
+    },
+    {
+      "id": "density",
+      "name": "Population density",
+      "resultName": "Population",
+      "question": "How crowded is the land?",
+      "number": {
+        "times": "land",
+        "shows": "label",
+        "range": "{low}–{high} people/km²",
+        "value": "{value} people/km²",
+        "style": "compact",
+        "total": "~{value} people",
+        "totalStyle": "compact",
+        "totalDigits": 3,
+        "exactSlices": 10,
+        "exactShows": "total",
+        "exactLabel": "{value}",
+        "exactQuestion": "{label}: {range}. So how many people?",
+        "detail": "{label} · {value}"
+      },
+      "slices": [
+        { "id": "empty", "label": "Empty", "weight": 1, "range": [0.5, 1.5], "blurb": "Steppe, forest or desert, and a few herders." },
+        { "id": "sparse", "label": "Sparse", "weight": 1, "range": [1.5, 4], "blurb": "Villages days apart." },
+        { "id": "thin", "label": "Thinly settled", "short": "Thin", "weight": 1, "range": [4, 8], "blurb": "Farms in the valleys, wilds in between." },
+        { "id": "moderate", "label": "Moderate", "weight": 1, "range": [8, 15], "blurb": "Fields, hamlets and the odd market town." },
+        { "id": "settled", "label": "Settled", "weight": 1, "range": [15, 25], "blurb": "Every valley farmed, a church in every village." },
+        { "id": "dense", "label": "Dense", "weight": 1, "range": [25, 40], "blurb": "Busy towns a few hours apart." },
+        { "id": "crowded", "label": "Crowded", "weight": 1, "range": [40, 60], "blurb": "Every scrap of land is someone's field." }
+      ]
+    },
+    {
+      "id": "wealth",
+      "name": "Wealth",
+      "resultName": "GDP",
+      "question": "How rich are the people?",
+      "number": {
+        "times": "density",
+        "shows": "label",
+        "range": "${low}–{high} per person",
+        "rangeStyle": "full",
+        "value": "${value} per person",
+        "style": "full",
+        "digits": 3,
+        "total": "~${value}",
+        "totalStyle": "compact",
+        "totalDigits": 3,
+        "exactSlices": 10,
+        "exactShows": "total",
+        "exactLabel": "${value}",
+        "exactQuestion": "{label}: {range} a year. So how big is the economy?",
+        "detail": "{label} · {value} · today's money"
+      },
+      "slices": [
+        { "id": "destitute", "label": "Very poor", "weight": 1, "range": [900, 1100], "blurb": "Bare survival: one bad harvest from famine." },
+        { "id": "poor", "label": "Poor", "weight": 1, "range": [1100, 1300], "blurb": "Bread, beer and not much else." },
+        { "id": "modest", "label": "Modest", "weight": 1, "range": [1300, 1600], "blurb": "Enough to eat, most years." },
+        { "id": "comfortable", "label": "Comfortable", "weight": 1, "range": [1600, 1900], "blurb": "Busy markets and glass in the windows." },
+        { "id": "prosperous", "label": "Prosperous", "weight": 1, "range": [1900, 2400], "blurb": "Guildhalls, ships and fat tax rolls." },
+        { "id": "opulent", "label": "Very rich", "weight": 1, "range": [2400, 3100], "blurb": "Bankers, silk and painted ceilings." }
+      ]
+    },
+    {
+      "id": "resource",
+      "name": "Bonus resources",
+      "resultName": "Resources",
+      "question": "What does the land give in plenty?",
+      "picks": 3,
+      "slices": [
+        { "id": "grain", "label": "Grain", "weight": 1, "blurb": "Wheat, barley and rye as far as the eye can see." },
+        { "id": "rice", "label": "Rice", "weight": 1, "blurb": "Flooded paddies feed millions." },
+        { "id": "timber", "label": "Timber", "weight": 1, "blurb": "Endless forests for ships and houses." },
+        { "id": "iron", "label": "Iron", "weight": 1, "blurb": "Swords, ploughs and horseshoes." },
+        { "id": "copper", "label": "Copper", "weight": 1, "blurb": "Bronze cannon and church bells." },
+        { "id": "gold", "label": "Gold", "weight": 1, "blurb": "Everyone wants some. You have it." },
+        { "id": "silver", "label": "Silver", "weight": 1, "blurb": "The world's coins are minted from your mines." },
+        { "id": "salt", "label": "Salt", "weight": 1, "blurb": "Worth its weight in gold, almost." },
+        { "id": "spices", "label": "Spices", "weight": 1, "blurb": "Pepper, cloves and nutmeg: the most wanted cargo." },
+        { "id": "silk", "label": "Silk", "weight": 1, "blurb": "Worms, mulberry trees and a fortune in cloth." },
+        { "id": "cotton", "label": "Cotton", "weight": 1, "blurb": "Fine cloth for half the world." },
+        { "id": "wool", "label": "Wool", "weight": 1, "blurb": "More sheep than people." },
+        { "id": "furs", "label": "Furs", "weight": 1, "blurb": "Sable and marten for the courts of the south." },
+        { "id": "fish", "label": "Fish", "weight": 1, "blurb": "Herring and cod by the barrel." },
+        { "id": "horses", "label": "Horses", "weight": 1, "blurb": "The best mounts on the continent." },
+        { "id": "cattle", "label": "Cattle", "weight": 1, "blurb": "Herds are wealth, and wealth is herds." },
+        { "id": "wine", "label": "Wine", "weight": 1, "blurb": "Vineyards on every sunny slope." },
+        { "id": "sugar", "label": "Sugar", "weight": 1, "blurb": "Sweet, costly and in great demand." },
+        { "id": "ivory", "label": "Ivory", "weight": 1, "blurb": "Carved tusks for faraway palaces." },
+        { "id": "amber", "label": "Amber", "weight": 1, "blurb": "Golden stone washed up on the shore." },
+        { "id": "incense", "label": "Incense", "weight": 1, "blurb": "Frankincense and myrrh for every temple." },
+        { "id": "porcelain", "label": "Porcelain", "short": "Porcelain", "weight": 1, "blurb": "Kilns that fire the finest china." }
+      ]
+    },
+    {
+      "id": "ideology",
+      "name": "Ideology",
+      "question": "What do they believe in?",
+      "slices": [
+        { "id": "traditionalist", "label": "Traditionalist", "short": "Tradition", "weight": 1, "blurb": "As our fathers did, so shall we." },
+        { "id": "expansionist", "label": "Expansionist", "short": "Expansion", "weight": 1, "blurb": "The border is only a suggestion." },
+        { "id": "mercantile", "label": "Trade-minded", "short": "Trade", "weight": 1, "blurb": "Buy cheap, sell dear, count everything." },
+        { "id": "zealous", "label": "Fanatical", "weight": 1, "blurb": "The faith must be spread, by word or by sword." },
+        { "id": "humanist", "label": "Humanist", "weight": 1, "blurb": "Old books, new ideas, and man at the centre." },
+        { "id": "isolationist", "label": "Isolationist", "short": "Isolation", "weight": 1, "blurb": "Close the ports and mind our own business." },
+        { "id": "militarist", "label": "Militarist", "weight": 1, "blurb": "The army is the pride of the realm." },
+        { "id": "reformist", "label": "Reformist", "weight": 1, "blurb": "The old order is rotten. Time to fix it." },
+        { "id": "chivalric", "label": "Honour-bound", "short": "Honour", "weight": 1, "blurb": "Honour, tournaments and noble deeds." },
+        { "id": "tolerant", "label": "Tolerant", "weight": 1, "blurb": "All faiths welcome, as long as they pay taxes." },
+        { "id": "seafaring", "label": "Seafaring", "weight": 1, "blurb": "Our future lies across the water." },
+        { "id": "scholarly", "label": "Scholarly", "weight": 1, "blurb": "Libraries, observatories and learned debates." },
+        { "id": "pragmatic", "label": "Pragmatic", "weight": 1, "blurb": "Whatever works this week." },
+        { "id": "satanist", "label": "Satanist", "rare": true, "weight": 0.065, "blurb": "Black candles, secret rites and a pact with the Devil." }
+      ]
+    },
+    {
+      "id": "history",
+      "name": "History",
+      "question": "What's their story?",
+      "slices": [
+        { "id": "civil-war", "label": "Recent civil war", "short": "Civil war", "weight": 1, "blurb": "Brother fought brother. The scars are fresh." },
+        { "id": "former-empire", "label": "Former empire", "short": "Old empire", "weight": 1, "blurb": "Once they ruled half the world, and they won't forget it." },
+        { "id": "survived-plague", "label": "Survived the plague", "short": "Plague", "weight": 1, "blurb": "The Black Death came and went. They're still here." },
+        { "id": "golden-age", "label": "Golden age", "weight": 1, "blurb": "Art, wealth and victories: the best of times." },
+        { "id": "conquered-freed", "label": "Conquered and freed", "short": "Freed", "weight": 1, "blurb": "Once ruled by foreigners, now free again." },
+        { "id": "founded-by-exiles", "label": "Founded by exiles", "short": "Exiles", "weight": 1, "blurb": "Driven out of their homeland, they built a new one." },
+        { "id": "succession-crisis", "label": "Fight for the throne", "short": "Throne fight", "weight": 1, "blurb": "Three claimants, one throne." },
+        { "id": "peasant-revolt", "label": "Peasant revolt", "short": "Revolt", "weight": 1, "blurb": "The farmers rose up. It was not forgotten." },
+        { "id": "holy-war", "label": "Back from holy war", "short": "Holy war", "weight": 1, "blurb": "Veterans of a great crusade or jihad." },
+        { "id": "great-famine", "label": "Great famine", "short": "Famine", "weight": 1, "blurb": "Years of hunger that emptied whole villages." },
+        { "id": "new-dynasty", "label": "New ruling family", "short": "New family", "weight": 1, "blurb": "A fresh family on the throne, with a lot to prove." },
+        { "id": "rising-power", "label": "Rising power", "short": "Rising", "weight": 1, "blurb": "Nobody took them seriously. That's changing." },
+        { "id": "tributary", "label": "Pays tribute", "short": "Tribute", "weight": 1, "blurb": "A stronger neighbour takes its cut every year." },
+        { "id": "ancient-bloodline", "label": "Ancient bloodline", "short": "Bloodline", "weight": 1, "blurb": "The same family has ruled for five hundred years." },
+        { "id": "capital-burned", "label": "Capital burned", "short": "Burned", "weight": 1, "blurb": "Sacked and burned within living memory, now rebuilt." },
+        { "id": "schism", "label": "Religious split", "short": "Split", "weight": 1, "blurb": "The faithful can't agree, and it's getting ugly." },
+        { "id": "trade-boom", "label": "Trade boom", "weight": 1, "blurb": "New routes, full warehouses, rich merchants." },
+        { "id": "long-peace", "label": "Long peace", "weight": 1, "blurb": "No war for three generations. The walls are crumbling." },
+        { "id": "border-wars", "label": "Endless border wars", "short": "Border wars", "weight": 1, "blurb": "Raids and counter-raids, every single summer." },
+        { "id": "united-by-marriage", "label": "United by marriage", "short": "Marriage", "weight": 1, "blurb": "Two crowns joined by a royal wedding." }
+      ]
+    },
+    {
+      "id": "stability",
+      "name": "Stability",
+      "question": "How steady is the realm?",
+      "slices": [
+        { "id": "collapsing", "label": "Collapsing", "weight": 1, "blurb": "Rebels, bandits and empty treasuries." },
+        { "id": "crumbling", "label": "Crumbling", "weight": 1, "blurb": "Provinces are drifting away." },
+        { "id": "shaky", "label": "Shaky", "weight": 1, "blurb": "One bad year from trouble." },
+        { "id": "uneasy", "label": "Uneasy", "weight": 1, "blurb": "Quiet, but everyone is watching." },
+        { "id": "steady", "label": "Steady", "weight": 1, "blurb": "Taxes come in, laws are kept." },
+        { "id": "solid", "label": "Solid", "weight": 1, "blurb": "Strong institutions and loyal lords." },
+        { "id": "rock-solid", "label": "Rock solid", "weight": 1, "blurb": "Nothing short of an earthquake could shake it." }
+      ]
+    },
+    {
+      "id": "acceptance",
+      "name": "Popularity",
+      "question": "How popular are the rulers?",
+      "slices": [
+        { "id": "hated", "label": "Hated", "weight": 1, "blurb": "Effigies of the ruler burn in the squares." },
+        { "id": "resented", "label": "Resented", "weight": 1, "blurb": "Grumbling in every tavern." },
+        { "id": "tolerated", "label": "Tolerated", "weight": 1, "blurb": "Better than the last lot, probably." },
+        { "id": "accepted", "label": "Accepted", "weight": 1, "blurb": "It's how things are." },
+        { "id": "respected", "label": "Respected", "weight": 1, "blurb": "The ruler is seen as fair and capable." },
+        { "id": "loved", "label": "Loved", "weight": 1, "blurb": "Crowds cheer whenever the ruler rides by." },
+        { "id": "revered", "label": "Revered", "weight": 1, "blurb": "The ruler is close to a saint, or a god." }
+      ]
+    }
+  ],
+
+  "names": {
+    "about": "A nation's name is a title picked by its government (\"Sultanate of {place}\"), with a made-up place name in it, and sometimes a word from its ideology (\"Holy …\"). Each government lists the name styles it draws from (\"styles\": arabic, turkic… from \"places\"); if the culture wheel is switched on, the culture picks the style instead. Titles: for each government, lists by key, tried in this order: the \"prefer\" wheel's slice (theocracy: religion, if spun), the name style and its tags (\"arabic\", \"islamic\"), any other result's slice id or tag, then \"default\". Place names: a start, sometimes a middle, an end, and sometimes a prefix; \"smooth\": false glues the parts as they are. Modifiers: by ideology, patterns where {name} is the whole name and {place} just the place (\"Kingdom of Greater X\"); used \"modifierChance\" of the time, and skipped if the title already has the word.",
+    "titlesBy": "government",
+    "placesBy": "culture",
+    "modifiersBy": "ideology",
+    "modifierChance": 0.6,
+    "modifiers": {
+      "traditionalist": ["Ancient {name}", "Old {name}"],
+      "expansionist": ["Great {name}", "Greater {place}"],
+      "mercantile": ["Free {name}", "Rich {name}"],
+      "zealous": ["Holy {name}", "Most Holy {name}"],
+      "humanist": ["Serene {name}", "Enlightened {name}"],
+      "isolationist": ["Hidden {name}", "Secluded {name}"],
+      "militarist": ["Iron {name}", "Militant {name}"],
+      "reformist": ["Reformed {name}", "New {place}"],
+      "chivalric": ["Noble {name}", "Valiant {name}"],
+      "tolerant": ["United {name}", "{name} of All Faiths"],
+      "seafaring": ["Maritime {name}", "{name} of the Seas"],
+      "scholarly": ["Learned {name}", "Wise {name}"],
+      "satanist": ["Infernal {name}", "Unholy {name}", "Black {name}"]
+    },
+    "defaultTitles": ["Realm of {place}", "State of {place}"],
+
+    "titles": {
+      "feudal-monarchy": {
+        "styles": ["latin", "iberian", "french", "germanic", "norse", "slavic", "magyar", "greek", "japanese", "indian", "tai", "bantu", "sahelian", "ethiopian", "andean"],
+        "default": ["Kingdom of {place}", "Duchy of {place}", "Grand Duchy of {place}", "Principality of {place}", "County of {place}"],
+        "germanic": ["Duchy of {place}", "Landgraviate of {place}", "Margraviate of {place}", "Kingdom of {place}", "Prince-Electorate of {place}"],
+        "slavic": ["Grand Principality of {place}", "Principality of {place}", "Kingdom of {place}", "Voivodeship of {place}"],
+        "norse": ["Kingdom of {place}", "Jarldom of {place}"],
+        "turkic": ["Beylik of {place}", "Khanate of {place}"],
+        "persian": ["Shahdom of {place}", "Emirate of {place}"],
+        "islamic": ["Emirate of {place}", "Sultanate of {place}", "Sharifate of {place}"],
+        "steppe": ["Khanate of {place}", "Ulus of {place}"],
+        "japanese": ["Domain of {place}", "Province of {place}"],
+        "east-asian": ["Kingdom of {place}", "Princedom of {place}"],
+        "indian": ["Kingdom of {place}", "Raj of {place}", "Principality of {place}"],
+        "malay": ["Kingdom of {place}", "Kedatuan of {place}"],
+        "southeast-asian": ["Kingdom of {place}", "Mandala of {place}"],
+        "african": ["Kingdom of {place}", "Lordship of {place}"],
+        "andean": ["Kingdom of {place}", "Lordship of {place}"],
+        "mesoamerican": ["Lordship of {place}", "Tlatocayotl of {place}"]
+      },
+      "absolute-monarchy": {
+        "styles": ["iberian", "french", "germanic", "slavic", "persian", "han", "korean", "indian", "ethiopian", "andean", "mesoamerican"],
+        "default": ["Kingdom of {place}", "Empire of {place}", "Crown of {place}"],
+        "slavic": ["Tsardom of {place}", "Grand Duchy of {place}"],
+        "germanic": ["Archduchy of {place}", "Kingdom of {place}", "Empire of {place}"],
+        "persian": ["Shahdom of {place}", "Empire of {place}"],
+        "islamic": ["Sultanate of {place}", "Empire of {place}"],
+        "steppe": ["Khaganate of {place}", "Empire of {place}"],
+        "japanese": ["Shogunate of {place}", "Empire of {place}"],
+        "han": ["Great {place}", "Empire of {place}"],
+        "east-asian": ["Kingdom of {place}", "Empire of {place}"],
+        "indian": ["Empire of {place}", "Kingdom of {place}"],
+        "ethiopian": ["Empire of {place}", "Kingdom of {place}"],
+        "sahel": ["Empire of {place}", "Kingdom of {place}"],
+        "andean": ["Empire of {place}", "Realm of the Four Quarters of {place}"],
+        "mesoamerican": ["Empire of {place}", "Great Tlatocayotl of {place}"]
+      },
+      "elective-monarchy": {
+        "styles": ["germanic", "slavic", "magyar", "norse", "sahelian", "mesoamerican"],
+        "default": ["Elective Kingdom of {place}", "Crown of {place}", "Kingdom of {place}"],
+        "germanic": ["Holy Empire of {place}", "Elective Kingdom of {place}"],
+        "slavic": ["Crown of {place}", "Commonwealth of {place}", "Elective Kingdom of {place}"],
+        "islamic": ["Sultanate of {place}", "Emirate of {place}"],
+        "steppe": ["Khaganate of {place}", "Khanate of {place}"],
+        "mesoamerican": ["Tlatocayotl of {place}", "Lordship of {place}"]
+      },
+      "sultanate": {
+        "styles": ["arabic", "berber", "persian", "turkic", "malay", "indian", "sahelian"],
+        "default": ["Sultanate of {place}", "Great Sultanate of {place}"],
+        "persian": ["Sultanate of {place}", "Shahdom of {place}"],
+        "turkic": ["Sultanate of {place}", "Sublime State of {place}"]
+      },
+      "khanate": {
+        "styles": ["turkic", "mongol"],
+        "default": ["Khanate of {place}", "Khaganate of {place}", "{place} Horde", "Ulus of {place}"],
+        "turkic": ["Khanate of {place}", "{place} Horde", "Beylik of {place}"]
+      },
+      "imperial-bureaucracy": {
+        "styles": ["han", "korean", "japanese", "persian", "turkic", "andean"],
+        "default": ["Empire of {place}", "Great Empire of {place}"],
+        "han": ["Great {place}", "Celestial Empire of {place}", "Empire of {place}"],
+        "east-asian": ["Empire of {place}", "Great {place}"],
+        "turkic": ["Sublime State of {place}", "Empire of {place}"],
+        "persian": ["Empire of {place}", "Shahdom of {place}"],
+        "islamic": ["Empire of {place}", "Sublime State of {place}"],
+        "andean": ["Realm of the Four Quarters of {place}", "Empire of {place}"]
+      },
+      "merchant-republic": {
+        "styles": ["latin", "germanic", "slavic", "greek", "arabic", "malay"],
+        "default": ["Republic of {place}", "Free City of {place}", "Merchant Republic of {place}"],
+        "latin": ["Most Serene Republic of {place}", "Republic of {place}"],
+        "germanic": ["Free Hanseatic City of {place}", "League of {place}"],
+        "slavic": ["Lord {place} the Great", "Republic of {place}"],
+        "islamic": ["Merchant Emirate of {place}", "Free Port of {place}"],
+        "malay": ["Port Sultanate of {place}", "Free Port of {place}"]
+      },
+      "noble-republic": {
+        "styles": ["latin", "slavic", "magyar", "germanic"],
+        "default": ["Republic of {place}", "Commonwealth of {place}", "Noble Republic of {place}"],
+        "latin": ["Most Serene Republic of {place}", "Republic of {place}"],
+        "slavic": ["Commonwealth of {place}", "Noble Republic of {place}"]
+      },
+      "city-state": {
+        "styles": ["latin", "germanic", "greek", "arabic", "malay", "tai", "sahelian", "mesoamerican"],
+        "default": ["Free City of {place}", "City of {place}", "City-State of {place}"],
+        "latin": ["Signoria of {place}", "Commune of {place}", "Free City of {place}"],
+        "germanic": ["Free Imperial City of {place}", "Free City of {place}"],
+        "greek": ["Polis of {place}", "Free City of {place}"],
+        "islamic": ["City-Emirate of {place}", "City of {place}"],
+        "malay": ["Port of {place}", "City of {place}"],
+        "mesoamerican": ["Altepetl of {place}", "City of {place}"]
+      },
+      "theocracy": {
+        "prefer": "religion",
+        "default": ["Holy State of {place}", "Sacred Realm of {place}", "Temple State of {place}"],
+        "catholic": ["Prince-Bishopric of {place}", "Archbishopric of {place}", "Holy See of {place}"],
+        "orthodox": ["Patriarchate of {place}", "Holy Archdiocese of {place}"],
+        "hussite": ["Brotherhood of {place}", "Holy Commonwealth of {place}"],
+        "christian": ["Patriarchate of {place}", "Holy State of {place}"],
+        "sunni": ["Caliphate of {place}", "Holy Emirate of {place}"],
+        "muslim": ["Imamate of {place}", "Holy Emirate of {place}"],
+        "jewish": ["Holy Land of {place}", "Sanhedrin of {place}"],
+        "zoroastrian": ["Fire Temple State of {place}"],
+        "hindu": ["Temple Kingdom of {place}", "Holy Realm of {place}"],
+        "vajrayana": ["Lama Realm of {place}", "Holy Monastery of {place}"],
+        "buddhist": ["Sangha State of {place}", "Temple Kingdom of {place}"],
+        "shinto": ["Shrine State of {place}"],
+        "confucian": ["Heavenly Court of {place}"],
+        "taoist": ["Celestial Masters of {place}"],
+        "tengri": ["Sky-Blessed Khanate of {place}"],
+        "animist": ["Sacred Grove of {place}", "Spirit Kingdom of {place}"],
+        "inti": ["Sun Kingdom of {place}"],
+        "teotl": ["Temple City of {place}", "Sun Throne of {place}"],
+        "european": ["Prince-Bishopric of {place}", "Holy See of {place}", "Patriarchate of {place}"],
+        "islamic": ["Caliphate of {place}", "Imamate of {place}", "Holy Emirate of {place}"],
+        "steppe": ["Sky-Blessed Khanate of {place}"],
+        "han": ["Heavenly Court of {place}", "Celestial Masters of {place}"],
+        "japanese": ["Shrine State of {place}", "Temple Domain of {place}"],
+        "korean": ["Heavenly Court of {place}"],
+        "indian": ["Temple Kingdom of {place}", "Holy Realm of {place}"],
+        "southeast-asian": ["Sangha State of {place}", "Temple Kingdom of {place}"],
+        "african": ["Sacred Grove of {place}", "Spirit Kingdom of {place}"],
+        "andean": ["Sun Kingdom of {place}"],
+        "mesoamerican": ["Temple City of {place}", "Sun Throne of {place}"]
+      },
+      "military-order": {
+        "styles": ["latin", "germanic", "iberian", "french", "japanese", "arabic"],
+        "default": ["Order of {place}", "State of the Order of {place}", "Knights of {place}"],
+        "islamic": ["Ribat of {place}", "Order of {place}"],
+        "japanese": ["Warrior Monks of {place}", "Order of {place}"]
+      },
+      "tribal-confederation": {
+        "styles": ["berber", "turkic", "mongol", "norse", "bantu", "andean", "mesoamerican"],
+        "default": ["Confederation of {place}", "Tribes of {place}", "The {place} Confederacy", "League of {place}"],
+        "steppe": ["{place} Horde", "Confederation of {place}"],
+        "islamic": ["Tribes of {place}", "Confederation of {place}"]
+      },
+      "chiefdom": {
+        "styles": ["bantu", "malay", "sahelian", "andean", "mesoamerican"],
+        "default": ["Chiefdom of {place}", "Paramount Chiefdom of {place}"],
+        "steppe": ["Clan Lands of {place}", "Chiefdom of {place}"]
+      },
+      "despotate": {
+        "styles": ["greek", "latin", "slavic", "persian", "arabic"],
+        "default": ["Despotate of {place}", "Lordship of {place}"],
+        "latin": ["Signoria of {place}", "Lordship of {place}"],
+        "islamic": ["Emirate of {place}", "Despotate of {place}"]
+      },
+      "warlord-rule": {
+        "styles": ["japanese", "han", "latin", "turkic", "mongol", "bantu"],
+        "default": ["Warlord State of {place}", "Lordship of {place}", "Banner of {place}"],
+        "japanese": ["Domain of {place}", "Daimyo Lands of {place}"],
+        "latin": ["Signoria of {place}", "Lordship of {place}"],
+        "steppe": ["Horde of {place}", "Banner of {place}"]
+      },
+      "eternal-republic": {
+        "styles": ["latin", "greek"],
+        "default": ["Eternal Republic of {place}", "Most Serene and Eternal Republic of {place}"]
+      },
+      "regency": {
+        "default": ["Regency of {place}", "Kingdom of {place}", "Regency Council of {place}"],
+        "islamic": ["Sultanate of {place}", "Regency of {place}"],
+        "japanese": ["Regency of {place}", "Shogunate of {place}"]
+      }
+    },
+
+    "places": {
+      "default": {
+        "starts": ["Var", "Ost", "Kes", "Bel", "Mor", "Tal", "Zan", "Ard", "Vel", "Kor", "Lys", "Dra", "Esk", "Gal", "Mar", "Nor", "Pal", "Rov", "Sar", "Tir"],
+        "middles": ["a", "e", "i", "o", "an", "ar", "el", "en", "or"],
+        "middleChance": 0.4,
+        "ends": ["nia", "ava", "ar", "ia", "land", "mark", "ora", "is", "ium", "ica", "ond", "uria", "eth", "ene"]
+      },
+      "latin": {
+        "tags": ["latin", "european"],
+        "starts": ["Ver", "Fior", "Mont", "Cast", "Bel", "Rav", "Luc", "Sien", "Tor", "Ped", "Ancon", "Mar", "Sal", "Val", "Port", "Ter", "Fer", "Cor", "Pis", "Lor", "Asc", "Vit", "Bor", "Cam", "Nov", "Urb", "Cap"],
+        "middles": ["a", "e", "i", "an", "ell", "er", "ar", "ent"],
+        "middleChance": 0.3,
+        "ends": ["ona", "ano", "ino", "enza", "ara", "ezia", "ugia", "ola", "ento", "ia", "ella", "eto", "esa", "icia", "ova", "ena", "ugno", "ia", "este"]
+      },
+      "iberian": {
+        "tags": ["european"],
+        "starts": ["Val", "Alc", "Cast", "Tol", "Sal", "Gal", "Zar", "Mur", "Bad", "Arag", "Leo", "Seg", "Cor", "Med", "Alm", "Gran", "Ber", "Tor", "Oli", "Mon", "Ast", "Sev", "Nav", "Ext"],
+        "middles": ["a", "e", "i", "an", "ar", "er", "al"],
+        "middleChance": 0.3,
+        "ends": ["ada", "ejo", "illa", "ia", "on", "ega", "oza", "ara", "enca", "ales", "edo", "uena", "esa", "ira", "anca", "osa", "uria", "erra", "ar"]
+      },
+      "french": {
+        "tags": ["european"],
+        "starts": ["Bour", "Champ", "Lor", "Nor", "Pro", "Bret", "Aqu", "Gasc", "Lim", "Auv", "Poit", "Bel", "Mont", "Vers", "Char", "Ang", "Roche", "Bea", "Sav", "Dau", "Tou", "Orl", "Bla", "Cler"],
+        "middles": ["e", "i", "a", "on", "er", "el"],
+        "middleChance": 0.25,
+        "ends": ["agne", "aine", "ence", "ogne", "ais", "ieu", "ois", "ande", "eux", "ac", "illon", "ille", "ont", "oux", "ay", "esse", "ine", "ou", "eaux"]
+      },
+      "germanic": {
+        "tags": ["germanic", "european"],
+        "starts": ["Brand", "Wit", "Sax", "Bav", "Thur", "Wurt", "Hes", "Mei", "Lun", "Ober", "Nie", "Falk", "Hohen", "Stein", "Wald", "Eber", "Gold", "Rot", "Schwarz", "Kron", "Ulm", "Weis", "Ost", "Lich", "Mag", "Wolf"],
+        "middles": ["en", "er", "el", "an", "i"],
+        "middleChance": 0.25,
+        "ends": ["burg", "berg", "stein", "heim", "au", "feld", "ingen", "furt", "bach", "hausen", "land", "mark", "dorf", "stadt", "eck", "lingen", "wald", "fels"]
+      },
+      "norse": {
+        "tags": ["norse", "european"],
+        "starts": ["Hald", "Sval", "Thor", "Ulf", "Sig", "Ragn", "Hrin", "Ask", "Skar", "Vest", "Nor", "Jor", "Kaup", "Bjorn", "Trond", "Freys", "Gud", "Hed", "Upp", "Ros", "Sol", "Hav", "Lind"],
+        "middles": ["a", "e", "i", "ar", "ing", "s"],
+        "middleChance": 0.25,
+        "ends": ["heim", "vik", "fjord", "land", "by", "holm", "gard", "stad", "borg", "mark", "dal", "sund", "ey", "ness", "vin", "aker"]
+      },
+      "slavic": {
+        "tags": ["slavic", "european"],
+        "starts": ["Nov", "Vlad", "Bel", "Tver", "Smol", "Yar", "Kras", "Vol", "Zag", "Pere", "Brat", "Mir", "Rad", "Polo", "Dob", "Gal", "Lub", "Sver", "Kost", "Chern", "Zvon", "Bor", "Sud", "Ryaz", "Pol"],
+        "middles": ["o", "a", "e", "i", "ov", "an", "in"],
+        "middleChance": 0.35,
+        "ends": ["grad", "gorod", "slav", "ov", "sk", "ava", "ina", "ets", "itsa", "ezh", "imir", "nik", "yevo", "odar", "ovo", "ania", "ograd", "ensk"]
+      },
+      "magyar": {
+        "tags": ["european"],
+        "starts": ["Bud", "Eger", "Gyor", "Pec", "Tisz", "Kecs", "Fejer", "Zal", "Bar", "Vesz", "Hev", "Sop", "Mohac", "Nyir", "Szat", "Csong", "Kom", "Szol", "Bek", "Somo", "Erd", "Kal"],
+        "middles": ["e", "a", "o", "er", "en"],
+        "middleChance": 0.3,
+        "ends": ["var", "halom", "szeg", "falva", "hegy", "laka", "hely", "kut", "esd", "eny", "ad", "os", "ely", "ony", "vasar", "keszi"]
+      },
+      "greek": {
+        "tags": ["greek", "european"],
+        "starts": ["Thess", "Mak", "Ep", "Kor", "Arg", "Ath", "Lak", "Mes", "Achai", "Pel", "Myst", "Trap", "Nik", "Kall", "Theo", "Chri", "Mon", "Rhod", "Andr", "Phil", "Pont", "Smyr", "Kypr", "Naup"],
+        "middles": ["o", "a", "e", "i", "on", "an"],
+        "middleChance": 0.35,
+        "ends": ["os", "ia", "is", "aia", "eia", "ikon", "opolis", "onia", "ene", "ada", "ike", "osia", "ea", "ion", "as", "ountos", "ira"]
+      },
+      "arabic": {
+        "tags": ["arabic", "islamic"],
+        "starts": ["Dam", "Hij", "Bas", "Kuf", "Zab", "Raq", "Haj", "Najd", "Hadr", "Tih", "Yam", "Qat", "Mas", "Jaz", "Sham", "Mur", "Tab", "Sab", "Saf", "Qas", "Aqab", "Hal", "Rab", "Mad"],
+        "middles": ["a", "i", "u", "ar", "al", "an"],
+        "middleChance": 0.3,
+        "ends": ["ra", "iya", "ah", "ama", "aq", "ar", "ira", "an", "ad", "ush", "awa", "ara", "un", "at", "ida", "asr", "ahra", "ina"],
+        "prefixes": ["Al-"],
+        "prefixChance": 0.3
+      },
+      "berber": {
+        "tags": ["islamic"],
+        "starts": ["Tafil", "Agad", "Tam", "Tiz", "Mar", "Taz", "Ouar", "Tlem", "Fig", "Sij", "Ghad", "Tin", "Tag", "Zen", "Imaz", "Amr", "Tak", "Ouj", "Ghar", "Tiout", "Aghm"],
+        "middles": ["a", "i", "ou", "en", "ar"],
+        "middleChance": 0.3,
+        "ends": ["alt", "ouine", "ert", "ast", "illit", "ight", "ouz", "ane", "za", "ella", "at", "ir", "oust", "emt", "dan", "ine", "ada", "ilmasa"]
+      },
+      "persian": {
+        "tags": ["persian", "islamic"],
+        "starts": ["Khor", "Is", "Shir", "Tab", "Kerm", "Mazand", "Gil", "Hamad", "Yazd", "Zanj", "Nish", "Mer", "Ard", "Qaz", "Ray", "Sist", "Kash", "Sab", "Gorg", "Bam", "Dar", "Pars", "Ahv", "Mash"],
+        "middles": ["a", "i", "e", "ar", "an", "ab"],
+        "middleChance": 0.3,
+        "ends": ["an", "istan", "abad", "shahr", "gerd", "iz", "az", "and", "vin", "ab", "ar", "ehr", "ad", "iyan", "dasht", "kand", "esh"]
+      },
+      "turkic": {
+        "tags": ["turkic", "steppe"],
+        "starts": ["Kara", "Ak", "Kizil", "Ala", "Tash", "Kok", "Sar", "Bay", "Ilk", "Tur", "Oz", "Yen", "Kas", "Kar", "Tok", "Er", "Bol", "Kut", "Ord", "Sel", "Dur", "Ot", "Kon", "Kay"],
+        "middles": ["a", "i", "u", "an", "ar", "in"],
+        "middleChance": 0.25,
+        "ends": ["kent", "han", "ova", "su", "dag", "tepe", "yurt", "kale", "bek", "eli", "stan", "kum", "ar", "ak", "lik", "kol", "oy", "hisar"]
+      },
+      "mongol": {
+        "tags": ["steppe"],
+        "starts": ["Khar", "Ulaan", "Bay", "Ord", "Altan", "Temur", "Bur", "Tsag", "Khent", "Dar", "Ong", "Sar", "Khuv", "Chag", "Oir", "Erd", "Tol", "Kerul", "Bor", "Del", "Gob", "Uriang"],
+        "middles": ["a", "u", "o", "an", "in", "or"],
+        "middleChance": 0.25,
+        "ends": ["khorum", "tal", "gol", "nuur", "tai", "khan", "ulan", "ud", "gar", "tu", "del", "uut", "bulag", "sum", "aat", "khot", "an"]
+      },
+      "han": {
+        "tags": ["han", "east-asian"],
+        "starts": ["Lu", "Qi", "Wei", "Zhao", "Han", "Chu", "Wu", "Yue", "Shu", "Jin", "Qin", "Song", "Liang", "Yan", "Zheng", "Hua", "Long", "Ping", "Nan", "Bei", "Xi", "Dong", "Jiang", "Tian", "Ling", "Yun", "Guang", "An", "Kai", "Feng"],
+        "ends": ["ning", "zhou", "yang", "du", "jing", "chang", "shan", "ling", "ping", "hua", "lin", "yuan", "tai", "he", "nan", "xi", "hai", "kang", "an", "chuan"],
+        "smooth": false,
+        "maxLength": 11
+      },
+      "japanese": {
+        "tags": ["japanese", "east-asian"],
+        "starts": ["Ka", "Mi", "Ta", "Shi", "Hiro", "Naga", "Yama", "Oka", "Kuma", "Tsu", "Sa", "Ise", "Echi", "Mu", "Kaga", "Owa", "Suru", "Toto", "Mino", "Hida", "Aki", "Iwa", "Hyu", "Fuku"],
+        "middles": ["ra", "no", "ka", "shi", "to", "sa", "ma", "ri"],
+        "middleChance": 0.3,
+        "ends": ["no", "shima", "yama", "saki", "gawa", "zawa", "mura", "hara", "da", "ta", "sa", "wa", "go", "zen", "mi", "tsu", "be", "chi", "kawa", "oka"],
+        "smooth": false
+      },
+      "korean": {
+        "tags": ["east-asian"],
+        "starts": ["Han", "Gyeong", "Jeon", "Chung", "Gang", "Pyeong", "Hwang", "Gae", "Nam", "Bu", "Gwang", "Mok", "Jin", "Sang", "Seo", "Dae", "Cheong", "Hae", "Ul", "Gim", "Myeong", "Hwa"],
+        "ends": ["ju", "won", "san", "yang", "seong", "do", "gu", "hae", "cheon", "nam", "bu", "gok", "pyeong", "jeon", "an", "ryeong"],
+        "smooth": false,
+        "maxLength": 12
+      },
+      "tai": {
+        "tags": ["southeast-asian"],
+        "starts": ["Ayut", "Suk", "Lan", "Chiang", "Phit", "Lop", "Nan", "Phra", "Sri", "Kam", "Chai", "Sakon", "Ubon", "Phet", "Muang", "Lam", "Khon", "Nakhon", "Sawan", "Phay"],
+        "ends": ["thaya", "hothai", "buri", "rai", "mai", "na", "saeng", "pang", "chai", "thani", "phon", "kaen", "ya", "lok", "sak", "rat", "chang"],
+        "smooth": false,
+        "maxLength": 13
+      },
+      "indian": {
+        "tags": ["indian"],
+        "starts": ["Vij", "Ahm", "Gol", "Bij", "Dev", "Raj", "Mal", "Kan", "Mag", "Avan", "Pat", "Ind", "Mad", "Jai", "Gaur", "Kal", "Chand", "Ud", "Sur", "Har", "Kash", "Ban", "Gond", "Vid"],
+        "middles": ["a", "i", "ay", "an", "ar", "ana"],
+        "middleChance": 0.35,
+        "ends": ["nagar", "pur", "abad", "garh", "konda", "ur", "esh", "avati", "pura", "dhra", "ala", "gal", "ana", "ipur", "ota", "alam", "esa", "arbha"]
+      },
+      "malay": {
+        "tags": ["malay", "southeast-asian"],
+        "starts": ["Mel", "Pah", "Ked", "Sam", "Ter", "Bru", "Pas", "Sri", "Jam", "Tem", "Pal", "Mat", "Ban", "Sing", "Lam", "Sun", "Bin", "Kal", "Per", "Muar", "Dem", "Mak"],
+        "middles": ["a", "i", "u", "an", "ang"],
+        "middleChance": 0.3,
+        "ends": ["aka", "ang", "ah", "era", "ganu", "ei", "ai", "bang", "ura", "pura", "embang", "aram", "awi", "ong", "ak", "ar", "ira", "bas", "assar"]
+      },
+      "bantu": {
+        "tags": ["african"],
+        "starts": ["Kon", "Lun", "Ndo", "Mwe", "Kit", "Zim", "Mbu", "Kaz", "Lub", "Mut", "Bun", "Ngo", "Kil", "Mak", "Sof", "Kis", "Mon", "Bug", "Kat", "Mbo", "Tor", "Ruw"],
+        "middles": ["a", "o", "u", "i", "ala", "anga"],
+        "middleChance": 0.35,
+        "ends": ["go", "da", "ngo", "ba", "mbe", "wa", "nda", "ra", "ka", "pa", "ali", "ombe", "anga", "esi", "ume", "oro", "ala", "ani", "aba", "ganda"]
+      },
+      "sahelian": {
+        "tags": ["sahel", "african"],
+        "starts": ["Tim", "Gao", "Djen", "Kan", "Bor", "Wal", "Kat", "Sok", "Tek", "Sab", "Mop", "Kuk", "Nia", "Dia", "Seg", "Bam", "Kong", "Gob", "Zaz", "Bag", "Mand", "Wag"],
+        "middles": ["a", "i", "u", "an", "ou"],
+        "middleChance": 0.3,
+        "ends": ["buktu", "em", "ou", "ata", "ar", "ina", "ani", "ga", "ko", "ba", "ira", "ena", "sso", "alla", "duga", "rma", "kuru", "gu", "adu"]
+      },
+      "ethiopian": {
+        "tags": ["ethiopian", "african"],
+        "starts": ["Ax", "Gon", "Lal", "Shew", "Amh", "Tig", "Ger", "Dam", "Wol", "Har", "Bal", "Sem", "Ank", "Goj", "Beg", "Ad", "Kaf", "Yek", "Mak", "Enar", "Deb"],
+        "middles": ["a", "e", "i", "ar", "ab"],
+        "middleChance": 0.3,
+        "ends": ["um", "dar", "ibela", "ra", "ay", "ot", "emder", "ober", "eda", "enna", "ale", "ut", "amo", "isha", "egn", "ara"]
+      },
+      "andean": {
+        "tags": ["andean", "american"],
+        "starts": ["Cuz", "Chan", "Tiw", "Caj", "Qui", "Ayac", "Hua", "Pach", "Tit", "Ollan", "Chim", "War", "Koll", "Tum", "Anc", "Tamb", "Saqs", "Mach", "Lup", "Chach", "Vilc"],
+        "middles": ["a", "i", "u", "ay", "an"],
+        "middleChance": 0.3,
+        "ends": ["co", "an", "ca", "ta", "pa", "bamba", "marca", "suyu", "chu", "naku", "huasi", "tambo", "cocha", "llay", "pampa", "yoc", "ura"]
+      },
+      "mesoamerican": {
+        "tags": ["mesoamerican", "american"],
+        "starts": ["Tlax", "Teno", "Tex", "Coy", "Azca", "Tol", "Cholu", "Huex", "Xoco", "Chal", "Tzin", "Mayap", "Cuauh", "Ixt", "Tlal", "Zapo", "Mict", "Teot", "Xal", "Atz", "Oax", "Tula"],
+        "middles": ["a", "o", "i", "al"],
+        "middleChance": 0.3,
+        "ends": ["tlan", "titlan", "co", "ca", "pan", "lan", "huacan", "tepec", "apan", "calco", "ilco", "pec", "coyan", "tzin", "yan", "ac", "cala"],
+        "maxLength": 13
+      }
+    }
+  }
+}

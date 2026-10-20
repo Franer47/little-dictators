@@ -8,9 +8,22 @@ import "@fontsource/pixelify-sans/400.css";
 import "@fontsource/pixelify-sans/600.css";
 import "@fontsource/pixelify-sans/700.css";
 import "./wheel.css";
-import { createNation, describeOutcome, generateName, makeOutcome, type Nation, type WheelOutcome } from "../../game/nation.ts";
+import {
+  chainBase,
+  createNation,
+  describeOutcome,
+  generateName,
+  makeOutcome,
+  makePicksOutcome,
+  resultsById,
+  rollExact,
+  rollPicks,
+  rollWheel,
+  type Nation,
+  type WheelOutcome,
+} from "../../game/nation.ts";
 import { createRng, type Rng } from "../../game/random.ts";
-import { exactWheel, spinWheel, type Slice, type Wheel, type WheelData } from "../../game/wheels.ts";
+import { exactWheel, resultGroups, spinWheel, withoutPicked, type Slice, type Wheel, type WheelData } from "../../game/wheels.ts";
 import { loadPref, savePref } from "../prefs.ts";
 import { Confetti } from "./confetti.ts";
 import { GAME_SHOW_COLORS, GameShowWheelView } from "./gameShowWheel.ts";
@@ -80,6 +93,9 @@ class WheelScreen {
   private nation: Nation | null = null;
   /** Number wheels: the range the first spin landed on, and the exact-number wheel after it. */
   private rangeSlice: Slice | null = null;
+  /** Multi-pick wheels (e.g. 3 bonus resources): the picks so far, and the wheel for the next one. */
+  private picks: { wheel: Wheel; slice: Slice }[] = [];
+  private pickWheel: Wheel | null = null;
   private exact: Wheel | null = null;
   private mapLoaded = false;
   private timers: number[] = [];
@@ -87,6 +103,8 @@ class WheelScreen {
 
   private root = document.createElement("div");
   private el: Record<string, HTMLElement> = {};
+  /** The nation card's rows, in wheel order (the card shows them in groups). */
+  private rows: HTMLElement[] = [];
 
   constructor(
     private opts: WheelScreenOptions,
@@ -119,7 +137,7 @@ class WheelScreen {
 
   /** The wheel on screen: the current wheel, or its exact-number wheel. */
   private get wheel(): Wheel {
-    return this.exact ?? this.baseWheel;
+    return this.exact ?? this.pickWheel ?? this.baseWheel;
   }
 
   private get baseWheel(): Wheel {
@@ -147,6 +165,7 @@ class WheelScreen {
             <button type="button" data-style="gameshow" role="radio">${t("styleGameShow")}</button>
           </div>
           <button type="button" class="ws-fast ws-toggle">${t("fast")}</button>
+          <button type="button" class="ws-rest ws-toggle" title="${t("spinRestHint")}">${t("spinRest")}</button>
           <button type="button" class="ws-mute ws-toggle"></button>
         </div>
       </header>
@@ -176,17 +195,25 @@ class WheelScreen {
               </div>
             </div>
           </div>
-          <ol class="card-rows">
-            ${this.data.wheels
+          <div class="card-rows">
+            ${resultGroups(this.data)
               .map(
-                (w) => `<li data-wheel="${escapeHtml(w.id)}">
-                  <span class="row-name">${escapeHtml(w.name)}</span>
-                  <span class="row-value">${t("cardEmpty")}</span>
-                  <span class="row-est"></span>
-                </li>`,
+                (group) => `<section class="card-group">
+                  <h3>${escapeHtml(group.name)}</h3>
+                  <ol>${group.wheels
+                    .map((id) => this.data.wheels.find((w) => w.id === id)!)
+                    .map(
+                      (w) => `<li data-wheel="${escapeHtml(w.id)}">
+                        <span class="row-name">${escapeHtml(w.resultName ?? w.name)}</span>
+                        <span class="row-value">${t("cardEmpty")}</span>
+                        <span class="row-est"></span>
+                      </li>`,
+                    )
+                    .join("")}</ol>
+                </section>`,
               )
               .join("")}
-          </ol>
+          </div>
           <div class="card-final">
             <button type="button" class="card-continue"></button>
             <button type="button" class="card-restart">${t("startOver")}</button>
@@ -206,6 +233,7 @@ class WheelScreen {
       readoutSub: q(".ws-readout-sub"),
       go: q(".ws-go"),
       fast: q(".ws-fast"),
+      rest: q(".ws-rest"),
       mute: q(".ws-mute"),
       card: q(".ws-card"),
       rows: q(".card-rows"),
@@ -214,6 +242,7 @@ class WheelScreen {
       cont: q(".card-continue"),
       restart: q(".card-restart"),
     };
+    this.rows = this.data.wheels.map((w) => root.querySelector<HTMLElement>(`.card-rows li[data-wheel="${CSS.escape(w.id)}"]`)!);
     root.append(this.confetti.canvas);
     document.body.append(root);
 
@@ -233,6 +262,10 @@ class WheelScreen {
       savePref("wheelFast", this.fast);
       this.sounds.click(this.style);
       this.updateToggles();
+    });
+    this.el.rest.addEventListener("click", () => {
+      this.el.rest.blur();
+      this.spinRest();
     });
     this.el.mute.addEventListener("click", () => {
       this.el.mute.blur();
@@ -331,14 +364,16 @@ class WheelScreen {
   private showWheel(): void {
     const wheel = this.wheel;
     const total = this.data.wheels.length;
-    this.el.step.textContent = this.text(this.exact ? "spinOfExact" : "spinOf", { n: this.step + 1, total });
+    const picks = this.baseWheel.picks ?? 1;
+    const key = this.exact ? "spinOfExact" : picks > 1 ? "spinOfPick" : "spinOf";
+    this.el.step.textContent = this.text(key, { n: this.step + 1, total, pick: this.picks.length + 1, picks });
     this.el.wheelName.textContent = wheel.name;
     this.el.question.textContent = wheel.question ?? "";
     [...this.el.dots.children].forEach((dot, i) => {
       dot.classList.toggle("done", i < this.step);
       dot.classList.toggle("current", i === this.step);
     });
-    [...this.el.rows.children].forEach((row, i) => row.classList.toggle("current", i === this.step));
+    this.rows.forEach((row, i) => row.classList.toggle("current", i === this.step));
     this.view.setWheel(wheel);
     this.winner = null;
     this.pointerSlice = -1;
@@ -354,15 +389,30 @@ class WheelScreen {
       ready: this.text("spin"),
       spinning: this.text("spinning"),
       landing: this.text("spinning"),
-      result: this.rangeSlice && !this.exact ? this.text("exact") : last ? this.text("finish") : this.text("next"),
+      result:
+        this.rangeSlice && !this.exact
+          ? this.text("exact")
+          : this.picksLeft()
+            ? this.text("nextPick")
+            : last
+              ? this.text("finish")
+              : this.text("next"),
       final: "",
     };
     go.textContent = label[this.phase];
     go.disabled = this.phase === "spinning" || this.phase === "landing";
     go.classList.toggle("next", this.phase === "result");
+    (this.el.rest as HTMLButtonElement).disabled = this.phase !== "ready" && this.phase !== "result";
   }
 
-  private setReadout(label: string, sub: string, result: boolean): void {
+  /** True while a multi-pick wheel has picks left to spin. */
+  private picksLeft(): boolean {
+    return this.picks.length > 0 && this.picks.length < (this.baseWheel.picks ?? 1);
+  }
+
+  private setReadout(label: string, sub: string, result: boolean, rare = false): void {
+    this.el.readout.classList.toggle("rare", rare);
+    this.el.readout.dataset.badge = this.text("rareHit");
     this.el.readoutLabel.textContent = label;
     this.el.readoutSub.textContent = sub;
     this.el.readout.classList.toggle("result", result);
@@ -412,9 +462,13 @@ class WheelScreen {
       winner: result.index,
     };
     const base = this.baseWheel;
-    if (this.exact) this.outcomes[this.step] = makeOutcome(base, this.rangeSlice!, { wheel: this.exact, slice: result.slice });
-    else if (base.estimate) this.rangeSlice = result.slice; // a number wheel: the exact number is the next spin
-    else this.outcomes[this.step] = makeOutcome(base, result.slice);
+    if (this.exact)
+      this.outcomes[this.step] = makeOutcome(base, this.rangeSlice!, this.data, { wheel: this.exact, slice: result.slice }, resultsById(this.outcomes));
+    else if (base.number) this.rangeSlice = result.slice; // a number wheel: the exact number is the next spin
+    else if ((base.picks ?? 1) > 1) {
+      this.picks.push({ wheel: this.wheel, slice: result.slice });
+      if (this.picks.length >= base.picks!) this.outcomes[this.step] = makePicksOutcome(base, this.picks);
+    } else this.outcomes[this.step] = makeOutcome(base, result.slice, this.data);
     this.phase = "spinning";
     this.root.classList.add("spinning");
     this.updateGo();
@@ -441,26 +495,57 @@ class WheelScreen {
     this.winAt = performance.now();
     this.phase = "landing";
     this.root.classList.remove("spinning");
+    const rare = !!this.wheel.slices[s.winner]?.rare;
+    if (rare) this.later(200, () => this.sounds.reveal(this.style));
     if (this.rangeSlice && !this.exact) {
-      this.landedOnRange(this.rangeSlice);
+      this.landedOnRange(this.rangeSlice, rare);
       return;
     }
+    if (this.picks.length) {
+      // A multi-pick wheel: show this pick; the card fills in pick by pick.
+      const slice = this.picks[this.picks.length - 1].slice;
+      this.setReadout(slice.label, slice.blurb ?? "", true, rare);
+      this.sounds.win(this.style);
+      this.celebrate(rare);
+      if (this.picksLeft()) {
+        this.later(this.fast ? 150 : 600, () => this.landedOnPick());
+        return;
+      }
+    } else {
+      const { main, sub } = describeOutcome(this.outcomes[this.step]);
+      this.setReadout(main, [sub, this.outcomes[this.step].blurb].filter(Boolean).join(" · "), true, rare);
+      this.sounds.win(this.style);
+      this.celebrate(rare);
+    }
     const outcome = this.outcomes[this.step];
-    const { main, sub } = describeOutcome(outcome);
-    this.setReadout(main, [sub, outcome.blurb].filter(Boolean).join(" · "), true);
-    this.sounds.win(this.style);
-    this.celebrate(false);
-    this.later(this.fast ? 250 : 750, () => this.flyToCard(outcome));
+    this.later(this.fast ? 250 : rare ? 1400 : 750, () => this.flyToCard(outcome));
+  }
+
+  /** A pick of a multi-pick wheel with more to come: list the picks so far on the card. */
+  private landedOnPick(): void {
+    const row = this.rows[this.step];
+    row.querySelector(".row-value")!.textContent = [...this.picks.map((p) => p.slice.label), "…"].join(", ");
+    row.classList.toggle("rare", this.picks.some((p) => p.slice.rare));
+    row.classList.add("filled");
+    row.classList.remove("flash");
+    void row.offsetWidth;
+    row.classList.add("flash");
+    this.sounds.thunk(this.style);
+    this.phase = "result";
+    this.updateGo();
+    if (this.fast) this.later(120, () => this.phase === "result" && this.next());
   }
 
   /** A number wheel's first spin: show the range (also on the card), then on to the exact number. */
-  private landedOnRange(slice: Slice): void {
-    this.setReadout(slice.shown, slice.blurb ?? "", true);
+  private landedOnRange(slice: Slice, rare: boolean): void {
+    // Wheels that show labels ("Settled") also say the range; range wheels show it already.
+    const range = slice.rangeText && slice.rangeText !== slice.shown ? slice.rangeText : "";
+    this.setReadout(slice.shown, [range, slice.blurb].filter(Boolean).join(" · "), true, rare);
     this.sounds.win(this.style);
-    this.celebrate(false);
-    const row = this.el.rows.children[this.step] as HTMLElement;
+    this.celebrate(rare);
+    const row = this.rows[this.step];
     this.later(this.fast ? 150 : 600, () => {
-      row.querySelector(".row-est")!.textContent = slice.shown;
+      row.querySelector(".row-est")!.textContent = range ? `${slice.label} · ${range}` : slice.shown;
       row.classList.remove("flash");
       void row.offsetWidth;
       row.classList.add("flash");
@@ -496,7 +581,7 @@ class WheelScreen {
 
   /** The result flies from under the wheel onto its row of the nation card. */
   private flyToCard(outcome: WheelOutcome): void {
-    const row = this.el.rows.children[this.step] as HTMLElement;
+    const row = this.rows[this.step];
     const value = row.querySelector<HTMLElement>(".row-value")!;
     const from = this.el.readoutLabel.getBoundingClientRect();
     const to = value.getBoundingClientRect();
@@ -533,6 +618,7 @@ class WheelScreen {
     const { main, sub } = describeOutcome(outcome);
     row.querySelector(".row-value")!.textContent = main;
     row.querySelector(".row-est")!.textContent = sub;
+    row.classList.toggle("rare", !!outcome.rare);
     row.classList.add("filled");
     row.classList.remove("flash");
     void row.offsetWidth;
@@ -542,10 +628,14 @@ class WheelScreen {
   private next(): void {
     this.sounds.click(this.style);
     if (this.rangeSlice && !this.exact) {
-      this.exact = exactWheel(this.baseWheel, this.rangeSlice, this.data);
+      this.exact = exactWheel(this.baseWheel, this.rangeSlice, this.data, chainBase(this.baseWheel, resultsById(this.outcomes)));
+    } else if (this.picksLeft()) {
+      this.pickWheel = withoutPicked(this.baseWheel, this.picks.map((p) => p.slice));
     } else {
       this.exact = null;
       this.rangeSlice = null;
+      this.picks = [];
+      this.pickWheel = null;
       if (this.step >= this.data.wheels.length - 1) {
         this.reveal();
         return;
@@ -569,6 +659,47 @@ class WheelScreen {
     out.finished.then(swap, swap);
   }
 
+  /** "Spin the rest": rolls every wheel that's left at once, fills the card, then reveals the nation. */
+  private spinRest(): void {
+    if (this.phase !== "ready" && this.phase !== "result") return;
+    this.sounds.unlock();
+    this.sounds.click(this.style);
+    const wheels = this.data.wheels;
+    const results = resultsById(this.outcomes);
+    const filled: number[] = [];
+    for (let i = this.step; i < wheels.length; i++) {
+      if (this.outcomes[i]) continue; // this wheel is already done
+      const wheel = wheels[i];
+      // A number wheel that already landed on its range only needs the exact number.
+      const outcome =
+        i === this.step && this.rangeSlice
+          ? rollExact(this.data, wheel, this.rangeSlice, results, this.rng)
+          : i === this.step && this.picks.length
+            ? rollPicks(wheel, this.picks, this.rng)
+            : rollWheel(this.data, wheel, results, this.rng);
+      this.outcomes[i] = results[wheel.id] = outcome;
+      filled.push(i);
+    }
+    this.exact = null;
+    this.rangeSlice = null;
+    this.picks = [];
+    this.pickWheel = null;
+    this.phase = "landing";
+    this.updateGo();
+    this.rows.forEach((row) => row.classList.remove("current"));
+    const gap = this.fast ? 40 : 90;
+    filled.forEach((i, k) =>
+      this.later(k * gap, () => {
+        this.fillRow(this.rows[i], this.outcomes[i]);
+        this.sounds.thunk(this.style);
+      }),
+    );
+    this.later(filled.length * gap + 250, () => {
+      this.step = wheels.length - 1;
+      this.reveal();
+    });
+  }
+
   // ---------------------------------------------------------------- the finished nation
 
   private reveal(): void {
@@ -578,7 +709,7 @@ class WheelScreen {
     const before = card.getBoundingClientRect();
     this.phase = "final";
     this.root.classList.add("final");
-    [...this.el.rows.children].forEach((row) => row.classList.remove("current"));
+    this.rows.forEach((row) => row.classList.remove("current"));
     (this.el.name as HTMLButtonElement).disabled = false;
     const after = card.getBoundingClientRect();
     card.animate(
@@ -624,7 +755,7 @@ class WheelScreen {
     this.sounds.click(this.style);
     let name = this.nation.name;
     for (let tries = 0; tries < 5 && name === this.nation.name; tries++)
-      name = generateName(this.data.names, this.nation.results.government?.sliceId, this.rng);
+      name = generateName(this.data.names, this.nation.results, this.rng);
     this.nation.name = name;
     this.scrambleName(name, 500);
     const btn = this.el.reroll;
@@ -675,13 +806,15 @@ class WheelScreen {
     this.nation = null;
     this.rangeSlice = null;
     this.exact = null;
+    this.picks = [];
+    this.pickWheel = null;
     this.step = 0;
     this.root.classList.remove("final");
     const name = this.el.name as HTMLButtonElement;
     name.textContent = this.text("cardEmpty");
     name.disabled = true;
-    [...this.el.rows.children].forEach((row) => {
-      row.classList.remove("filled", "flash");
+    this.rows.forEach((row) => {
+      row.classList.remove("filled", "flash", "rare");
       row.querySelector(".row-value")!.textContent = this.text("cardEmpty");
       row.querySelector(".row-est")!.textContent = "";
     });

@@ -6,6 +6,29 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 ## Unreleased
 
 ### Added
+- **The wheels are now set in 1500.** 9 spins: Government, Land size, Population
+  density, Wealth, Bonus resources, Ideology, History, Stability and Popularity, each
+  with many more options than the beta, all fitting the time (kingdoms, sultanates,
+  khanates, merchant republics… no juntas or communists).
+- **Realistic, chained numbers**: land up to 535,000 km² (1.5× Germany), shown with a
+  comparison ("≈ the size of Portugal"); population = land × density (0.5–60 people per
+  km²); GDP = population × output per person ($900–3,100 a year, from Angus Maddison's
+  estimates for 1500, in today's dollars). A big, dense, well-off nation comes out near
+  France in 1500 (~15M people, ~$26B); a tiny empty one has a few thousand people.
+- **3 bonus resources** per nation: the resource wheel is spun three times, with no
+  repeats.
+- **Rare slices**, drawn as thin gold slivers, with a "Rare!" badge and extra confetti
+  when they land: the Eternal Republic (about 1 in 1,000) and Satanist (about 1 in 200).
+- **Better names**, made from the government and ideology: each government has its own
+  titles (Khanate of…, Most Serene Republic of…, Prince-Bishopric of…) and name styles
+  (24 sets of syllables, from Latin and Norse to Arabic, Han and Andean), and the ideology
+  sometimes adds a word ("Great…", "Holy…", "Iron…", "Kingdom of New…").
+- **Spin the rest** button next to Skip animation: rolls every wheel that's left at once.
+- The nation card, corner panel and creation record show the results in groups
+  (Power, Land & wealth, Story); the finished card uses two columns.
+- Dev checks in the browser console: `game.checkNumbers()` (spread of land, population
+  and GDP over 10,000 rolled nations) and `game.sampleNations()`.
+
 - **Wheel beta: create your nation.** After picking a map, spin one big wheel for
   Government, Land size, Population, GDP and Ideology. Land, population and GDP are spun
   twice: first a range (e.g. 70M–200M people), then a wheel of 10 numbers in that range
@@ -46,6 +69,12 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 - This changelog.
 
 ### Changed
+- Wheel data is split by era: `public/data/wheels.json` picks the era and holds the
+  screen text, and `public/data/eras/1500.json` holds the 1500 wheels, number ranges
+  (with notes on where they come from) and name parts. Culture and Religion wheels are
+  in the file but switched off for now.
+- Plain words on the wheels, so they're easy to understand ("Ideology", "Popularity",
+  "Fanatical", "Very rich" instead of "Outlook", "Acceptance", "Zealous", "Opulent").
 - **The Earth map is bigger: 2000 × 1111 pixels** (was 1500 × 833), with more
   detailed coastlines (Natural Earth 1:10m), so fjords, island chains and small
   islands come out sharper. It looks the same otherwise: same terrain, lakes,
