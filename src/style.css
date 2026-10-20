@@ -165,3 +165,78 @@ body {
   cursor: wait;
   opacity: 0.7;
 }
+
+/* A problem the game can't get past, e.g. a mistake in a data file. */
+#fatal-error {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 100;
+  translate: -50% -50%;
+  width: min(560px, calc(100vw - 32px));
+  padding: 18px 20px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  color: #ffd9d4;
+  background: #3a1214;
+  border: 1px solid #e2705c;
+  border-radius: 10px;
+}
+
+/* Leaving the start screen: the panel fades away, then the backdrop fades to show the map. */
+#start-menu {
+  transition: opacity 0.7s ease;
+}
+
+#start-menu .panel {
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+#start-menu.leaving .panel {
+  opacity: 0;
+  transform: scale(0.94);
+  pointer-events: none;
+}
+
+#start-menu.gone {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#start-menu .loading-note {
+  position: absolute;
+  bottom: 18%;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 13px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(238, 242, 246, 0.6);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Only shows if loading takes more than a moment. */
+#start-menu.leaving:not(.gone) .loading-note {
+  animation: start-loading 1.6s ease-in-out 0.8s infinite;
+}
+
+@keyframes start-loading {
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #start-menu,
+  #start-menu .panel {
+    transition-duration: 0.2s;
+  }
+
+  #start-menu.leaving .panel {
+    transform: none;
+  }
+}

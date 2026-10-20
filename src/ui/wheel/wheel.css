@@ -1,0 +1,1124 @@
+/* The wheel screen. Two looks: .style-retro (pixel) and .style-gameshow (bright TV show). */
+
+#wheel-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden auto;
+  color: var(--ink);
+  font-family: var(--font-body);
+  background: var(--bg);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#wheel-screen button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+#wheel-screen button:disabled {
+  cursor: default;
+}
+
+/* ------------------------------------------------------------ the two looks */
+
+#wheel-screen.style-gameshow {
+  --ink: #fff7e6;
+  --muted: #d9c3f0;
+  --accent: #ffd60a;
+  --accent-2: #ff3b4e;
+  --panel: #250a45;
+  --font-display: "Luckiest Guy", "Arial Black", system-ui, sans-serif;
+  --font-body: system-ui, "Segoe UI", sans-serif;
+  --bg: radial-gradient(ellipse at 40% 45%, rgba(91, 26, 134, 0.86) 0%, rgba(46, 11, 85, 0.9) 45%, rgba(18, 5, 42, 0.95) 100%);
+}
+
+#wheel-screen.style-retro {
+  --ink: #f4f1e6;
+  --muted: #8ea3c4;
+  --accent: #ffd84a;
+  --accent-2: #c8423a;
+  --panel: #142340;
+  --edge: #0b1020;
+  /* Pixelify Sans: a pixel font made to be easy to read. The logo keeps Press Start 2P. */
+  --font-display: "Pixelify Sans", monospace;
+  --font-body: "Pixelify Sans", monospace;
+  --bg: transparent; /* the pixel sky canvas is the background */
+}
+
+.ws-stars {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.9;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+.ws-rays {
+  position: fixed;
+  left: var(--cx, 40%);
+  top: var(--cy, 50%);
+  width: 220vmax;
+  height: 220vmax;
+  margin: -110vmax 0 0 -110vmax;
+  pointer-events: none;
+  background: repeating-conic-gradient(from 0deg, rgba(255, 220, 140, 0.09) 0deg 7deg, rgba(255, 220, 140, 0) 7deg 15deg);
+  -webkit-mask-image: radial-gradient(circle, #000 0%, rgba(0, 0, 0, 0.6) 18%, transparent 40%);
+  mask-image: radial-gradient(circle, #000 0%, rgba(0, 0, 0, 0.6) 18%, transparent 40%);
+  animation: ws-rays 90s linear infinite;
+}
+
+.style-gameshow.spinning .ws-rays {
+  animation-duration: 12s;
+}
+
+.style-retro .ws-rays,
+.style-gameshow .ws-stars {
+  display: none;
+}
+
+@keyframes ws-rays {
+  to {
+    rotate: 360deg;
+  }
+}
+
+/* ------------------------------------------------------------ top bar */
+
+.ws-top {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 20px;
+  padding: 14px 22px 6px;
+}
+
+.ws-title {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ws-game {
+  font-family: var(--font-display);
+  font-size: 22px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.ws-sub {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.style-retro .ws-game {
+  font-size: 14px;
+  font-family: "Press Start 2P", monospace;
+  text-shadow: 3px 3px 0 var(--accent-2);
+}
+
+.style-retro .ws-sub {
+  font-size: 15px;
+}
+
+.style-gameshow .ws-game {
+  text-shadow: 0 3px 0 #b3200f, 0 0 18px rgba(255, 200, 60, 0.6);
+}
+
+.ws-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ws-style {
+  display: flex;
+}
+
+.ws-style button,
+.ws-toggle {
+  padding: 7px 12px;
+  font-size: 13px !important;
+  border: 0;
+  background: rgba(255, 255, 255, 0.08);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ws-style button:first-child {
+  border-radius: 999px 0 0 999px;
+}
+
+.ws-style button:last-child {
+  border-radius: 0 999px 999px 0;
+}
+
+.ws-toggle {
+  border-radius: 999px;
+}
+
+.ws-style button[aria-checked="true"],
+.ws-toggle[aria-pressed="true"] {
+  background: var(--accent);
+  color: #1d0838;
+}
+
+.ws-mute[aria-pressed="true"] {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+}
+
+.ws-style button:hover:not([aria-checked="true"]),
+.ws-toggle:hover:not([aria-pressed="true"]) {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.style-gameshow .ws-style button,
+.style-gameshow .ws-toggle {
+  font-weight: 600;
+}
+
+/* Retro: square pixel buttons with notched corners. */
+.style-retro .ws-style button,
+.style-retro .ws-toggle {
+  font-size: 15px !important;
+  padding: 8px 10px;
+  border-radius: 0 !important;
+  background: var(--panel);
+  margin: 4px 2px;
+  box-shadow:
+    0 -3px 0 0 var(--edge),
+    0 3px 0 0 var(--edge),
+    -3px 0 0 0 var(--edge),
+    3px 0 0 0 var(--edge),
+    inset 0 -3px 0 0 #0d1a33;
+}
+
+.style-retro .ws-style button[aria-checked="true"],
+.style-retro .ws-toggle[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--edge);
+  box-shadow:
+    0 -3px 0 0 var(--edge),
+    0 3px 0 0 var(--edge),
+    -3px 0 0 0 var(--edge),
+    3px 0 0 0 var(--edge),
+    inset 0 -3px 0 0 #b07d22;
+}
+
+.style-retro .ws-mute[aria-pressed="true"] {
+  background: var(--panel);
+  color: var(--muted);
+}
+
+/* ------------------------------------------------------------ main layout */
+
+.ws-main {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  gap: 20px 28px;
+  padding: 4px 28px 22px;
+}
+
+.ws-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 0;
+  min-width: 0;
+}
+
+.ws-progress {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  justify-content: center;
+  column-gap: 14px;
+  row-gap: 2px;
+  text-align: center;
+}
+
+.ws-step {
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.ws-dots {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ws-dots li {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  transition: background 0.3s;
+}
+
+.ws-dots li.done {
+  background: var(--accent);
+}
+
+.ws-dots li.current {
+  background: var(--ink);
+  animation: ws-blink 1s steps(2) infinite;
+}
+
+.style-retro .ws-dots li {
+  border-radius: 0;
+  width: 8px;
+  height: 8px;
+}
+
+.style-retro .ws-step {
+  font-size: 15px;
+  letter-spacing: 0.1em;
+}
+
+@keyframes ws-blink {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.ws-wheel-name {
+  grid-column: 1 / -1;
+  font-family: var(--font-display);
+  font-size: 34px;
+  line-height: 1.1;
+  color: var(--ink);
+}
+
+.style-gameshow .ws-wheel-name {
+  text-shadow: 0 3px 0 #7a1fa0, 0 0 22px rgba(255, 120, 220, 0.45);
+  letter-spacing: 0.03em;
+}
+
+.style-retro .ws-wheel-name {
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-top: 8px;
+  color: var(--accent);
+  text-shadow: 3px 3px 0 var(--edge);
+  text-transform: uppercase;
+}
+
+.ws-question {
+  grid-column: 1 / -1;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.style-retro .ws-question {
+  font-size: 16px;
+  margin-top: 6px;
+}
+
+.ws-wheel {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.wheel-canvas {
+  display: block;
+  flex: none;
+}
+
+.wheel-canvas.retro {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* What's under the pointer, then the result. */
+.ws-readout {
+  flex: 0 1 420px;
+  min-width: min(300px, 100%);
+  padding: 8px 18px;
+  text-align: center;
+}
+
+.ws-readout-label {
+  font-family: var(--font-display);
+  font-size: 26px;
+  line-height: 1.2;
+  min-height: 1.2em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ws-readout-sub {
+  min-height: 1.3em;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.style-gameshow .ws-readout {
+  border-radius: 14px;
+  background: rgba(10, 0, 25, 0.55);
+  border: 3px solid rgba(255, 214, 10, 0.55);
+  box-shadow: inset 0 0 18px rgba(255, 214, 10, 0.18);
+}
+
+.style-gameshow .ws-readout.result {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 22px rgba(255, 214, 10, 0.35), 0 0 26px rgba(255, 214, 10, 0.45);
+}
+
+.style-gameshow .ws-readout-label {
+  color: #fff;
+  letter-spacing: 0.03em;
+  text-shadow: 0 2px 0 #b3200f;
+}
+
+.style-gameshow .ws-readout.result .ws-readout-label {
+  color: var(--accent);
+}
+
+.style-retro .ws-readout {
+  background: #060a14;
+  margin: 4px;
+  box-shadow:
+    0 -4px 0 0 #2a4a7a,
+    0 4px 0 0 #2a4a7a,
+    -4px 0 0 0 #2a4a7a,
+    4px 0 0 0 #2a4a7a;
+}
+
+.style-retro .ws-readout-label {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-shadow: 2px 2px 0 #000;
+  color: #7fd0d8;
+}
+
+.style-retro .ws-readout.result .ws-readout-label {
+  color: var(--accent);
+}
+
+.style-retro.spinning .ws-readout-label::after {
+  content: "_";
+  animation: ws-blink 0.4s steps(2) infinite;
+}
+
+.style-retro .ws-readout-sub {
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.ws-readout.pop .ws-readout-label {
+  animation: ws-pop 0.5s cubic-bezier(0.3, 1.8, 0.5, 1);
+}
+
+.style-retro .ws-readout.pop .ws-readout-label {
+  animation: ws-pop-steps 0.5s steps(4);
+}
+
+@keyframes ws-pop {
+  from {
+    transform: scale(1.6);
+  }
+}
+
+@keyframes ws-pop-steps {
+  0% {
+    transform: scale(1.5);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+.ws-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px 22px;
+  width: 100%;
+  margin-top: 6px;
+}
+
+.ws-go {
+  min-width: 200px;
+  padding: 12px 34px;
+  border: 0;
+}
+
+.style-gameshow .ws-go {
+  font-family: var(--font-display) !important;
+  font-size: 28px !important;
+  letter-spacing: 0.05em;
+  color: #fff;
+  border-radius: 999px;
+  background: linear-gradient(#ff6b6b, #e3122d 55%, #a3001a);
+  box-shadow:
+    0 0 0 4px #ffd25a,
+    0 6px 0 4px #9a6416,
+    0 10px 24px rgba(0, 0, 0, 0.5);
+  text-shadow: 0 2px 0 #7a0010;
+  transition: transform 0.08s, box-shadow 0.08s, filter 0.15s;
+}
+
+.style-gameshow .ws-go:not(:disabled) {
+  animation: ws-glow 1.4s ease-in-out infinite;
+}
+
+.style-gameshow .ws-go.next {
+  background: linear-gradient(#5be38a, #1fa84f 55%, #0b6d2e);
+  text-shadow: 0 2px 0 #064a1e;
+}
+
+.style-gameshow .ws-go:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-1px) scale(1.03);
+}
+
+.style-gameshow .ws-go:active:not(:disabled) {
+  transform: translateY(5px);
+  box-shadow:
+    0 0 0 4px #ffd25a,
+    0 1px 0 4px #9a6416,
+    0 4px 10px rgba(0, 0, 0, 0.5);
+}
+
+.style-gameshow .ws-go:disabled {
+  filter: saturate(0.4) brightness(0.8);
+}
+
+@keyframes ws-glow {
+  50% {
+    box-shadow:
+      0 0 0 4px #ffe58a,
+      0 6px 0 4px #9a6416,
+      0 10px 34px rgba(255, 200, 60, 0.65);
+  }
+}
+
+.style-retro .ws-go {
+  font-size: 22px !important;
+  font-weight: 700;
+  padding: 14px 28px;
+  margin: 4px;
+  color: #fff;
+  background: var(--accent-2);
+  box-shadow:
+    0 -4px 0 0 var(--edge),
+    0 4px 0 0 var(--edge),
+    -4px 0 0 0 var(--edge),
+    4px 0 0 0 var(--edge),
+    inset -4px -4px 0 0 #7a1f22,
+    inset 4px 4px 0 0 #ef7a5e;
+  text-shadow: 2px 2px 0 #7a1f22;
+}
+
+.style-retro .ws-go.next {
+  background: #4a9a45;
+  box-shadow:
+    0 -4px 0 0 var(--edge),
+    0 4px 0 0 var(--edge),
+    -4px 0 0 0 var(--edge),
+    4px 0 0 0 var(--edge),
+    inset -4px -4px 0 0 #2a6131,
+    inset 4px 4px 0 0 #86c76a;
+  text-shadow: 2px 2px 0 #2a6131;
+}
+
+.style-retro .ws-go:active:not(:disabled) {
+  transform: translateY(4px);
+}
+
+.style-retro .ws-go:not(:disabled) {
+  animation: ws-bob 0.8s steps(2) infinite;
+}
+
+.style-retro .ws-go:disabled {
+  background: #4a5568;
+  text-shadow: none;
+  color: #a0aec0;
+}
+
+@keyframes ws-bob {
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+.ws-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
+  opacity: 0.8;
+}
+
+.style-retro .ws-hint {
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+/* ------------------------------------------------------------ the nation card */
+
+.ws-card {
+  align-self: center;
+  padding: 18px 18px 16px;
+  min-width: 0;
+}
+
+.style-gameshow .ws-card {
+  border: 4px solid transparent;
+  border-radius: 20px;
+  background:
+    linear-gradient(170deg, #34105e, #1d0838) padding-box,
+    linear-gradient(135deg, #fff1b8, #e7b23c 35%, #a8701c 65%, #f6d27a) border-box;
+  box-shadow: 0 0 34px rgba(255, 190, 80, 0.3), 0 14px 40px rgba(0, 0, 0, 0.5);
+}
+
+.style-retro .ws-card {
+  margin: 4px;
+  background: var(--panel);
+  box-shadow:
+    0 -4px 0 0 var(--edge),
+    0 4px 0 0 var(--edge),
+    -4px 0 0 0 var(--edge),
+    4px 0 0 0 var(--edge),
+    inset 0 4px 0 0 #2a4a7a,
+    inset 0 -4px 0 0 #0d1a33,
+    8px 8px 0 0 rgba(0, 0, 0, 0.45);
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 14px;
+  margin-bottom: 10px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.12);
+}
+
+.style-retro .card-head {
+  border-bottom: 4px solid var(--edge);
+}
+
+.card-titles {
+  min-width: 0;
+  flex: 1;
+}
+
+.card-kicker {
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.style-retro .card-kicker {
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  margin-bottom: 6px;
+}
+
+.card-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.card-name {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  font-family: var(--font-display) !important;
+  font-size: 22px !important;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.style-gameshow .card-name {
+  color: var(--accent);
+  text-shadow: 0 2px 0 #b3200f;
+}
+
+.style-retro .card-name {
+  font-size: 24px !important;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--accent);
+}
+
+.card-name:not(:disabled):hover {
+  text-decoration: underline dotted;
+  text-underline-offset: 4px;
+}
+
+.card-name-input {
+  width: 100%;
+  min-width: 0;
+  padding: 2px 6px;
+  font-family: var(--font-display);
+  font-size: 22px;
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.35);
+  border: 2px solid var(--accent);
+  border-radius: 6px;
+  outline: none;
+  user-select: text;
+}
+
+.style-retro .card-name-input {
+  font-size: 22px;
+  line-height: 1.6;
+  border-radius: 0;
+}
+
+.card-reroll {
+  display: none;
+  flex: none;
+  padding: 5px;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--accent);
+}
+
+.card-reroll:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.card-reroll.roll svg {
+  animation: ws-roll 0.45s ease-out;
+}
+
+@keyframes ws-roll {
+  from {
+    transform: rotate(-360deg) scale(0.6);
+  }
+}
+
+.style-retro .card-reroll {
+  border-radius: 0;
+}
+
+.card-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card-rows li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  column-gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  transition: background 0.3s;
+}
+
+.row-name {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.row-value {
+  font-family: var(--font-display);
+  font-size: 20px;
+  line-height: 1.2;
+  color: rgba(255, 255, 255, 0.28);
+}
+
+.row-est {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.card-rows li.filled .row-value {
+  color: var(--ink);
+}
+
+.card-rows li.current {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.card-rows li.current::before {
+  content: "";
+  position: absolute;
+  left: -12px;
+  top: 50%;
+  border: 7px solid transparent;
+  border-left-color: var(--accent);
+  translate: 0 -50%;
+}
+
+.card-rows li.flash {
+  animation: ws-flash 0.7s ease-out;
+}
+
+@keyframes ws-flash {
+  from {
+    background: rgba(255, 214, 10, 0.55);
+    transform: scale(1.04);
+  }
+}
+
+.style-retro .card-rows li {
+  border-radius: 0;
+  padding: 8px 8px;
+}
+
+.style-retro .row-name {
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.style-retro .row-value {
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.style-retro .row-est {
+  font-size: 15px;
+  font-weight: normal;
+  color: #7fd0d8;
+}
+
+.style-retro .card-rows li.flash {
+  animation: ws-flash-steps 0.6s steps(3);
+}
+
+@keyframes ws-flash-steps {
+  from {
+    background: var(--accent);
+  }
+}
+
+.card-final {
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.card-continue,
+.card-restart {
+  padding: 12px;
+  border: 0;
+}
+
+.style-gameshow .card-continue {
+  font-family: var(--font-display) !important;
+  font-size: 22px !important;
+  letter-spacing: 0.04em;
+  color: #fff;
+  border-radius: 999px;
+  background: linear-gradient(#5be38a, #1fa84f 55%, #0b6d2e);
+  box-shadow: 0 0 0 3px #ffd25a, 0 5px 0 3px #9a6416;
+  text-shadow: 0 2px 0 #064a1e;
+}
+
+.style-gameshow .card-continue:disabled {
+  filter: saturate(0.3) brightness(0.8);
+}
+
+.style-gameshow .card-restart {
+  background: none;
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 4px;
+}
+
+.style-retro .card-continue {
+  font-size: 21px !important;
+  font-weight: 700;
+  color: #fff;
+  background: #4a9a45;
+  margin: 4px;
+  box-shadow:
+    0 -4px 0 0 var(--edge),
+    0 4px 0 0 var(--edge),
+    -4px 0 0 0 var(--edge),
+    4px 0 0 0 var(--edge),
+    inset -4px -4px 0 0 #2a6131,
+    inset 4px 4px 0 0 #86c76a;
+}
+
+.style-retro .card-continue:disabled {
+  background: #4a5568;
+  color: #a0aec0;
+  box-shadow:
+    0 -4px 0 0 var(--edge),
+    0 4px 0 0 var(--edge),
+    -4px 0 0 0 var(--edge),
+    4px 0 0 0 var(--edge);
+}
+
+.style-retro .card-restart {
+  font-size: 15px !important;
+  background: none;
+  color: var(--muted);
+  padding: 6px;
+}
+
+.style-retro .card-restart:hover {
+  color: var(--ink);
+}
+
+/* The flag placeholder (flags come later). */
+.flag-frame {
+  flex: none;
+  width: 60px;
+  height: 44px;
+}
+
+.flag-frame svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.flag-pole {
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  opacity: 0.7;
+}
+
+.flag-cloth {
+  fill: rgba(255, 255, 255, 0.07);
+  stroke: currentColor;
+  stroke-width: 1;
+  stroke-dasharray: 2 1.5;
+  opacity: 0.8;
+}
+
+.flag-frame text {
+  fill: currentColor;
+  font-size: 8px;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  opacity: 0.7;
+}
+
+.ws-card .flag-frame {
+  color: var(--accent);
+}
+
+/* ------------------------------------------------------------ the reveal */
+
+#wheel-screen.final .ws-stage {
+  display: none;
+}
+
+#wheel-screen.final .ws-main {
+  grid-template-columns: minmax(0, 520px);
+  justify-content: center;
+  align-content: center;
+}
+
+#wheel-screen.final .ws-card {
+  padding: 26px 26px 20px;
+}
+
+#wheel-screen.final .card-final,
+#wheel-screen.final .card-reroll {
+  display: flex;
+}
+
+#wheel-screen.final .card-name {
+  font-size: 30px !important;
+  cursor: text;
+}
+
+#wheel-screen.final .card-name-input {
+  font-size: 26px;
+}
+
+#wheel-screen.style-retro.final .card-name {
+  font-size: 32px !important;
+}
+
+#wheel-screen.style-retro.final .card-name-input {
+  font-size: 28px;
+}
+
+#wheel-screen.final .flag-frame {
+  width: 84px;
+  height: 62px;
+}
+
+/* A result flying to the card. */
+.ws-chip {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 50;
+  padding: 6px 14px;
+  white-space: nowrap;
+  pointer-events: none;
+  font-family: var(--font-display);
+  font-size: 22px;
+  color: #1d0838;
+  background: var(--accent);
+  border-radius: 999px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+}
+
+.style-retro .ws-chip {
+  font-size: 20px;
+  font-weight: 700;
+  padding: 8px 10px;
+  border-radius: 0;
+  color: var(--edge);
+  box-shadow: 4px 4px 0 0 var(--edge);
+}
+
+.confetti {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 60;
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------ smaller windows */
+
+@media (max-width: 860px) {
+  .ws-main {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 4px 14px 18px;
+  }
+
+  .ws-stage {
+    height: max(440px, min(100vh - 90px, 720px));
+  }
+
+  .ws-card {
+    justify-self: center;
+    width: min(440px, 100%);
+  }
+
+  .ws-top {
+    padding: 10px 14px 4px;
+  }
+}
+
+@media (max-height: 700px) {
+  .ws-question,
+  .ws-hint {
+    display: none;
+  }
+
+  .ws-wheel-name {
+    font-size: 26px;
+  }
+
+  .style-retro .ws-wheel-name {
+    font-size: 26px;
+  }
+
+  .ws-go {
+    padding: 8px 24px;
+  }
+
+  .card-rows li {
+    padding: 5px 10px;
+  }
+
+  .ws-readout {
+    padding: 4px 14px;
+  }
+}
+
+#wheel-screen.final .ws-rays {
+  left: 50%;
+  top: 50%;
+}
+
+/* ------------------------------------------------------------ arriving over the map */
+
+#wheel-screen.waiting {
+  visibility: hidden;
+  opacity: 0;
+}
+
+#wheel-screen.arriving {
+  animation: ws-arrive 0.75s cubic-bezier(0.2, 0.9, 0.3, 1.05) both;
+}
+
+#wheel-screen.arriving .ws-card {
+  animation: ws-arrive-card 0.9s cubic-bezier(0.2, 0.9, 0.3, 1.05) both;
+}
+
+@keyframes ws-arrive {
+  from {
+    opacity: 0;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes ws-arrive-card {
+  0%,
+  25% {
+    opacity: 0;
+    transform: translateX(60px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #wheel-screen.arriving,
+  #wheel-screen.arriving .ws-card {
+    animation: ws-fade 0.25s ease both;
+  }
+
+  .ws-rays {
+    animation: none;
+  }
+}
+
+@keyframes ws-fade {
+  from {
+    opacity: 0;
+  }
+}

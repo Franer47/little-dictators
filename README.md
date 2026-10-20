@@ -13,7 +13,59 @@ npm run dev      # starts the game at http://localhost:5173
 ```
 
 The game opens on a start screen (alpha): pick a map and press **Start** (or Enter, or
-double-click a map). To pick another map, reload the page.
+double-click a map). To pick another map, reload the page. Then you create your nation on
+the wheel (below) while the map loads in the background.
+
+## Creating a nation: the wheel (beta)
+
+![The game show wheel](docs/wheel-gameshow.jpg)
+
+One big wheel, spun once per question: **Government**, **Land size**, **Population**,
+**GDP** and **Ideology**. The number wheels (land, population, GDP) are spun twice: first
+for a range (e.g. 70M–200M people), then on a second wheel of 10 numbers spread through
+that range, which gives the exact number (e.g. 82M people). The results collect on the
+nation card; after the last spin the nation gets a random name (click it to rename, or
+press the dice for a new one), and **Continue to map** takes you to the map. The nation
+panel in the bottom-right corner shows the name and key results; click it for the
+**creation record** (every roll, its odds, the date and the random seed). Esc closes it.
+
+For now this is cosmetic: the results are stored and shown but don't change the game yet,
+and nothing is saved when you reload.
+
+| Action | Input |
+|---|---|
+| Spin / next wheel | **Spin** button, Space, Enter, or click the wheel |
+| Switch look | **Retro pixel** or **Game show** (top right; remembered) |
+| Sound on/off | Speaker button (remembered). Sound starts after your first click or key press. |
+| Quick spins for testing | **Skip animation** |
+
+![The retro pixel wheel](docs/wheel-retro.jpg)
+
+### Tuning the wheels
+
+Everything on the wheels is in **`public/data/wheels.json`**, so you can change it without
+touching code (reload the page after saving):
+
+- **Slices**: each has a `label`, a `blurb` (the flavour line) and a `weight`, and
+  optionally a `short` label for the retro wheel (e.g. "Junta" for "Military Junta"). Weights
+  are relative odds: all 1 means equal chances, 2 is twice as likely as 1, 0 never comes
+  up. Slices take up room on the wheel in proportion to their weight, so what you see is
+  the real odds.
+- **Number wheels** (with an `estimate` block): each slice has a `range` of
+  `[low, high]`; `range` sets how the range is written on the wheel (e.g. `"${low}–{high}"`),
+  `exactSlices` how many numbers the second wheel has, and `format` how the result reads
+  (e.g. `"{value} people"`). Their labels (Small, Rich…) are only names in the file.
+- **Names**: `names.titles` lists title patterns per government ("Holy State of {place}"),
+  and `names.place` the syllables that make up place names.
+- **Screen text**: `text` has every word shown on the wheel screen, card and panel.
+- `panel.show` picks which results the corner panel shows.
+
+If the file has a mistake (e.g. a negative weight), the game shows an error saying where.
+
+Testing shortcuts: `?wheel=skip` rolls the whole nation instantly, `?seed=123` makes the
+rolls repeatable, e.g. <http://localhost:5173/?map=earth-1500&wheel=skip&seed=123>. In the
+browser console (dev server only), `game.checkWeights()` spins every wheel 100,000 times
+and prints how often each slice won next to its expected odds.
 
 ## Controls
 
@@ -37,6 +89,11 @@ Each map says whether it wraps with `"wrapX"` in its `public/maps/<name>.json`;
 src/
   main.ts                 starts the game
   ui/startMenu.ts         the start screen: pick a map
+  ui/wheel/               the wheel screen: flow, the two wheel looks, sounds, confetti
+  ui/nationPanel.ts       the nation panel in the corner and its creation record
+  game/wheels.ts          loads the wheel data, spins (weighted random picks)
+  game/nation.ts          a nation and its creation record; name generator
+  game/random.ts          seeded random numbers for game logic
   map/terrain.ts          terrain types and their (data) colours
   map/projection.ts       turns longitude/latitude into map pixels
   map/gameMap.ts          loads a map into a grid of terrain values + elevation
@@ -48,6 +105,7 @@ scripts/
   build-earth-map.ts      generates the Earth map from real-world data
   earth-water.json        which lakes and rivers go on the Earth map (editable)
 public/maps/              map files (see below)
+public/data/wheels.json   the nation wheels, names and screen text (editable)
 data/raw/                 downloaded source data for the map builder (not committed)
 ```
 

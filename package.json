@@ -20,5 +20,10 @@
     "typescript": "^7.0.2",
     "vite": "^8.3.4",
     "world-atlas": "^2.0.2"
+  },
+  "dependencies": {
+    "@fontsource/luckiest-guy": "^5.3.0",
+    "@fontsource/pixelify-sans": "^5.3.0",
+    "@fontsource/press-start-2p": "^5.3.0"
   }
 }

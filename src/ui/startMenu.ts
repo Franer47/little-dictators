@@ -52,8 +52,13 @@ export function chooseMap(): Promise<{ name: string; done: () => void }> {
       () => {
         const name = list.querySelector<HTMLInputElement>("input:checked")!.value;
         start.disabled = true;
-        start.textContent = "Loading map…";
-        resolve({ name, done: () => (menu.hidden = true) });
+        // The panel fades away; if the map takes a while, a quiet "Loading map…" shows.
+        menu.classList.add("leaving");
+        const done = (): void => {
+          menu.classList.add("gone");
+          window.setTimeout(() => (menu.hidden = true), 700);
+        };
+        resolve({ name, done });
       },
       { once: true },
     );
