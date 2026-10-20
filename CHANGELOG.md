@@ -27,6 +27,9 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
   on the start screen. `npm run build:map` builds both.
 
 ### Design
+- Wheel beta planned: 5 spins (Government, Land size, Population, GDP, Ideology),
+  a nation card, a nation panel in the corner with the creation record, and two
+  wheel styles (retro pixel, bold game show) to compare.
 - Main map will grow to ~2000 px wide; the 1500 px map is kept as a second size
   for a future map-size option.
 - Lakes and rivers planned: big lakes are ordinary water, major rivers are a thin

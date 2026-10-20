@@ -169,6 +169,15 @@ The wheel setup is fully configurable, per wheel:
    on the nation but have **no effect** yet. Includes the customizable wheel setup
    (modes, options, bonus Continent wheel), random editable names, start year choice.
    Place nations and grow territory. Save/load.
+   - **2a. Wheel beta:** after picking a map → one big wheel, **5 spins**: Government,
+     Land size, Population, GDP, Ideology. All slices equally likely for now (odds come
+     later). Then a **nation card** with a random (editable) name and the 5 results,
+     then the map. In the game, a **nation panel in the bottom-right corner** (flag
+     placeholder + name + key results); clicking it opens the **creation record**:
+     everything rolled when the nation was made. Two wheel **styles** to compare,
+     switchable before spinning: **Retro pixel** (chunky, 8-bit sounds) and **Bold game
+     show** (bright slices, ticking pointer, pop on the result), with a mute button.
+     Wheel contents live in an editable data file. Purely cosmetic.
 3. **Stats matter** — wheel results turn into real numbers: derived values such as army
    strength, growth rate, stability, economy.
 4. **Ticks + basic simulation** — the clock runs; growth and peaceful expansion into empty
