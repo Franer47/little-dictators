@@ -488,7 +488,7 @@ class WheelScreen {
     } else {
       const rect = (big ? this.el.card : this.view.canvas).getBoundingClientRect();
       const tip = big ? { x: rect.width / 2, y: rect.height * 0.2 } : this.view.pointerTip();
-      const pixel = Math.max(2, Math.round(parseFloat(this.view.canvas.style.width) / this.view.canvas.width) || 3);
+      const pixel = Math.max(2, Math.round((this.view as RetroWheelView).pixelSize));
       const colors = [...RETRO_PALETTE.studOn, RETRO_PALETTE.slices[0][2], RETRO_PALETTE.slices[2][2], RETRO_PALETTE.text];
       this.confetti.burst(rect.left + tip.x, rect.top + tip.y, colors, { count: big ? 160 : 60, pixel, power: big ? 1.1 : 0.7, spread: Math.PI * 1.3 });
     }
