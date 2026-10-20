@@ -5,6 +5,13 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 
 ## Unreleased
 
+### Changed
+- **Retro wheel slice labels are much easier to read.** They are now drawn sharp at full
+  screen resolution in Pixelify Sans Bold (a pixel font made for legibility), white with
+  a dark pixel outline, on top of the chunky pixel wheel. All labels on a wheel share one
+  size where they can, so the wheel reads evenly. (Tried against VT323 and Silkscreen;
+  see docs/retro-label-fonts.jpg.) The hand-made 5×7 pixel font is gone.
+
 ### Added
 - **Wheel beta: create your nation.** After picking a map, spin one big wheel for
   Government, Land size, Population, GDP and Ideology. Land, population and GDP are spun

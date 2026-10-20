@@ -2,8 +2,7 @@
 // flapper that gets knocked by every peg that goes past.
 
 import type { Wheel } from "../../game/wheels.ts";
-import { wrapText } from "./pixelFont.ts";
-import { TAU, sliceColor, sliceEdges, type WheelFrame, type WheelView } from "./wheelView.ts";
+import { TAU, sliceColor, sliceEdges, wrapText, type WheelFrame, type WheelView } from "./wheelView.ts";
 
 export const GAME_SHOW_COLORS = ["#ff3b4e", "#ff9f1c", "#ffd60a", "#2ec95c", "#1fb5ff", "#4a5cff", "#b04dff", "#ff4fb3"];
 export const GAME_SHOW_FONT = '"Luckiest Guy", "Arial Black", system-ui, sans-serif';
