@@ -5,6 +5,11 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 
 ## Unreleased
 
+### Fixed
+- **"Reveal nation" froze the game in the Retro style.** When the wheel hid behind the
+  finished nation card its size became zero, and the retro label sizing then looped
+  forever. A hidden wheel now keeps its size, and the label sizing always stops.
+
 ### Added
 - **The wheels are now set in 1500.** 11 spins: Government, Land size, Population
   density, Wealth, Bonus resources, Ideology, History, Stability, Popularity, a Bonus

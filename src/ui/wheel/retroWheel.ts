@@ -127,6 +127,7 @@ export class RetroWheelView implements WheelView {
     const wheel = this.wheel;
     if (!wheel) return;
     const k = this.scale * this.dpr; // screen pixels per wheel pixel
+    if (!(k > 0)) return;
     const n = wheel.slices.length;
     const palette = RETRO_PALETTE.slices;
     const g = document.createElement("canvas").getContext("2d")!;
@@ -134,7 +135,7 @@ export class RetroWheelView implements WheelView {
     const outer = (R - RIM - 4) * k;
     const room = outer - inner;
     const biggest = Math.round(R * k * 0.15);
-    const smallest = R * k * 0.05;
+    const smallest = Math.max(1, R * k * 0.05); // at least 1 px, so the size search always ends
 
     // Where a label of this size would go, or null if it doesn't fit: up to two lines, no
     // further out than the rim, and the slice must be tall enough where its inner end sits.
@@ -200,6 +201,8 @@ export class RetroWheelView implements WheelView {
   }
 
   resize(width: number, height: number): void {
+    // A hidden wheel (e.g. behind the finished nation card) has no size: keep the old one.
+    if (!(width > 0 && height > 0)) return;
     const dpr = window.devicePixelRatio || 1;
     let deviceScale = Math.min(width / W, height / H) * dpr;
     // Whole-number scales keep every pixel the same size; use one if it costs little room.
