@@ -4,7 +4,7 @@
 // stay sharp and easy to read at any angle.
 
 import type { Wheel } from "../../game/wheels.ts";
-import { TAU, sliceColor, sliceEdges, wrapText, type WheelFrame, type WheelView } from "./wheelView.ts";
+import { DOOM_RED, TAU, sliceColor, sliceEdges, specialColors, wrapText, type WheelFrame, type WheelView } from "./wheelView.ts";
 
 /** The slice labels' font: Pixelify Sans, a pixel font made for legibility. */
 const LABEL_FONT = '700 {size}px "Pixelify Sans", monospace';
@@ -59,6 +59,8 @@ interface SliceArt {
   label: HTMLCanvasElement | null;
   /** Distance from the wheel centre where the label starts, in screen pixels. */
   labelAt: number;
+  /** A rare slice: no label, glowing red edges. */
+  rare: boolean;
 }
 
 export class RetroWheelView implements WheelView {
@@ -79,6 +81,7 @@ export class RetroWheelView implements WheelView {
 
   private readonly c = {
     outline: px(RETRO_PALETTE.outline),
+    doomRed: px(DOOM_RED),
     shadow: px(RETRO_PALETTE.shadow, 90),
     rim: RETRO_PALETTE.rim.map((h) => px(h)),
     studOff: px(RETRO_PALETTE.studOff),
@@ -148,9 +151,9 @@ export class RetroWheelView implements WheelView {
     const info = wheel.slices.map((slice, i) => {
       const [start, end] = [this.edges[i], this.edges[i + 1]];
       const tanHalf = Math.tan(Math.min(((end - start) * TAU) / 2, 1.2));
-      const text = slice.short ?? slice.shown;
+      const text = slice.rare ? "" : (slice.short ?? slice.shown); // rare slices have no label
       let best = 0;
-      for (let size = biggest; size >= smallest; size = Math.floor(size * 0.94))
+      for (let size = biggest; text && size >= smallest; size = Math.floor(size * 0.94))
         if (fit(text, tanHalf, size)) {
           best = size;
           break;
@@ -164,8 +167,9 @@ export class RetroWheelView implements WheelView {
     const shared = Math.max(fitting[0] ?? 0, Math.floor(median * 0.9));
 
     this.slices = info.map((x, i) => {
-      const colors = palette[sliceColor(i, n, palette.length)].map((h) => px(h)) as [number, number, number];
-      const art: SliceArt = { colors, center: (x.start + x.end) / 2, label: null, labelAt: 0 };
+      const slice = wheel.slices[i];
+      const colors = (specialColors(wheel, slice, i) ?? palette[sliceColor(i, n, palette.length)]).map((h) => px(h)) as [number, number, number];
+      const art: SliceArt = { colors, center: (x.start + x.end) / 2, label: null, labelAt: 0, rare: !!slice.rare };
       const layout = x.best > 0 ? fit(x.text, x.tanHalf, Math.min(x.best, shared)) : null;
       if (layout) {
         art.label = this.drawLabel(layout.lines, layout.size, layout.widest, layout.pad);
@@ -216,6 +220,10 @@ export class RetroWheelView implements WheelView {
 
   onTick(): void {
     this.kick = 1;
+  }
+
+  hubCenter(): { x: number; y: number } {
+    return { x: CX * this.scale, y: CY * this.scale };
   }
 
   pointerTip(): { x: number; y: number } {
@@ -286,11 +294,15 @@ export class RetroWheelView implements WheelView {
         let i = 0;
         while (i < n - 1 && frac >= edges[i + 1]) i++;
         const edgeDist = Math.min(frac - edges[i], edges[i + 1] - frac) * TAU * r;
+        const art = slices[i];
+        if (art.rare && edgeDist < 1.7) {
+          pixels[p] = c.doomRed; // a rare slice's red edges
+          continue;
+        }
         if (edgeDist < 0.7) {
           pixels[p] = c.outline;
           continue;
         }
-        const art = slices[i];
         const s = light * Math.max(0, (r - (sliceOuter - 40)) / 40);
         let color = s > 0.3 + bayer * 0.5 ? art.colors[2] : s < -0.3 - bayer * 0.5 ? art.colors[0] : art.colors[1];
         if (f.winner !== null) {

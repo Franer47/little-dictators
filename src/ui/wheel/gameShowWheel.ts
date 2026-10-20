@@ -2,7 +2,7 @@
 // flapper that gets knocked by every peg that goes past.
 
 import type { Wheel } from "../../game/wheels.ts";
-import { TAU, sliceColor, sliceEdges, wrapText, type WheelFrame, type WheelView } from "./wheelView.ts";
+import { DOOM_RED, TAU, sliceColor, sliceEdges, specialColors, wrapText, type WheelFrame, type WheelView } from "./wheelView.ts";
 
 export const GAME_SHOW_COLORS = ["#ff3b4e", "#ff9f1c", "#ffd60a", "#2ec95c", "#1fb5ff", "#4a5cff", "#b04dff", "#ff4fb3"];
 export const GAME_SHOW_FONT = '"Luckiest Guy", "Arial Black", system-ui, sans-serif';
@@ -80,6 +80,10 @@ export class GameShowWheelView implements WheelView {
 
   onTick(): void {}
 
+  hubCenter(): { x: number; y: number } {
+    return this.center;
+  }
+
   pointerTip(): { x: number; y: number } {
     return { x: this.center.x + this.R * 0.93, y: this.center.y };
   }
@@ -95,10 +99,11 @@ export class GameShowWheelView implements WheelView {
     const g = this.disc.getContext("2d")!;
     g.translate(d / 2, d / 2);
 
-    wheel.slices.forEach((_, i) => {
+    wheel.slices.forEach((slice, i) => {
       const a0 = this.edges[i] * TAU;
       const a1 = this.edges[i + 1] * TAU;
-      const base = GAME_SHOW_COLORS[sliceColor(i, wheel.slices.length, GAME_SHOW_COLORS.length)];
+      const special = specialColors(wheel, slice, i);
+      const base = special ? special[1] : GAME_SHOW_COLORS[sliceColor(i, wheel.slices.length, GAME_SHOW_COLORS.length)];
       const grad = g.createRadialGradient(0, 0, r * 0.1, 0, 0, r);
       grad.addColorStop(0, shade(base, 0.45));
       grad.addColorStop(0.55, base);
@@ -126,11 +131,31 @@ export class GameShowWheelView implements WheelView {
       g.stroke();
     }
 
+    // Rare slices: a thin black wedge with glowing red edges, and no label.
+    wheel.slices.forEach((slice, i) => {
+      if (!slice.rare) return;
+      const a0 = this.edges[i] * TAU;
+      const a1 = this.edges[i + 1] * TAU;
+      g.save();
+      g.shadowColor = "rgba(255, 30, 50, 0.9)";
+      g.shadowBlur = 8 * this.dpr;
+      g.beginPath();
+      g.moveTo(Math.cos(a0) * r * 0.16, Math.sin(a0) * r * 0.16);
+      g.lineTo(Math.cos(a0) * r, Math.sin(a0) * r);
+      g.arc(0, 0, r, a0, a1);
+      g.lineTo(Math.cos(a1) * r * 0.16, Math.sin(a1) * r * 0.16);
+      g.strokeStyle = DOOM_RED;
+      g.lineWidth = 2.5 * this.dpr;
+      g.lineJoin = "round";
+      g.stroke();
+      g.restore();
+    });
+
     // Labels: along each slice, reading outward, pushed toward the rim.
     wheel.slices.forEach((slice, i) => {
       const a0 = this.edges[i] * TAU;
       const a1 = this.edges[i + 1] * TAU;
-      if (a1 - a0 < 0.05) return; // too thin for a label (e.g. weight 0)
+      if (a1 - a0 < 0.05 || slice.rare) return; // too thin for a label (e.g. weight 0), or a rare slice
       const outer = r * 0.84;
       const inner = r * 0.24;
       const room = outer - inner;
@@ -140,7 +165,7 @@ export class GameShowWheelView implements WheelView {
       let lines: string[] = [];
       for (; size > r * 0.035; size *= 0.93) {
         g.font = `${size}px ${GAME_SHOW_FONT}`;
-        lines = wrapText(slice.shown.toUpperCase(), room, (t) => g.measureText(t).width);
+        lines = wrapText((slice.short ?? slice.shown).toUpperCase(), room, (t) => g.measureText(t).width);
         const tall = lines.length * size * 1.0;
         const widest = Math.max(...lines.map((l) => g.measureText(l).width));
         const innerEnd = outer - widest;

@@ -381,6 +381,43 @@
   color: var(--muted);
 }
 
+/* Landed on a rare or golden slice: a badge over the readout (colours further down). */
+.ws-readout {
+  position: relative;
+}
+
+.ws-readout.rare::before,
+.ws-readout.golden::before {
+  content: attr(data-badge);
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  translate: -50% 0;
+  padding: 2px 10px;
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #2a1600;
+  background: linear-gradient(180deg, #fff3b0, #ffd84a 55%, #e0a020);
+  border-radius: 999px;
+  box-shadow: 0 0 16px rgba(255, 216, 74, 0.8);
+  animation: ws-rare 0.9s ease-in-out infinite alternate;
+}
+
+.style-retro .ws-readout.rare::before,
+.style-retro .ws-readout.golden::before {
+  border-radius: 0;
+  animation: ws-rare 0.5s steps(2) infinite alternate;
+}
+
+@keyframes ws-rare {
+  to {
+    scale: 1.12;
+  }
+}
+
+
 .style-gameshow .ws-readout {
   border-radius: 14px;
   background: rgba(10, 0, 25, 0.55);
@@ -730,43 +767,67 @@
   border-radius: 0;
 }
 
-.card-rows {
+/* Results in groups (People, Power…), one compact line each: name on the left, result on
+   the right, details under the result. */
+.card-rows ol {
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+.card-group + .card-group {
+  margin-top: 8px;
+}
+
+.card-group h3 {
+  margin: 0 0 2px;
+  padding: 0 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+  opacity: 0.85;
+}
+
 .card-rows li {
   position: relative;
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 92px minmax(0, 1fr);
   align-items: baseline;
   column-gap: 10px;
-  padding: 8px 10px;
-  border-radius: 10px;
+  padding: 3px 10px;
+  border-radius: 8px;
   transition: background 0.3s;
 }
 
 .row-name {
-  grid-column: 1 / -1;
-  font-size: 11px;
-  letter-spacing: 0.14em;
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .row-value {
   font-family: var(--font-display);
-  font-size: 20px;
-  line-height: 1.2;
+  font-size: 16px;
+  line-height: 1.25;
   color: rgba(255, 255, 255, 0.28);
 }
 
 .row-est {
-  font-size: 13px;
+  grid-column: 2;
+  font-size: 11.5px;
   font-weight: 600;
+  line-height: 1.3;
   color: var(--accent);
-  white-space: nowrap;
+}
+
+.row-est:empty {
+  display: none;
 }
 
 .card-rows li.filled .row-value {
@@ -800,23 +861,28 @@
 
 .style-retro .card-rows li {
   border-radius: 0;
-  padding: 8px 8px;
+  padding: 3px 8px;
+}
+
+.style-retro .card-group h3 {
+  padding: 0 8px;
+  font-size: 13px;
+  letter-spacing: 0.08em;
 }
 
 .style-retro .row-name {
   font-size: 13px;
-  letter-spacing: 0.05em;
-  margin-bottom: 4px;
+  letter-spacing: 0.04em;
 }
 
 .style-retro .row-value {
-  font-size: 19px;
+  font-size: 17px;
   font-weight: 600;
   line-height: 1.3;
 }
 
 .style-retro .row-est {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: normal;
   color: #7fd0d8;
 }
@@ -951,13 +1017,33 @@
 }
 
 #wheel-screen.final .ws-main {
-  grid-template-columns: minmax(0, 520px);
+  grid-template-columns: minmax(0, 760px);
   justify-content: center;
-  align-content: center;
+  /* "safe": if the card is taller than the window, it starts at the top and the page scrolls. */
+  align-content: safe center;
+}
+
+#wheel-screen.final .ws-card {
+  width: 100%;
 }
 
 #wheel-screen.final .ws-card {
   padding: 26px 26px 20px;
+}
+
+/* The finished card is wider, with the groups in two columns. */
+#wheel-screen.final .card-rows {
+  columns: 2 300px;
+  column-gap: 18px;
+}
+
+#wheel-screen.final .card-group {
+  break-inside: avoid;
+  margin: 0 0 8px;
+}
+
+#wheel-screen.final .card-rows li {
+  grid-template-columns: 96px minmax(0, 1fr);
 }
 
 #wheel-screen.final .card-final,
@@ -1063,7 +1149,11 @@
   }
 
   .card-rows li {
-    padding: 5px 10px;
+    padding: 2px 10px;
+  }
+
+  .card-group + .card-group {
+    margin-top: 4px;
   }
 
   .ws-readout {
@@ -1121,4 +1211,142 @@
   from {
     opacity: 0;
   }
+}
+
+/* ------------------------------------------------------------ rare pulls (doom) and golden spins */
+
+/* A rare pull darkens the whole screen with a red edge; it lifts when the rare wheel is done. */
+.ws-doom {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  opacity: 0;
+  background:
+    radial-gradient(ellipse at 50% 45%, rgba(0, 0, 0, 0) 30%, rgba(20, 0, 4, 0.55) 70%, rgba(90, 0, 12, 0.6) 100%),
+    rgba(0, 0, 0, 0.35);
+  transition: opacity 0.6s ease;
+}
+
+#wheel-screen.doom .ws-doom {
+  opacity: 1;
+  animation: ws-doom-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes ws-doom-pulse {
+  50% {
+    filter: brightness(1.25);
+  }
+}
+
+/* Keep the wheel, its readout and the card above the dark layer, but dimmed a little. */
+#wheel-screen.doom .ws-stage,
+#wheel-screen.doom .ws-card {
+  position: relative;
+  z-index: 41;
+}
+
+#wheel-screen.doom .ws-card {
+  filter: saturate(0.6) brightness(0.8);
+}
+
+#wheel-screen.doom .ws-wheel-name {
+  color: #ff4a5c !important;
+  text-shadow: 0 0 18px rgba(224, 24, 45, 0.8) !important;
+}
+
+#wheel-screen.doom .ws-rays {
+  opacity: 0.15;
+}
+
+/* The skull over the wheel's centre. */
+.ws-skull {
+  position: fixed;
+  z-index: 45;
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0.2) rotate(-30deg);
+  transition: opacity 0.25s, transform 0.5s cubic-bezier(0.2, 1.6, 0.4, 1);
+  filter: drop-shadow(0 0 12px rgba(224, 24, 45, 0.9));
+}
+
+.ws-skull svg {
+  width: 100%;
+  height: 100%;
+}
+
+.ws-skull.on {
+  opacity: 1;
+  transform: none;
+  animation: ws-skull-shake 0.5s 0.4s steps(4) 2;
+}
+
+@keyframes ws-skull-shake {
+  25% {
+    translate: -3px 1px;
+  }
+  50% {
+    translate: 3px -1px;
+  }
+  75% {
+    translate: -2px -2px;
+  }
+}
+
+#wheel-screen .ws-readout.rare::before {
+  background: linear-gradient(180deg, #ff4a5c, #a00c1e 60%, #50040e);
+  color: #fff;
+  box-shadow: 0 0 16px rgba(224, 24, 45, 0.85);
+}
+
+#wheel-screen .ws-readout.rare .ws-readout-label {
+  color: #ff4a5c;
+  text-shadow: 0 0 14px rgba(224, 24, 45, 0.8);
+}
+
+
+#wheel-screen .ws-readout.golden .ws-readout-label {
+  color: #ffd84a;
+  text-shadow: 0 0 14px rgba(255, 216, 74, 0.7);
+}
+
+/* The golden spin: a warm glow around everything. */
+#wheel-screen.golden .ws-wheel {
+  filter: drop-shadow(0 0 26px rgba(255, 216, 74, 0.55));
+}
+
+#wheel-screen.golden .ws-wheel-name {
+  color: #ffd84a !important;
+}
+
+.ws-chip.rare {
+  color: #ff4a5c;
+}
+
+.ws-chip.golden {
+  color: #ffd84a;
+}
+
+.card-rows li.rare .row-value {
+  color: #ff4a5c !important;
+  text-shadow: 0 0 10px rgba(224, 24, 45, 0.6);
+}
+
+.card-rows li.golden .row-value {
+  color: #ffd84a !important;
+  text-shadow: 0 0 10px rgba(255, 216, 74, 0.6);
+}
+
+.card-rows li.none .row-value {
+  color: var(--muted) !important;
+}
+
+/* The nation chart, on the finished card only. */
+.card-chart {
+  display: none;
+}
+
+#wheel-screen.final .card-chart:not(:empty) {
+  display: block;
+  margin-top: 6px;
 }
