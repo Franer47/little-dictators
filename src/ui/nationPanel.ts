@@ -4,7 +4,7 @@
 import "./nationPanel.css";
 import { describeOutcome, type Nation } from "../game/nation.ts";
 import { resultGroups, type WheelData } from "../game/wheels.ts";
-import { escapeHtml, flagPlaceholder, formatText, nationChart } from "./uiBits.ts";
+import { escapeHtml, flagPlaceholder, formatText, hoverTips, nationChart, oddsText, outcomeTip } from "./uiBits.ts";
 
 export function showNationPanel(nation: Nation, data: WheelData): void {
   const text = (key: string, vars?: Record<string, string | number>): string => escapeHtml(formatText(data.text[key] ?? key, vars));
@@ -26,10 +26,10 @@ export function showNationPanel(nation: Nation, data: WheelData): void {
         .filter(Boolean)
         .map((r) => {
           const { main, sub } = describeOutcome(r);
-          return `<tr${r.rare ? ' class="np-rare"' : r.golden || r.estimate?.boost ? ' class="np-golden"' : ""}>
+          return `<tr data-wheel="${escapeHtml(r.wheelId)}" tabindex="0"${r.rare ? ' class="np-rare"' : r.golden || r.estimate?.boost ? ' class="np-golden"' : ""}>
             <th scope="row">${escapeHtml(r.resultName)}</th>
             <td><div class="np-result">${escapeHtml(main)}</div>${sub ? `<div class="np-est">${escapeHtml(sub)}</div>` : ""}</td>
-            <td class="np-odds">${text("recordOdds", { chance: odds(r.chance * (r.exactChance ?? 1)) })}</td>
+            <td class="np-odds">${text("recordOdds", { chance: oddsText(r.chance * (r.exactChance ?? 1)) })}</td>
           </tr>`;
         })
         .join("");
@@ -80,14 +80,12 @@ export function showNationPanel(nation: Nation, data: WheelData): void {
   window.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !record.hidden) setOpen(false);
   });
+  // Point at a row (or tab to it) to see what the result means.
+  hoverTips(record, "tr[data-wheel]", (row) => {
+    const outcome = nation.results[row.dataset.wheel ?? ""];
+    return outcome ? outcomeTip(outcome, data.text.tipOdds ?? "Odds: {chance}") : null;
+  });
   // Keep presses on the panel from reaching the map behind it.
   panel.addEventListener("pointerdown", (e) => e.stopPropagation());
   panel.addEventListener("wheel", (e) => e.stopPropagation());
-}
-
-/** 0.125 → "12.5% (1 in 8)". */
-function odds(chance: number): string {
-  const pct = chance * 100;
-  const shown = pct >= 10 ? pct.toFixed(1).replace(/\.0$/, "") : pct.toPrecision(2);
-  return chance > 0 ? `${shown}% (1 in ${Math.round(1 / chance).toLocaleString("en-US")})` : "0%";
 }

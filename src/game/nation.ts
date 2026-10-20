@@ -31,7 +31,7 @@ export interface WheelOutcome {
   /** For number wheels: the chance of the exact number on the second wheel (0..1). */
   exactChance?: number;
   /** For multi-pick wheels (e.g. 3 bonus resources): every pick, in order. */
-  picks?: { sliceId: string; label: string; chance: number }[];
+  picks?: { sliceId: string; label: string; chance: number; blurb?: string }[];
   /** A rare pull (one of the rare governments or ideologies). */
   rare?: boolean;
   /** From the golden spin. */

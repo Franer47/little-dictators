@@ -175,7 +175,7 @@ export class NationRoller {
   }
 
   private picksOutcome(base: Wheel): WheelOutcome {
-    const list = this.picks.map(({ wheel, slice }) => ({ sliceId: slice.id, label: slice.label, chance: chanceOf(wheel, slice) }));
+    const list = this.picks.map(({ wheel, slice }) => ({ sliceId: slice.id, label: slice.label, chance: chanceOf(wheel, slice), blurb: slice.blurb }));
     const label = list.map((p) => p.label).join(", ");
     return {
       wheelId: base.id,

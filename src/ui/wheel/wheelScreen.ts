@@ -18,7 +18,7 @@ import { GAME_SHOW_COLORS, GameShowWheelView } from "./gameShowWheel.ts";
 import { RETRO_PALETTE, RetroWheelView } from "./retroWheel.ts";
 import { WheelSounds, type SoundStyle } from "./sound.ts";
 import { TAU, angleToShow, fractionAtPointer, sliceAt, sliceEdges, ticksPassed, type WheelView } from "./wheelView.ts";
-import { escapeHtml, flagPlaceholder, formatText, nationChart, skullIcon, speakerIcon } from "../uiBits.ts";
+import { escapeHtml, flagPlaceholder, formatText, hideTips, hoverTips, nationChart, outcomeTip, skullIcon, speakerIcon } from "../uiBits.ts";
 
 type Style = SoundStyle;
 type Phase = "ready" | "spinning" | "landing" | "result" | "final";
@@ -272,6 +272,12 @@ class WheelScreen {
     this.el.reroll.addEventListener("click", () => this.rerollName());
     this.el.cont.addEventListener("click", () => this.finish());
     this.el.restart.addEventListener("click", () => this.startOver());
+
+    // Point at a result on the card (or tab to it) to see what it means and its odds.
+    hoverTips(this.el.card, ".card-rows li.filled", (li) => {
+      const outcome = (this.nation?.results ?? this.roller.results)[li.dataset.wheel ?? ""];
+      return outcome ? outcomeTip(outcome, this.data.text.tipOdds ?? "Odds: {chance}") : null;
+    });
 
     new ResizeObserver(() => this.resize()).observe(this.el.wheel);
     window.addEventListener("resize", this.drawStars);
@@ -666,6 +672,7 @@ class WheelScreen {
     row.classList.toggle("golden", !!outcome.golden || !!outcome.estimate?.boost);
     row.classList.toggle("none", !!outcome.none);
     row.classList.add("filled");
+    row.tabIndex = 0;
     this.flashRow(row);
   }
 
@@ -843,6 +850,7 @@ class WheelScreen {
     name.disabled = true;
     this.rows.forEach((row) => {
       row.classList.remove("filled", "flash", "rare", "golden", "none");
+      row.removeAttribute("tabindex");
       row.querySelector(".row-value")!.textContent = this.text("cardEmpty");
       row.querySelector(".row-est")!.textContent = "";
     });
@@ -851,6 +859,7 @@ class WheelScreen {
 
   private finish(): void {
     if (!this.nation || !this.mapLoaded || this.closed) return;
+    hideTips();
     this.closed = true;
     this.sounds.click(this.style);
     window.removeEventListener("keydown", this.onKey);

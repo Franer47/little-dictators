@@ -72,7 +72,7 @@ The finished card and the creation record show where it ended up.
 
 ![The bonus spin](docs/bonus-spin.jpg)
 
-The results collect on the nation card in groups (Power, Land & wealth, Story & bonuses). After the
+The results collect on the nation card in groups (Power, Land & wealth, Story & bonuses). Point at a result (or tab to it) to see what it means and how likely it was. After the
 last spin the nation gets a name made from its government and ideology, e.g. "Sultanate of
 Al-Basra", "Iron Khanate of Kharkhorum" or "Holy Prince-Bishopric of Witenberg" (click it
 to rename, or press the dice for a new one), and **Continue to map** takes you to the map.

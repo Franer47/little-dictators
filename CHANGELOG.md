@@ -39,6 +39,9 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
   (24 sets of syllables, from Latin and Norse to Arabic, Han and Andean), and the ideology
   sometimes adds a word ("Great…", "Holy…", "Iron…", "Kingdom of New…").
 - **Spin the rest** button next to Skip animation: rolls every wheel that's left at once.
+- **Hover a result** on the nation card or in the creation record to see its description
+  and its odds (for the 3 bonus resources, each one's description). Works with the
+  keyboard too (Tab).
 - The nation card, corner panel and creation record show the results in groups
   (Power, Land & wealth, Story & bonuses); the finished card uses two columns.
 - Dev checks in the browser console: `game.checkNumbers()` (spread of land, population,

@@ -32,6 +32,7 @@
     "effectMultiply": "{what} ×{factor}",
     "chartTitle": "Where the nation stands",
     "recordGolden": "Golden spin chance",
+    "tipOdds": "Odds: {chance}",
     "finish": "Reveal nation",
     "spinHint": "Space, Enter or click the wheel",
     "styleLabel": "Style",
