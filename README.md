@@ -22,12 +22,12 @@ the wheel (below) while the map loads in the background.
 
 The game starts in **1500**, and every wheel fits that time: kingdoms, sultanates,
 khanates and merchant republics, no juntas or GDP talk. One big wheel is spun once per
-question, **9 spins** in this order:
+question, **11 spins** in this order:
 
-1. **Government**: Feudal Monarchy, Absolute Monarchy, Elected Monarchy, Sultanate,
-   Khanate, Imperial Bureaucracy, Merchant Republic, Noble Republic, City-State,
-   Theocracy, Knightly Order, Tribal Confederation, Chiefdom, Despot Rule, Warlord Rule,
-   Regency, and a **rare** Eternal Republic.
+1. **Government**: Feudal Monarchy, Elected Monarchy, Sultanate, Khanate, Imperial
+   Bureaucracy, Merchant Republic, Noble Republic, City-State, Theocracy, Knightly Order,
+   Tribal Confederation, Chiefdom, Despot Rule, Warlord Rule, Regency, and a **rare pull**
+   (below).
 2. **Land size**: a range, then the exact area in km² (never more than 535,000 km², which is
    1.5× Germany), with a comparison such as "≈ the size of Portugal".
 3. **Population density**: Empty … Crowded, then the exact people per km². **Population =
@@ -38,16 +38,41 @@ question, **9 spins** in this order:
    spices, furs…). Other resources will come from the land itself later.
 6. **Ideology**: Traditionalist, Expansionist, Trade-minded, Fanatical, Humanist,
    Isolationist, Militarist, Reformist, Honour-bound, Tolerant, Seafaring, Scholarly,
-   Pragmatic, and a **rare** Satanist.
+   Pragmatic, and a **rare pull**.
 7. **History**: one story card, e.g. "Recent civil war", "Former empire", "Golden age".
 8. **Stability**: Collapsing … Rock solid.
 9. **Popularity**: Hated … Revered.
+10. **Bonus spin**: slices like "Seeks revenge", "Mandatory enlistment", "Open borders" or
+    "Patron of the arts". Each sits at a spot on the nation chart (below); the nearer it is
+    to the nation's dot, the bigger its slice.
+11. **Golden spin**: first a golden chance wheel. The closer the nation's dot is to a
+    corner of the chart, the bigger the chance (up to 60%; about 1 nation in 14 wins). Then
+    a gold wheel: half of it doubles something (land, people or wealth, and everything
+    that follows from it, even past the usual limits), half is 4 traits for the nation's
+    corner ("Wants to become rich", "A world police officer", "Ruthless to others", "Has
+    insane conquering ambitions"…).
 
 On the number wheels (land, density, wealth) the second spin's slices show what you'd get
-(e.g. "1.4M" people or "$4.2B"), so you can see the numbers add up. **Rare slices** are
-thin gold slivers; landing on one gets a "Rare!" badge and extra confetti.
+(e.g. "1.4M" people or "$4.2B"), so you can see the numbers add up.
 
-The results collect on the nation card in groups (Power, Land & wealth, Story). After the
+**Rare pulls**: Government and Ideology each have one thin black slice with red edges and
+no label, 1.5% of the wheel. Landing on it is "something terrible for the whole world": the
+screen darkens, the wheel's centre turns into a skull, and a dark wheel picks one of 7
+rare results: governments Eternal Republic, Absolute Monarchy, Stratocracy, Necrocracy,
+Syndicalist Federation, Oligarchic Republic, Monastic State; ideologies Eternalism,
+Ultranationalism, Satanism, Syndicalism, Sacred Nation, Divine Imperialism,
+Apocalypticism. A nation gets at most one rare pull (once it has one, the other wheel's
+black slice is gone), so about 3% of nations get one.
+
+![A rare pull](docs/rare-pull.jpg)
+
+**The nation chart**: every result pushes the nation's dot left (liberal, democratic,
+peaceful) or right (nationalist, dictatorship), and down (miserable) or up (a good life).
+The finished card and the creation record show where it ended up.
+
+![The bonus spin](docs/bonus-spin.jpg)
+
+The results collect on the nation card in groups (Power, Land & wealth, Story & bonuses). After the
 last spin the nation gets a name made from its government and ideology, e.g. "Sultanate of
 Al-Basra", "Iron Khanate of Kharkhorum" or "Holy Prince-Bishopric of Witenberg" (click it
 to rename, or press the dice for a new one), and **Continue to map** takes you to the map.
@@ -86,7 +111,17 @@ In an era file:
   optionally a `short` label for the wheel itself (the full label shows big when it
   lands). Weights are relative odds: all 1 means equal chances, 2 is twice as likely as 1,
   0 never comes up. Slices take up room on the wheel in proportion to their weight, so what
-  you see is the real odds. `"rare": true` draws a slice in gold and celebrates it.
+  you see is the real odds. `"chance": 0.015` gives a slice a fixed share (1.5%) instead.
+  `"rare": true` makes a slice a rare pull (black, no label); its `then` is the wheel of
+  rare results spun next. `rareLimit` (1) is how many rare pulls a nation can get.
+- **The chart**: `chart` names the axes and corners; each slice's `"chart": [x, y]`
+  (each -1 to 1, or null) is how it pushes the dot, and `spread` stretches the dot so it
+  can reach the corners.
+- **Bonus and golden wheels**: `chartWeights` sizes slices by the dot (`"near"`: by
+  distance to each slice's `"at": [x, y]`; `"quadrant"`: only the slices for the dot's
+  corner, plus those with no `at`). `gate` adds the golden chance wheel first
+  (`maxChance` in a corner, `power` = how fast it falls toward the middle). A slice's
+  `"effect": { "multiply": { "land": 2 } }` doubles that result.
 - **Wheels**: `"off": true` keeps a wheel in the file without spinning it (Culture and
   Religion are kept like this for later); `"picks": 3` spins a wheel 3 times with no
   repeats; `resultName` is what the card calls the result ("Population" for the density
@@ -114,7 +149,8 @@ server only):
 - `game.checkWeights()` spins every wheel 100,000 times and prints how often each slice
   won next to its expected odds.
 - `game.checkNumbers()` rolls 10,000 nations and prints the smallest, typical and biggest
-  land, population and GDP, plus the smallest and biggest economy rolled.
+  land, population and GDP, where the dots land on the chart, the golden chances, how
+  often rare pulls and golden spins happen, and the smallest and biggest economy rolled.
 - `game.sampleNations(5)` prints a few whole rolled nations.
 
 ## Controls
@@ -143,6 +179,8 @@ src/
   ui/nationPanel.ts       the nation panel in the corner and its creation record
   game/wheels.ts          loads the wheel data, spins (weighted random picks)
   game/nation.ts          a nation and its creation record; chained numbers; name generator
+  game/roller.ts          the spin-by-spin rules (rare pulls, exact numbers, picks, golden spin)
+  game/chart.ts           the nation chart: the dot, chart-sized slices, the golden chance
   game/devChecks.ts       console checks: game.checkWeights(), checkNumbers(), sampleNations()
   game/random.ts          seeded random numbers for game logic
   map/terrain.ts          terrain types and their (data) colours

@@ -1,0 +1,76 @@
+/* The nation chart (on the finished nation card and in the creation record). */
+
+.nation-chart {
+  margin: 0;
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  font-size: 10.5px;
+  line-height: 1.2;
+  color: rgba(238, 242, 246, 0.6);
+}
+
+.nation-chart figcaption {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent, #7fb4e6);
+}
+
+.nation-chart svg {
+  width: min(100%, 190px);
+  aspect-ratio: 1;
+  border-radius: 6px;
+  overflow: hidden;
+  outline: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.nc-q {
+  opacity: 0.32;
+}
+
+.nc-tl {
+  fill: #3fbf7a;
+}
+
+.nc-tr {
+  fill: #e0a030;
+}
+
+.nc-bl {
+  fill: #4a7ec8;
+}
+
+.nc-br {
+  fill: #c0283a;
+}
+
+.nc-axis {
+  stroke: rgba(255, 255, 255, 0.35);
+  stroke-width: 0.6;
+  stroke-dasharray: 2 1.5;
+}
+
+.nc-corner {
+  font-size: 5.6px;
+  font-family: system-ui, sans-serif;
+  fill: rgba(255, 255, 255, 0.75);
+}
+
+.nc-dot {
+  fill: #fff;
+  stroke: #1d0838;
+  stroke-width: 1.4;
+}
+
+.nc-glow {
+  fill: rgba(255, 255, 255, 0.28);
+}
+
+.nc-x {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  width: min(100%, 220px);
+}

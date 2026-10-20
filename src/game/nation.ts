@@ -1,23 +1,12 @@
 // A nation and how it was made. Plain data only: the wheel screen fills it in and the UI
 // shows it, but nothing here draws anything. (The results are only shown for now; they
-// don't change the game yet.)
+// don't change the game yet.) The spin-by-spin rules are in roller.ts.
 
+import { chartPosition, type ChartPoint } from "./chart.ts";
+import { roundSignificant } from "./numbers.ts";
 import { pick, type Rng } from "./random.ts";
 import { formatText } from "./text.ts";
-import {
-  chainTotal,
-  chanceOf,
-  compareSize,
-  exactWheel,
-  formatNumber,
-  spinWheel,
-  type NameData,
-  type PlaceParts,
-  type Slice,
-  withoutPicked,
-  type Wheel,
-  type WheelData,
-} from "./wheels.ts";
+import { chanceOf, compareSize, formatNumber, type NameData, type PlaceParts, type Slice, type Wheel, type WheelData } from "./wheels.ts";
 
 /** One wheel's result. */
 export interface WheelOutcome {
@@ -33,16 +22,24 @@ export interface WheelOutcome {
   blurb?: string;
   /** Extra name keys from the slice (see NameData.titles). */
   tags?: string[];
-  /** The slice's chance when it was rolled (0..1). */
+  /** Where this result pushes the nation on the chart. */
+  chart?: [number | null, number | null];
+  /** The slice's chance when it was rolled (0..1), including any spin before it (rare pull, golden chance). */
   chance: number;
   /** For number wheels: the exact number and what it adds up to. */
   estimate?: Estimate;
   /** For number wheels: the chance of the exact number on the second wheel (0..1). */
   exactChance?: number;
   /** For multi-pick wheels (e.g. 3 bonus resources): every pick, in order. */
-  picks?: { sliceId: string; label: string; chance: number; rare?: boolean }[];
-  /** Landed on a rare slice. */
+  picks?: { sliceId: string; label: string; chance: number }[];
+  /** A rare pull (one of the rare governments or ideologies). */
   rare?: boolean;
+  /** From the golden spin. */
+  golden?: boolean;
+  /** A wheel that wasn't spun after all (the golden spin's "no luck"). */
+  none?: boolean;
+  /** What this result did to the nation, e.g. "Land ×2". */
+  effectText?: string;
 }
 
 export interface Estimate {
@@ -50,12 +47,14 @@ export interface Estimate {
   value: number;
   /** The result as text, e.g. "~1.2M people". */
   text: string;
-  /** The number the second spin picked, e.g. 18 (people per km²). Same as value on unchained wheels. */
+  /** The number the second spin picked, e.g. 18 (people per km²), before any golden boost. Same as value on unchained wheels. */
   rate: number;
   /** The picked number as text, e.g. "18 people/km²". */
   rateText: string;
   /** The small line under the result, e.g. "Settled · 18 people/km²". */
   detail: string;
+  /** A golden bonus multiplied this result (and limits stopped applying). */
+  boost?: number;
 }
 
 /** Everything rolled when the nation was made. */
@@ -72,6 +71,10 @@ export interface CreationRecord {
   spins: WheelOutcome[];
   /** The name first rolled, before any re-rolls or renaming. */
   firstName: string;
+  /** The nation's dot on the chart. */
+  chart: ChartPoint;
+  /** The chance it had of a golden spin (0..1). */
+  goldenChance?: number;
 }
 
 export interface Nation {
@@ -102,50 +105,43 @@ export function makeOutcome(
     shown: slice.shown,
     blurb: slice.blurb,
     tags: slice.tags,
+    chart: slice.chart,
     chance: chanceOf(wheel, slice),
   };
-  if (slice.rare) outcome.rare = true;
-  const num = wheel.number;
-  if (num && exact && exact.slice.value !== undefined) {
-    const sfx = data.numberSuffixes;
-    const rate = exact.slice.value;
-    const value = chainTotal(num, rate, chainBase(wheel, results));
-    const rateText = formatText(num.value ?? "{value}", { value: formatNumber(rate, num.style ?? "compact", sfx) });
-    const text = num.times
-      ? formatText(num.total ?? "{value}", { value: formatNumber(value, num.totalStyle ?? "compact", sfx) })
-      : rateText;
-    const detail = formatText(num.detail ?? "{range}", {
-      label: slice.label,
-      range: slice.rangeText ?? "",
-      value: rateText,
-      total: text,
-      compare: num.compare ? compareSize(num.compare, value) : "",
-    });
-    outcome.estimate = { value, text, rate, rateText, detail };
+  if (slice.golden) outcome.golden = true;
+  if (wheel.number && exact && exact.slice.value !== undefined) {
+    outcome.estimate = makeEstimate(data, wheel, slice, exact.slice.value, chainBase(wheel, results));
     outcome.exactChance = chanceOf(exact.wheel, exact.slice);
   }
   return outcome;
 }
 
 /**
- * A multi-pick wheel's result (e.g. bonus resources "Iron, Salt, Wine"). Each pick is
- * made from `wheels[i]`, the wheel as it was for that spin (without earlier picks).
+ * A number wheel's result: the picked number (`rate`), chained to the earlier result it
+ * multiplies by (`base`), times any golden `boost`. Limits ("max") only hold unboosted.
  */
-export function makePicksOutcome(wheel: Wheel, picks: { wheel: Wheel; slice: Slice }[]): WheelOutcome {
-  const list = picks.map(({ wheel: w, slice }) => ({ sliceId: slice.id, label: slice.label, chance: chanceOf(w, slice), rare: slice.rare }));
-  const label = list.map((p) => p.label).join(", ");
-  const outcome: WheelOutcome = {
-    wheelId: wheel.id,
-    wheelName: wheel.name,
-    resultName: wheel.resultName ?? wheel.name,
-    sliceId: list.map((p) => p.sliceId).join("+"),
-    label,
-    shown: label,
-    chance: list.reduce((c, p) => c * p.chance, 1),
-    picks: list,
-  };
-  if (list.some((p) => p.rare)) outcome.rare = true;
-  return outcome;
+export function makeEstimate(data: WheelData, wheel: Wheel, slice: Slice, rate: number, base: number | undefined, boost = 1): Estimate {
+  const num = wheel.number!;
+  const sfx = data.numberSuffixes;
+  // A boost multiplies the picked number itself (twice the people per km², twice the output per person).
+  const picked = boost !== 1 ? roundSignificant(rate * boost, num.digits ?? 2) : rate;
+  const raw = num.times ? roundSignificant(picked * (base ?? 0), num.totalDigits ?? 2) : picked;
+  const value = boost === 1 && num.max !== undefined ? Math.min(num.max, raw) : raw;
+  const rateText = formatText(num.value ?? "{value}", { value: formatNumber(picked, num.style ?? "compact", sfx) });
+  const text = num.times
+    ? formatText(num.total ?? "{value}", { value: formatNumber(value, num.totalStyle ?? "compact", sfx) })
+    : formatText(num.value ?? "{value}", { value: formatNumber(value, num.style ?? "compact", sfx) });
+  let detail = formatText(num.detail ?? "{range}", {
+    label: slice.label,
+    range: slice.rangeText ?? "",
+    value: rateText,
+    total: text,
+    compare: num.compare ? compareSize(num.compare, value) : "",
+  });
+  if (boost !== 1) detail = [formatText(data.text.boosted ?? "×{factor} golden bonus", { factor: boost }), detail].filter(Boolean).join(" · ");
+  const estimate: Estimate = { value, text, rate, rateText, detail };
+  if (boost !== 1) estimate.boost = boost;
+  return estimate;
 }
 
 /** The earlier result a chained number wheel multiplies by (undefined if it isn't chained). */
@@ -156,7 +152,8 @@ export function chainBase(wheel: Wheel, results: Record<string, WheelOutcome>): 
 
 /** How to show a result: the main text, plus a smaller line (details on number wheels). */
 export function describeOutcome(outcome: WheelOutcome): { main: string; sub: string } {
-  return outcome.estimate ? { main: outcome.estimate.text, sub: outcome.estimate.detail } : { main: outcome.shown, sub: "" };
+  if (outcome.estimate) return { main: outcome.estimate.text, sub: outcome.estimate.detail };
+  return { main: outcome.shown, sub: outcome.effectText ?? "" };
 }
 
 /**
@@ -235,49 +232,24 @@ function join(a: string, b: string, smooth = true): string {
 }
 
 /** Builds the finished nation from the outcomes, in spin order. */
-export function createNation(data: WheelData, spins: WheelOutcome[], map: string, rng: Rng): Nation {
+export function createNation(data: WheelData, spins: WheelOutcome[], map: string, rng: Rng, goldenChance?: number): Nation {
   const results = resultsById(spins);
   const name = generateName(data.names, results, rng);
-  return {
-    name,
-    results,
-    record: { createdAt: new Date().toISOString(), map, era: data.era, seed: rng.seed, spins, firstName: name },
+  const record: CreationRecord = {
+    createdAt: new Date().toISOString(),
+    map,
+    era: data.era,
+    seed: rng.seed,
+    spins,
+    firstName: name,
+    chart: chartPosition(data, results),
   };
+  if (goldenChance !== undefined) record.goldenChance = goldenChance;
+  return { name, results, record };
 }
 
 export function resultsById(spins: readonly WheelOutcome[]): Record<string, WheelOutcome> {
   const results: Record<string, WheelOutcome> = {};
   for (const outcome of spins) results[outcome.wheelId] = outcome;
   return results;
-}
-
-/** Spins one wheel with no animation, including its exact-number spin or its extra picks. */
-export function rollWheel(data: WheelData, wheel: Wheel, results: Record<string, WheelOutcome>, rng: Rng): WheelOutcome {
-  if (wheel.picks && wheel.picks > 1) return rollPicks(wheel, [], rng);
-  const slice = spinWheel(wheel, rng).slice;
-  return rollExact(data, wheel, slice, results, rng);
-}
-
-/** The rest of a multi-pick wheel, after the picks already made. */
-export function rollPicks(wheel: Wheel, done: { wheel: Wheel; slice: Slice }[], rng: Rng): WheelOutcome {
-  const picks = [...done];
-  while (picks.length < (wheel.picks ?? 1)) {
-    const now = withoutPicked(wheel, picks.map((p) => p.slice));
-    picks.push({ wheel: now, slice: spinWheel(now, rng).slice });
-  }
-  return makePicksOutcome(wheel, picks);
-}
-
-/** The rest of a spin once the first wheel landed on `slice`: the exact number, if it's a number wheel. */
-export function rollExact(data: WheelData, wheel: Wheel, slice: Slice, results: Record<string, WheelOutcome>, rng: Rng): WheelOutcome {
-  if (!wheel.number) return makeOutcome(wheel, slice, data);
-  const exact = exactWheel(wheel, slice, data, chainBase(wheel, results));
-  return makeOutcome(wheel, slice, data, { wheel: exact, slice: spinWheel(exact, rng).slice }, results);
-}
-
-/** Rolls every wheel at once, with no animation (used by ?wheel=skip, for quick testing). */
-export function rollNation(data: WheelData, map: string, rng: Rng): Nation {
-  const results: Record<string, WheelOutcome> = {};
-  const spins = data.wheels.map((wheel) => (results[wheel.id] = rollWheel(data, wheel, results, rng)));
-  return createNation(data, spins, map, rng);
 }

@@ -190,7 +190,15 @@
 }
 
 .np-rare .np-result {
+  color: #ff4a5c;
+}
+
+.np-golden .np-result {
   color: #ffd84a;
+}
+
+.np-record .nation-chart {
+  margin-top: 12px;
 }
 
 .np-est {

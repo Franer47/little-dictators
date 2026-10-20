@@ -6,8 +6,9 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 ## Unreleased
 
 ### Added
-- **The wheels are now set in 1500.** 9 spins: Government, Land size, Population
-  density, Wealth, Bonus resources, Ideology, History, Stability and Popularity, each
+- **The wheels are now set in 1500.** 11 spins: Government, Land size, Population
+  density, Wealth, Bonus resources, Ideology, History, Stability, Popularity, a Bonus
+  spin and a Golden spin, each
   with many more options than the beta, all fitting the time (kingdoms, sultanates,
   khanates, merchant republics… no juntas or communists).
 - **Realistic, chained numbers**: land up to 535,000 km² (1.5× Germany), shown with a
@@ -17,17 +18,32 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
   France in 1500 (~15M people, ~$26B); a tiny empty one has a few thousand people.
 - **3 bonus resources** per nation: the resource wheel is spun three times, with no
   repeats.
-- **Rare slices**, drawn as thin gold slivers, with a "Rare!" badge and extra confetti
-  when they land: the Eternal Republic (about 1 in 1,000) and Satanist (about 1 in 200).
+- **Rare pulls**: Government and Ideology each have a thin black slice with red edges
+  (1.5%). Landing on it darkens the screen, turns the wheel's centre into a skull, plays
+  a low rumble, and spins a dark wheel of 7 rare governments (Eternal Republic, Absolute
+  Monarchy, Stratocracy, Necrocracy, Syndicalist Federation, Oligarchic Republic, Monastic
+  State) or ideologies (Eternalism, Ultranationalism, Satanism, Syndicalism, Sacred
+  Nation, Divine Imperialism, Apocalypticism). At most one per nation, so about 3% of
+  nations get one.
+- **The nation chart**: every result moves the nation's dot left (liberal, peaceful) or
+  right (nationalist, tyrannical), and down (miserable) or up (a good life). Shown on the
+  finished card and in the creation record.
+- **Bonus spin** at the end: slices like "Seeks revenge", "Mandatory enlistment", "Open
+  borders" or "Patron of the arts", bigger the nearer they are to the nation's dot.
+- **Golden spin**: a golden chance wheel (bigger the closer the dot is to a corner, up to
+  60%; about 1 nation in 14 wins), then a gold wheel. Half of it doubles land, people or
+  wealth (and everything that follows from it, past any limit); half is 4 traits for the
+  nation's corner ("A world police officer", "Ruthless to others"…).
 - **Better names**, made from the government and ideology: each government has its own
   titles (Khanate of…, Most Serene Republic of…, Prince-Bishopric of…) and name styles
   (24 sets of syllables, from Latin and Norse to Arabic, Han and Andean), and the ideology
   sometimes adds a word ("Great…", "Holy…", "Iron…", "Kingdom of New…").
 - **Spin the rest** button next to Skip animation: rolls every wheel that's left at once.
 - The nation card, corner panel and creation record show the results in groups
-  (Power, Land & wealth, Story); the finished card uses two columns.
-- Dev checks in the browser console: `game.checkNumbers()` (spread of land, population
-  and GDP over 10,000 rolled nations) and `game.sampleNations()`.
+  (Power, Land & wealth, Story & bonuses); the finished card uses two columns.
+- Dev checks in the browser console: `game.checkNumbers()` (spread of land, population,
+  GDP, chart dots and golden chances over 10,000 rolled nations, and how often rare pulls
+  and golden spins happen) and `game.sampleNations()`.
 
 - **Wheel beta: create your nation.** After picking a map, spin one big wheel for
   Government, Land size, Population, GDP and Ideology. Land, population and GDP are spun

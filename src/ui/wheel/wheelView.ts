@@ -5,7 +5,7 @@
 // turn, measured clockwise from the start of the first slice; slices take up room in
 // proportion to their weight, so the picture always matches the odds.
 
-import type { Wheel } from "../../game/wheels.ts";
+import type { Slice, Wheel } from "../../game/wheels.ts";
 
 export const TAU = Math.PI * 2;
 
@@ -37,6 +37,8 @@ export interface WheelView {
   draw(frame: WheelFrame): void;
   /** The pointer's tip in CSS pixels, relative to the canvas, for effects. */
   pointerTip(): { x: number; y: number };
+  /** The wheel's centre in CSS pixels, relative to the canvas (the rare pull puts a skull there). */
+  hubCenter(): { x: number; y: number };
 }
 
 /** Slice edges as fractions of a turn: [0, ..., 1], one more entry than there are slices. */
@@ -77,6 +79,30 @@ export function ticksPassed(stops: readonly number[], prev: number, next: number
   for (const s of stops) n += Math.abs(Math.floor(s + next / TAU) - Math.floor(s + prev / TAU));
   return n;
 }
+
+/**
+ * Special slice colours, as [dark, base, light]: rare slices are near-black (drawn with red
+ * edges), golden ones gold; a "doom" wheel is all dark reds, a "golden" wheel all golds.
+ * Returns null for an ordinary slice on an ordinary wheel.
+ */
+export function specialColors(wheel: Wheel, slice: Slice, index: number): [string, string, string] | null {
+  if (slice.rare) return ["#050103", "#14040a", "#2a0a12"];
+  const golden = [
+    ["#8a5a10", "#d9a42a", "#ffe08a"],
+    ["#7a4a08", "#c48a1a", "#f6c95a"],
+  ] as [string, string, string][];
+  const doom = [
+    ["#1a0306", "#3d0811", "#6a1420"],
+    ["#0a0204", "#1e050b", "#3a0a14"],
+  ] as [string, string, string][];
+  if (slice.golden && wheel.theme !== "golden") return golden[0];
+  if (wheel.theme === "golden") return golden[index % 2];
+  if (wheel.theme === "doom") return doom[index % 2];
+  return null;
+}
+
+/** The red used for rare slice edges and the doom look. */
+export const DOOM_RED = "#e0182d";
 
 /** Which palette colour a slice gets: in order, but never the same as the slice next to it. */
 export function sliceColor(index: number, count: number, paletteSize: number): number {

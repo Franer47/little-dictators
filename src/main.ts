@@ -8,7 +8,7 @@ import { CameraControls } from "./input/cameraControls.ts";
 import { chooseMap } from "./ui/startMenu.ts";
 import { loadWheelData, type WheelData } from "./game/wheels.ts";
 import { checkNumbers, checkWeights, sampleNations } from "./game/devChecks.ts";
-import { rollNation } from "./game/nation.ts";
+import { rollNation } from "./game/roller.ts";
 import { createRng } from "./game/random.ts";
 import { runWheelScreen } from "./ui/wheel/wheelScreen.ts";
 import { showNationPanel } from "./ui/nationPanel.ts";

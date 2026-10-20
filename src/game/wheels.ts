@@ -25,8 +25,63 @@ export interface Slice {
   rangeText?: string;
   /** On an "exact number" wheel: the number this slice stands for (before any chaining). */
   value?: number;
-  /** A rare slice: drawn in gold, and a big celebration when it lands. */
+  /** A rare slice: drawn dark with red edges and no label; landing on it is a rare pull. */
   rare?: boolean;
+  /** A golden slice (drawn in gold). */
+  golden?: boolean;
+  /**
+   * A fixed chance (0..1) instead of a weight, e.g. 0.015 = 1.5% however many other slices
+   * there are. Turned into a weight on load.
+   */
+  chance?: number;
+  /** Landing here spins this wheel next, and its result is the wheel's result (e.g. the 7 rare governments). */
+  then?: Wheel;
+  /** Where this result pushes the nation on the chart: [left/right, down/up], each -1..1 or null (no push). */
+  chart?: [number | null, number | null];
+  /** On chart-weighted wheels: the slice's spot on the chart [x, y]; nearer the nation's dot = bigger. */
+  at?: [number, number];
+  /** What a bonus does to the nation, e.g. { "multiply": { "land": 2 } } doubles the land (and what chains from it). */
+  effect?: Effect;
+}
+
+export interface Effect {
+  /** Multiply a number wheel's result by this; everything chained to it follows. Limits ("max") don't apply. */
+  multiply?: Record<string, number>;
+}
+
+/** How a wheel's slices are sized by the nation's spot on the chart. */
+export interface ChartWeights {
+  /** "near": slices nearer the dot are bigger; "quadrant": only slices in the dot's corner (plus slices with no "at"). */
+  mode: "near" | "quadrant";
+  /** "near": the smallest a slice can get, compared with one right on the dot (0..1). */
+  floor?: number;
+  /** "near": how far (in chart units) a slice's pull reaches. */
+  reach?: number;
+}
+
+/** A yes/no spin before a wheel: the wheel is only spun on "yes" (e.g. the golden spin). */
+export interface Gate {
+  name: string;
+  question: string;
+  yes: string;
+  no: string;
+  /** Shown on the card when it's "no". */
+  noResult: string;
+  /** The chance of "yes" in a chart corner; it falls to 0 in the middle of the chart. */
+  maxChance: number;
+  /** Higher = only nations really close to a corner have a good chance. */
+  power?: number;
+}
+
+/** The chart every nation gets a dot on. */
+export interface ChartSpec {
+  /** Axis names and end labels. x: left → right, y: bottom → top. */
+  x: { name: string; low: string; high: string };
+  y: { name: string; low: string; high: string };
+  /** The dot is the average of the results' pushes times this, so it can reach the edges. */
+  spread?: [number, number];
+  /** Names for the four corners: [top-left, top-right, bottom-left, bottom-right]. */
+  corners?: [string, string, string, string];
 }
 
 /**
@@ -93,6 +148,12 @@ export interface Wheel {
   picks?: number;
   /** true = the wheel stays in the file but isn't spun (and isn't shown anywhere). */
   off?: boolean;
+  /** Size the slices by the nation's spot on the chart (bonus and golden wheels). */
+  chartWeights?: ChartWeights;
+  /** Spin a yes/no wheel first; this wheel is only spun on yes. */
+  gate?: Gate;
+  /** A special look for the whole wheel: "doom" (rare pulls) or "golden". */
+  theme?: "doom" | "golden";
 }
 
 /** Syllables for made-up place names: a start + sometimes a middle + an end, e.g. Var + nia. */
@@ -158,6 +219,10 @@ export interface WheelData {
   numberSuffixes: string[];
   /** Where the numbers come from (shown nowhere; for whoever edits the file). */
   notes?: unknown;
+  /** The chart every nation gets a dot on (good/evil × miserable/good life). */
+  chart?: ChartSpec;
+  /** How many rare pulls one nation can get; after that, rare slices are left off the wheels. */
+  rareLimit?: number;
 }
 
 /** Where a spin landed. */
@@ -179,6 +244,8 @@ interface SharedFile {
 /** One era's file. */
 interface EraFile {
   name?: string;
+  chart?: ChartSpec;
+  rareLimit?: number;
   wheels: Wheel[];
   groups?: ResultGroup[];
   panel?: { show: string[] };
@@ -214,6 +281,8 @@ export async function loadWheelData(era?: string): Promise<WheelData> {
     groups: (file.groups ?? []).map((g) => ({ ...g, wheels: (g.wheels ?? []).filter((w) => !off.has(w)) })).filter((g) => g.wheels.length),
     panel: { show: (file.panel?.show ?? []).filter((w) => !off.has(w)) },
     names: file.names,
+    chart: file.chart,
+    rareLimit: file.rareLimit,
     text: { ...shared.text, ...file.text },
     numberSuffixes: shared.numberSuffixes ?? ["K", "M", "B", "T"],
     notes: file.notes,
@@ -237,6 +306,54 @@ function checkWheelData(data: WheelData, url: string): void {
     throw new Error(`${url}: ${msg}`);
   };
   const isList = (x: unknown): x is string[] => Array.isArray(x) && x.length > 0 && x.every((s) => typeof s === "string");
+  const inChart = (v: unknown): boolean => v === null || (typeof v === "number" && v >= -1 && v <= 1);
+
+  /** Checks a wheel's slices and fills in what's derived from them (ids, weights, what's shown). */
+  const checkSlices = (wheel: Wheel, where: string, num: NumberSpec | undefined): void => {
+    const ids = new Set<string>();
+    for (const slice of wheel.slices) {
+      if (!slice.label) fail(`${where} has a slice without a "label"`);
+      slice.id ??= slice.label.toLowerCase().replace(/\W+/g, "-");
+      if (ids.has(slice.id)) fail(`${where} has two slices with the id "${slice.id}"`);
+      ids.add(slice.id);
+      slice.weight ??= 1;
+      if (typeof slice.weight !== "number" || !(slice.weight >= 0))
+        fail(`${where}, slice "${slice.label}": "weight" must be a number, 0 or more`);
+      if (slice.tags !== undefined && !isList(slice.tags)) fail(`${where}, slice "${slice.label}": "tags" must be a list of words`);
+      if (slice.chart !== undefined && !(Array.isArray(slice.chart) && slice.chart.length === 2 && slice.chart.every(inChart)))
+        fail(`${where}, slice "${slice.label}": "chart" must be [x, y], each from -1 to 1 or null`);
+      if (slice.at !== undefined && !(Array.isArray(slice.at) && slice.at.length === 2 && slice.at.every((v) => v !== null && inChart(v))))
+        fail(`${where}, slice "${slice.label}": "at" must be [x, y], each from -1 to 1`);
+      if (slice.then) {
+        const sub = slice.then;
+        sub.id ??= `${wheel.id}:${slice.id}`;
+        if (!sub.name || !Array.isArray(sub.slices) || sub.slices.length < 2)
+          fail(`${where}, slice "${slice.label}": "then" must be a wheel with a "name" and at least 2 slices`);
+        checkSlices(sub, `${where} → "${sub.name}"`, undefined);
+      }
+      slice.shown = slice.label;
+      if (num) {
+        const r = slice.range;
+        if (!Array.isArray(r) || r.length !== 2 || !(r[0] > 0) || !(r[1] >= r[0]))
+          fail(`${where}, slice "${slice.label}": "range" must be [low, high] with 0 < low <= high`);
+        if (num.max !== undefined && !num.times && r![1] > num.max)
+          fail(`${where}, slice "${slice.label}": its range goes up to ${r![1]}, above the wheel's "max" of ${num.max}`);
+        slice.rangeText = formatText(num.range ?? "{low}–{high}", {
+          low: formatNumber(r![0], num.rangeStyle ?? "compact", data.numberSuffixes),
+          high: formatNumber(r![1], num.rangeStyle ?? "compact", data.numberSuffixes),
+        });
+        if ((num.shows ?? "range") === "range") slice.shown = slice.rangeText;
+      }
+    }
+    if (!wheel.slices.some((s) => s.weight > 0 || s.chance)) fail(`${where}: at least one slice needs a weight above 0`);
+    // Fixed chances become weights: a 1.5% slice gets 1.5% of the wheel whatever else is on it.
+    const fixed = wheel.slices.filter((s) => s.chance !== undefined);
+    const chanceSum = fixed.reduce((sum, s) => sum + s.chance!, 0);
+    const others = wheel.slices.filter((s) => s.chance === undefined).reduce((sum, s) => sum + s.weight, 0);
+    if (fixed.some((s) => !(s.chance! > 0 && s.chance! < 1)) || chanceSum >= 1) fail(`${where}: each "chance" must be between 0 and 1, and together under 1`);
+    if (fixed.length && !(others > 0)) fail(`${where}: a wheel with "chance" slices also needs normal slices`);
+    for (const sl of fixed) sl.weight = (sl.chance! * others) / (1 - chanceSum);
+  };
   if (!Array.isArray(data.wheels) || data.wheels.length === 0) fail(`"wheels" must be a list with at least one wheel`);
   const seen = new Map<string, Wheel>();
   for (const wheel of data.wheels) {
@@ -262,30 +379,22 @@ function checkWheelData(data: WheelData, url: string): void {
       if (c && (!Array.isArray(c.places) || !c.places.every((p) => Array.isArray(p) && typeof p[0] === "string" && p[1] > 0)))
         fail(`${where}: "compare.places" must be a list of ["name", size] pairs`);
     }
-    const ids = new Set<string>();
-    for (const slice of wheel.slices) {
-      if (!slice.label) fail(`${where} has a slice without a "label"`);
-      slice.id ??= slice.label.toLowerCase().replace(/\W+/g, "-");
-      if (ids.has(slice.id)) fail(`${where} has two slices with the id "${slice.id}"`);
-      ids.add(slice.id);
-      slice.weight ??= 1;
-      if (typeof slice.weight !== "number" || !(slice.weight >= 0))
-        fail(`${where}, slice "${slice.label}": "weight" must be a number, 0 or more`);
-      if (slice.tags !== undefined && !isList(slice.tags)) fail(`${where}, slice "${slice.label}": "tags" must be a list of words`);
-      slice.shown = slice.label;
-      if (num) {
-        const r = slice.range;
-        if (!Array.isArray(r) || r.length !== 2 || !(r[0] > 0) || !(r[1] >= r[0]))
-          fail(`${where}, slice "${slice.label}": "range" must be [low, high] with 0 < low <= high`);
-        if (num.max !== undefined && !num.times && r![1] > num.max)
-          fail(`${where}, slice "${slice.label}": its range goes up to ${r![1]}, above the wheel's "max" of ${num.max}`);
-        slice.rangeText = formatText(num.range ?? "{low}–{high}", {
-          low: formatNumber(r![0], num.rangeStyle ?? "compact", data.numberSuffixes),
-          high: formatNumber(r![1], num.rangeStyle ?? "compact", data.numberSuffixes),
-        });
-        if ((num.shows ?? "range") === "range") slice.shown = slice.rangeText;
-      }
+    checkSlices(wheel, where, num);
+    if (wheel.chartWeights && !["near", "quadrant"].includes(wheel.chartWeights.mode))
+      fail(`${where}: "chartWeights.mode" must be "near" or "quadrant"`);
+    if (wheel.chartWeights || wheel.gate) {
+      if (!data.chart) fail(`${where} uses the chart, but the era has no "chart"`);
+      if (wheel.chartWeights?.mode === "near")
+        for (const sl of wheel.slices) if (!sl.at) fail(`${where}, slice "${sl.label}": chart-weighted slices need "at": [x, y]`);
     }
+    if (wheel.gate) {
+      const g = wheel.gate;
+      if (!g.name || !g.yes || !g.no) fail(`${where}: "gate" needs a "name", "yes" and "no"`);
+      if (!(g.maxChance >= 0 && g.maxChance <= 1)) fail(`${where}: "gate.maxChance" must be from 0 to 1`);
+    }
+    for (const sl of wheel.slices)
+      for (const id of Object.keys(sl.effect?.multiply ?? {}))
+        if (!seen.get(id)?.number) fail(`${where}, slice "${sl.label}": "effect.multiply" names "${id}", which isn't an earlier number wheel`);
     if (!wheel.slices.some((s) => s.weight > 0)) fail(`${where}: at least one slice needs a weight above 0`);
     seen.set(wheel.id, wheel);
   }
@@ -318,6 +427,8 @@ function checkWheelData(data: WheelData, url: string): void {
     if (parts.middles !== undefined && !isList(parts.middles)) fail(`"names.places.${key}.middles" must be a list`);
     if (parts.prefixes !== undefined && !isList(parts.prefixes)) fail(`"names.places.${key}.prefixes" must be a list`);
   }
+  if (data.chart && !(data.chart.x?.name && data.chart.y?.name)) fail(`"chart" needs "x" and "y", each with a "name", "low" and "high"`);
+  data.rareLimit ??= 1;
   data.text ??= {};
 }
 

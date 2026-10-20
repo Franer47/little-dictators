@@ -151,6 +151,31 @@ export class WheelSounds {
     else this.tone("triangle", 900, t, 0.05, 0.15, 600);
   }
 
+  /** A rare pull: a low, sinking drone and a rumble (retro: a falling 8-bit groan). */
+  doom(style: SoundStyle): void {
+    const ctx = this.ready();
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    if (style === "retro") {
+      [220, 207.65, 196, 155.56].forEach((f, i) => this.tone("square", f, t + i * 0.22, i === 3 ? 0.9 : 0.2, 0.08, i === 3 ? 82.41 : undefined));
+      this.tone("triangle", 55, t, 1.6, 0.25);
+    } else {
+      for (const f of [110, 116.54, 164.81]) this.tone("sawtooth", f, t, 1.8, 0.07, f / 2);
+      this.tone("sine", 55, t, 2.2, 0.4, 36.71);
+      this.noise(t, 1.6, 0.2, "lowpass", 300, 1, 80);
+    }
+  }
+
+  /** A golden spin: a sparkling run up and a shimmer. */
+  golden(style: SoundStyle): void {
+    const ctx = this.ready();
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const run = [523.25, 659.25, 783.99, 1046.5, 1318.51, 1567.98, 2093];
+    run.forEach((f, i) => this.tone(style === "retro" ? "square" : "sine", f, t + i * 0.06, 0.3, style === "retro" ? 0.07 : 0.15));
+    if (style !== "retro") this.noise(t + 0.3, 1.2, 0.18, "highpass", 7000);
+  }
+
   /** The finished nation: a fanfare. */
   reveal(style: SoundStyle): void {
     const ctx = this.ready();

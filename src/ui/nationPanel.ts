@@ -4,7 +4,7 @@
 import "./nationPanel.css";
 import { describeOutcome, type Nation } from "../game/nation.ts";
 import { resultGroups, type WheelData } from "../game/wheels.ts";
-import { escapeHtml, flagPlaceholder, formatText } from "./uiBits.ts";
+import { escapeHtml, flagPlaceholder, formatText, nationChart } from "./uiBits.ts";
 
 export function showNationPanel(nation: Nation, data: WheelData): void {
   const text = (key: string, vars?: Record<string, string | number>): string => escapeHtml(formatText(data.text[key] ?? key, vars));
@@ -26,7 +26,7 @@ export function showNationPanel(nation: Nation, data: WheelData): void {
         .filter(Boolean)
         .map((r) => {
           const { main, sub } = describeOutcome(r);
-          return `<tr${r.rare ? ' class="np-rare"' : ""}>
+          return `<tr${r.rare ? ' class="np-rare"' : r.golden || r.estimate?.boost ? ' class="np-golden"' : ""}>
             <th scope="row">${escapeHtml(r.resultName)}</th>
             <td><div class="np-result">${escapeHtml(main)}</div>${sub ? `<div class="np-est">${escapeHtml(sub)}</div>` : ""}</td>
             <td class="np-odds">${text("recordOdds", { chance: odds(r.chance * (r.exactChance ?? 1)) })}</td>
@@ -46,7 +46,9 @@ export function showNationPanel(nation: Nation, data: WheelData): void {
       <div class="np-record-body">
         <div class="np-record-name"></div>
         <table>${groups}</table>
+        ${data.chart ? nationChart(data.chart, nation.record.chart, data.text.chartTitle ?? "") : ""}
         <dl>
+          ${nation.record.goldenChance !== undefined ? `<dt>${text("recordGolden")}</dt><dd>${(nation.record.goldenChance * 100).toFixed(1)}%</dd>` : ""}
           <dt>${text("recordFirstName")}</dt><dd>${escapeHtml(nation.record.firstName)}</dd>
           <dt>${text("recordEra")}</dt><dd>${escapeHtml(data.eraName)}</dd>
           <dt>${text("recordCreated")}</dt><dd>${escapeHtml(created)}</dd>

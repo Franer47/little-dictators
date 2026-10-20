@@ -3,7 +3,7 @@
 
 import type { Wheel } from "../../game/wheels.ts";
 import { GLYPH_HEIGHT, drawText, textWidth, wrapText } from "./pixelFont.ts";
-import { TAU, sliceColor, sliceEdges, type WheelFrame, type WheelView } from "./wheelView.ts";
+import { TAU, sliceColor, sliceEdges, specialColors, type WheelFrame, type WheelView } from "./wheelView.ts";
 
 /** The retro palette: a few earthy map colours plus some bright accents. */
 export const RETRO_PALETTE = {
@@ -109,10 +109,10 @@ export class RetroWheelView implements WheelView {
     const n = wheel.slices.length;
     const palette = RETRO_PALETTE.slices;
     this.slices = wheel.slices.map((slice, i) => {
-      const colors = palette[sliceColor(i, n, palette.length)].map((h) => px(h)) as [number, number, number];
+      const colors = (specialColors(wheel, slice, i) ?? palette[sliceColor(i, n, palette.length)]).map((h) => px(h)) as [number, number, number];
       const start = this.edges[i];
       const end = this.edges[i + 1];
-      return { colors, center: (start + end) / 2, ...this.labelMask(slice.short ?? slice.shown, (end - start) * TAU) };
+      return { colors, center: (start + end) / 2, ...this.labelMask(slice.rare ? "" : (slice.short ?? slice.shown), (end - start) * TAU) };
     });
   }
 
@@ -122,6 +122,7 @@ export class RetroWheelView implements WheelView {
    * longer along the slice, and centred between the hub and the rim.
    */
   private labelMask(label: string, sliceAngle: number): Pick<SliceArt, "mask" | "maskW" | "maskH" | "maskU" | "thicken"> {
+    if (!label) return { mask: new Uint8Array(0), maskW: 0, maskH: 0, maskU: 0, thicken: false }; // no label (rare slices)
     const inner = HUB + 3;
     const outer = R - RIM - 3;
     const room = outer - inner;
@@ -204,6 +205,10 @@ export class RetroWheelView implements WheelView {
 
   onTick(): void {
     this.kick = 1;
+  }
+
+  hubCenter(): { x: number; y: number } {
+    return { x: CX * this.scale, y: CY * this.scale };
   }
 
   pointerTip(): { x: number; y: number } {

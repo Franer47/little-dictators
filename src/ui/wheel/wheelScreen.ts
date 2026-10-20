@@ -8,29 +8,17 @@ import "@fontsource/pixelify-sans/400.css";
 import "@fontsource/pixelify-sans/600.css";
 import "@fontsource/pixelify-sans/700.css";
 import "./wheel.css";
-import {
-  chainBase,
-  createNation,
-  describeOutcome,
-  generateName,
-  makeOutcome,
-  makePicksOutcome,
-  resultsById,
-  rollExact,
-  rollPicks,
-  rollWheel,
-  type Nation,
-  type WheelOutcome,
-} from "../../game/nation.ts";
+import { describeOutcome, generateName, type Nation, type WheelOutcome } from "../../game/nation.ts";
 import { createRng, type Rng } from "../../game/random.ts";
-import { exactWheel, resultGroups, spinWheel, withoutPicked, type Slice, type Wheel, type WheelData } from "../../game/wheels.ts";
+import { NationRoller, type SpinKind, type Step } from "../../game/roller.ts";
+import { resultGroups, spinWheel, type Slice, type Wheel, type WheelData } from "../../game/wheels.ts";
 import { loadPref, savePref } from "../prefs.ts";
 import { Confetti } from "./confetti.ts";
 import { GAME_SHOW_COLORS, GameShowWheelView } from "./gameShowWheel.ts";
 import { RETRO_PALETTE, RetroWheelView } from "./retroWheel.ts";
 import { WheelSounds, type SoundStyle } from "./sound.ts";
 import { TAU, angleToShow, fractionAtPointer, sliceAt, sliceEdges, ticksPassed, type WheelView } from "./wheelView.ts";
-import { escapeHtml, flagPlaceholder, formatText, speakerIcon } from "../uiBits.ts";
+import { escapeHtml, flagPlaceholder, formatText, nationChart, skullIcon, speakerIcon } from "../uiBits.ts";
 
 type Style = SoundStyle;
 type Phase = "ready" | "spinning" | "landing" | "result" | "final";
@@ -79,8 +67,13 @@ class WheelScreen {
   private confetti = new Confetti();
   private views: Partial<Record<Style, WheelView>> = {};
 
-  private step = 0;
-  private outcomes: WheelOutcome[] = [];
+  /** The spin-by-spin rules (src/game/roller.ts), and the spin on screen now. */
+  private roller: NationRoller;
+  private shown: Step;
+  /** Where the spin in progress will land. */
+  private pending: Slice | null = null;
+  /** Multi-pick wheels: the picks so far, for the card. */
+  private pickLabels: string[] = [];
   private phase: Phase = "ready";
   private angle = 0;
   private speed = 0;
@@ -91,12 +84,6 @@ class WheelScreen {
   private lastFrame = performance.now();
   private pointerSlice = -1;
   private nation: Nation | null = null;
-  /** Number wheels: the range the first spin landed on, and the exact-number wheel after it. */
-  private rangeSlice: Slice | null = null;
-  /** Multi-pick wheels (e.g. 3 bonus resources): the picks so far, and the wheel for the next one. */
-  private picks: { wheel: Wheel; slice: Slice }[] = [];
-  private pickWheel: Wheel | null = null;
-  private exact: Wheel | null = null;
   private mapLoaded = false;
   private timers: number[] = [];
   private closed = false;
@@ -113,6 +100,8 @@ class WheelScreen {
     this.data = opts.data;
     this.text = (key, vars) => formatText(this.data.text[key] ?? key, vars);
     this.rng = createRng(opts.seed);
+    this.roller = new NationRoller(this.data, this.rng);
+    this.shown = this.roller.current!;
     this.angle = -TAU * Math.random();
     this.build();
     this.setStyle(this.style, false);
@@ -135,13 +124,9 @@ class WheelScreen {
     requestAnimationFrame(this.frame);
   }
 
-  /** The wheel on screen: the current wheel, or its exact-number wheel. */
+  /** The wheel on screen. */
   private get wheel(): Wheel {
-    return this.exact ?? this.pickWheel ?? this.baseWheel;
-  }
-
-  private get baseWheel(): Wheel {
-    return this.data.wheels[Math.min(this.step, this.data.wheels.length - 1)];
+    return this.shown.wheel;
   }
 
   private get view(): WheelView {
@@ -157,6 +142,8 @@ class WheelScreen {
     root.innerHTML = `
       <canvas class="ws-stars"></canvas>
       <div class="ws-rays"></div>
+      <div class="ws-doom" aria-hidden="true"></div>
+      <div class="ws-skull" aria-hidden="true">${skullIcon()}</div>
       <header class="ws-top">
         <div class="ws-title"><span class="ws-game">Little Dictators</span><span class="ws-sub">${t("screenTitle")}</span></div>
         <div class="ws-tools">
@@ -213,6 +200,7 @@ class WheelScreen {
                 </section>`,
               )
               .join("")}
+            <section class="card-group card-chart"></section>
           </div>
           <div class="card-final">
             <button type="button" class="card-continue"></button>
@@ -233,6 +221,8 @@ class WheelScreen {
       readoutSub: q(".ws-readout-sub"),
       go: q(".ws-go"),
       fast: q(".ws-fast"),
+      skull: q(".ws-skull"),
+      chart: q(".card-chart"),
       rest: q(".ws-rest"),
       mute: q(".ws-mute"),
       card: q(".ws-card"),
@@ -360,20 +350,32 @@ class WheelScreen {
 
   // ---------------------------------------------------------------- the flow
 
-  /** Shows the current wheel and its place in the progress bar. */
+  /** Shows the roller's current spin: its wheel and its place in the progress bar. */
   private showWheel(): void {
-    const wheel = this.wheel;
+    const step = this.roller.current!;
+    this.shown = step;
+    const wheel = step.wheel;
     const total = this.data.wheels.length;
-    const picks = this.baseWheel.picks ?? 1;
-    const key = this.exact ? "spinOfExact" : picks > 1 ? "spinOfPick" : "spinOf";
-    this.el.step.textContent = this.text(key, { n: this.step + 1, total, pick: this.picks.length + 1, picks });
+    const picks = step.base.picks ?? 1;
+    const key: Record<SpinKind, string> = {
+      gate: "spinOfGate",
+      rare: "spinOfRare",
+      exact: "spinOfExact",
+      pick: "spinOfPick",
+      main: step.base.gate ? "spinOfGolden" : picks > 1 ? "spinOfPick" : "spinOf",
+    };
+    this.el.step.textContent = this.text(key[step.kind], { n: step.index + 1, total, pick: step.pick, picks });
     this.el.wheelName.textContent = wheel.name;
     this.el.question.textContent = wheel.question ?? "";
     [...this.el.dots.children].forEach((dot, i) => {
-      dot.classList.toggle("done", i < this.step);
-      dot.classList.toggle("current", i === this.step);
+      dot.classList.toggle("done", i < step.index);
+      dot.classList.toggle("current", i === step.index);
     });
-    this.rows.forEach((row, i) => row.classList.toggle("current", i === this.step));
+    this.rows.forEach((row, i) => row.classList.toggle("current", i === step.index));
+    // The rare wheel keeps the dark look; anything else lifts it.
+    this.root.classList.toggle("doom", step.kind === "rare");
+    if (step.kind !== "rare") this.showSkull(false);
+    this.root.classList.toggle("golden", wheel.theme === "golden" || step.kind === "gate");
     this.view.setWheel(wheel);
     this.winner = null;
     this.pointerSlice = -1;
@@ -384,19 +386,14 @@ class WheelScreen {
 
   private updateGo(): void {
     const go = this.el.go as HTMLButtonElement;
-    const last = this.step >= this.data.wheels.length - 1;
+    // After a spin, the button says what comes next.
+    const next = this.roller.current;
+    const after: Record<SpinKind, string> = { exact: "exact", pick: "nextPick", rare: "doomNext", main: "goldenNext", gate: "next" };
     const label: Record<Phase, string> = {
       ready: this.text("spin"),
       spinning: this.text("spinning"),
       landing: this.text("spinning"),
-      result:
-        this.rangeSlice && !this.exact
-          ? this.text("exact")
-          : this.picksLeft()
-            ? this.text("nextPick")
-            : last
-              ? this.text("finish")
-              : this.text("next"),
+      result: !next ? this.text("finish") : next.index !== this.shown.index ? this.text("next") : this.text(after[next.kind]),
       final: "",
     };
     go.textContent = label[this.phase];
@@ -405,14 +402,10 @@ class WheelScreen {
     (this.el.rest as HTMLButtonElement).disabled = this.phase !== "ready" && this.phase !== "result";
   }
 
-  /** True while a multi-pick wheel has picks left to spin. */
-  private picksLeft(): boolean {
-    return this.picks.length > 0 && this.picks.length < (this.baseWheel.picks ?? 1);
-  }
-
-  private setReadout(label: string, sub: string, result: boolean, rare = false): void {
-    this.el.readout.classList.toggle("rare", rare);
-    this.el.readout.dataset.badge = this.text("rareHit");
+  private setReadout(label: string, sub: string, result: boolean, badge: "" | "rare" | "golden" = ""): void {
+    this.el.readout.classList.toggle("rare", badge === "rare");
+    this.el.readout.classList.toggle("golden", badge === "golden");
+    this.el.readout.dataset.badge = badge === "golden" ? this.text("goldenHit") : this.text("rareHit");
     this.el.readoutLabel.textContent = label;
     this.el.readoutSub.textContent = sub;
     this.el.readout.classList.toggle("result", result);
@@ -461,14 +454,7 @@ class WheelScreen {
       settle: fast ? 0 : 0.45,
       winner: result.index,
     };
-    const base = this.baseWheel;
-    if (this.exact)
-      this.outcomes[this.step] = makeOutcome(base, this.rangeSlice!, this.data, { wheel: this.exact, slice: result.slice }, resultsById(this.outcomes));
-    else if (base.number) this.rangeSlice = result.slice; // a number wheel: the exact number is the next spin
-    else if ((base.picks ?? 1) > 1) {
-      this.picks.push({ wheel: this.wheel, slice: result.slice });
-      if (this.picks.length >= base.picks!) this.outcomes[this.step] = makePicksOutcome(base, this.picks);
-    } else this.outcomes[this.step] = makeOutcome(base, result.slice, this.data);
+    this.pending = result.slice;
     this.phase = "spinning";
     this.root.classList.add("spinning");
     this.updateGo();
@@ -495,60 +481,66 @@ class WheelScreen {
     this.winAt = performance.now();
     this.phase = "landing";
     this.root.classList.remove("spinning");
-    const rare = !!this.wheel.slices[s.winner]?.rare;
-    if (rare) this.later(200, () => this.sounds.reveal(this.style));
-    if (this.rangeSlice && !this.exact) {
-      this.landedOnRange(this.rangeSlice, rare);
+    const landing = this.roller.land(this.pending!);
+    this.pending = null;
+    const { step, slice } = landing;
+    if (landing.doom) return this.landedOnRare(slice);
+    if (landing.golden) return this.landedOnGolden(slice);
+    if (!landing.outcome) {
+      if (step.base.number) this.landedOnRange(slice);
+      else this.landedOnPick(slice);
       return;
     }
-    if (this.picks.length) {
-      // A multi-pick wheel: show this pick; the card fills in pick by pick.
-      const slice = this.picks[this.picks.length - 1].slice;
-      this.setReadout(slice.label, slice.blurb ?? "", true, rare);
-      this.sounds.win(this.style);
-      this.celebrate(rare);
-      if (this.picksLeft()) {
-        this.later(this.fast ? 150 : 600, () => this.landedOnPick());
-        return;
-      }
-    } else {
-      const { main, sub } = describeOutcome(this.outcomes[this.step]);
-      this.setReadout(main, [sub, this.outcomes[this.step].blurb].filter(Boolean).join(" · "), true, rare);
-      this.sounds.win(this.style);
-      this.celebrate(rare);
-    }
-    const outcome = this.outcomes[this.step];
-    this.later(this.fast ? 250 : rare ? 1400 : 750, () => this.flyToCard(outcome));
+    const outcome = landing.outcome;
+    const { main, sub } = describeOutcome(outcome);
+    const badge = outcome.rare ? "rare" : outcome.golden ? "golden" : "";
+    // A multi-pick wheel's last pick: show the pick itself; the card gets the whole list.
+    const label = step.kind === "pick" ? slice.label : main;
+    this.setReadout(label, [step.kind === "pick" ? "" : sub, slice.blurb ?? outcome.blurb].filter(Boolean).join(" · "), true, badge);
+    if (outcome.rare) this.sounds.doom(this.style);
+    else if (outcome.golden) this.sounds.golden(this.style);
+    else this.sounds.win(this.style);
+    if (!outcome.none) this.celebrate(false, badge || undefined);
+    this.later(this.fast ? 250 : badge ? 1300 : 750, () => this.flyToCard(outcome, landing.changed));
+  }
+
+  /** Landed on a rare slice: the screen goes dark, a skull takes the wheel's centre, then the rare wheel. */
+  private landedOnRare(slice: Slice): void {
+    this.root.classList.add("doom");
+    this.showSkull(true);
+    this.setReadout(this.text("doomTitle"), slice.blurb ?? this.text("doomSub"), true, "rare");
+    this.sounds.doom(this.style);
+    this.celebrate(false, "rare");
+    this.later(this.fast ? 500 : 1400, () => {
+      this.phase = "result";
+      this.updateGo();
+      if (this.fast) this.later(300, () => this.phase === "result" && this.next());
+    });
+  }
+
+  /** The golden chance said yes: the golden spin is next. */
+  private landedOnGolden(slice: Slice): void {
+    this.setReadout(slice.label, this.data.wheels[this.shown.index].question ?? "", true, "golden");
+    this.sounds.golden(this.style);
+    this.celebrate(true, "golden");
+    this.later(this.fast ? 300 : 900, () => {
+      this.phase = "result";
+      this.updateGo();
+      if (this.fast) this.later(200, () => this.phase === "result" && this.next());
+    });
   }
 
   /** A pick of a multi-pick wheel with more to come: list the picks so far on the card. */
-  private landedOnPick(): void {
-    const row = this.rows[this.step];
-    row.querySelector(".row-value")!.textContent = [...this.picks.map((p) => p.slice.label), "…"].join(", ");
-    row.classList.toggle("rare", this.picks.some((p) => p.slice.rare));
-    row.classList.add("filled");
-    row.classList.remove("flash");
-    void row.offsetWidth;
-    row.classList.add("flash");
-    this.sounds.thunk(this.style);
-    this.phase = "result";
-    this.updateGo();
-    if (this.fast) this.later(120, () => this.phase === "result" && this.next());
-  }
-
-  /** A number wheel's first spin: show the range (also on the card), then on to the exact number. */
-  private landedOnRange(slice: Slice, rare: boolean): void {
-    // Wheels that show labels ("Settled") also say the range; range wheels show it already.
-    const range = slice.rangeText && slice.rangeText !== slice.shown ? slice.rangeText : "";
-    this.setReadout(slice.shown, [range, slice.blurb].filter(Boolean).join(" · "), true, rare);
+  private landedOnPick(slice: Slice): void {
+    this.pickLabels.push(slice.label);
+    this.setReadout(slice.label, slice.blurb ?? "", true);
     this.sounds.win(this.style);
-    this.celebrate(rare);
-    const row = this.rows[this.step];
+    this.celebrate(false);
     this.later(this.fast ? 150 : 600, () => {
-      row.querySelector(".row-est")!.textContent = range ? `${slice.label} · ${range}` : slice.shown;
-      row.classList.remove("flash");
-      void row.offsetWidth;
-      row.classList.add("flash");
+      const row = this.rows[this.shown.index];
+      row.querySelector(".row-value")!.textContent = [...this.pickLabels, "…"].join(", ");
+      row.classList.add("filled");
+      this.flashRow(row);
       this.sounds.thunk(this.style);
       this.phase = "result";
       this.updateGo();
@@ -556,37 +548,80 @@ class WheelScreen {
     });
   }
 
-  private celebrate(big: boolean): void {
+  /** A number wheel's first spin: show the range (also on the card), then on to the exact number. */
+  private landedOnRange(slice: Slice): void {
+    // Wheels that show labels ("Settled") also say the range; range wheels show it already.
+    const range = slice.rangeText && slice.rangeText !== slice.shown ? slice.rangeText : "";
+    this.setReadout(slice.shown, [range, slice.blurb].filter(Boolean).join(" · "), true);
+    this.sounds.win(this.style);
+    this.celebrate(false);
+    const row = this.rows[this.shown.index];
+    this.later(this.fast ? 150 : 600, () => {
+      row.querySelector(".row-est")!.textContent = range ? `${slice.label} · ${range}` : slice.shown;
+      this.flashRow(row);
+      this.sounds.thunk(this.style);
+      this.phase = "result";
+      this.updateGo();
+      if (this.fast) this.later(120, () => this.phase === "result" && this.next());
+    });
+  }
+
+  /** The skull over the wheel's centre, for rare pulls. */
+  private showSkull(on: boolean): void {
+    const skull = this.el.skull;
+    if (on) {
+      const rect = this.view.canvas.getBoundingClientRect();
+      const hub = this.view.hubCenter();
+      // Retro labels start nearer the centre, so its skull is smaller.
+      const size = Math.max(40, rect.height * (this.style === "retro" ? 0.13 : 0.2));
+      skull.style.left = `${rect.left + hub.x - size / 2}px`;
+      skull.style.top = `${rect.top + hub.y - size / 2}px`;
+      skull.style.width = skull.style.height = `${size}px`;
+    }
+    skull.classList.toggle("on", on);
+  }
+
+  private celebrate(big: boolean, kind?: "rare" | "golden"): void {
+    const golds = ["#fff3b0", "#ffd84a", "#e0a020", "#ffe58a", "#ffffff"];
+    const dooms = ["#e0182d", "#5a0d18", "#14040a", "#2a0a12", "#8a1020"];
     if (this.style === "gameshow") {
+      const colors = kind === "rare" ? dooms : kind === "golden" ? golds : GAME_SHOW_COLORS;
       const rect = this.view.canvas.getBoundingClientRect();
       const tip = this.view.pointerTip();
-      this.confetti.burst(rect.left + tip.x, rect.top + tip.y, GAME_SHOW_COLORS, {
+      this.confetti.burst(rect.left + tip.x, rect.top + tip.y, colors, {
         count: big ? 260 : 110,
         direction: -Math.PI / 2,
         spread: big ? Math.PI * 1.4 : Math.PI * 0.9,
         power: big ? 1.3 : 0.9,
       });
       if (big) {
-        this.confetti.burst(0, window.innerHeight * 0.7, GAME_SHOW_COLORS, { count: 120, direction: -Math.PI / 3, spread: 0.6, power: 1.6 });
-        this.confetti.burst(window.innerWidth, window.innerHeight * 0.7, GAME_SHOW_COLORS, { count: 120, direction: (-Math.PI * 2) / 3, spread: 0.6, power: 1.6 });
+        this.confetti.burst(0, window.innerHeight * 0.7, colors, { count: 120, direction: -Math.PI / 3, spread: 0.6, power: 1.6 });
+        this.confetti.burst(window.innerWidth, window.innerHeight * 0.7, colors, { count: 120, direction: (-Math.PI * 2) / 3, spread: 0.6, power: 1.6 });
       }
     } else {
       const rect = (big ? this.el.card : this.view.canvas).getBoundingClientRect();
       const tip = big ? { x: rect.width / 2, y: rect.height * 0.2 } : this.view.pointerTip();
       const pixel = Math.max(2, Math.round(parseFloat(this.view.canvas.style.width) / this.view.canvas.width) || 3);
-      const colors = [...RETRO_PALETTE.studOn, RETRO_PALETTE.slices[0][2], RETRO_PALETTE.slices[2][2], RETRO_PALETTE.text];
+      const colors =
+        kind === "rare"
+          ? dooms
+          : kind === "golden"
+            ? golds
+            : [...RETRO_PALETTE.studOn, RETRO_PALETTE.slices[0][2], RETRO_PALETTE.slices[2][2], RETRO_PALETTE.text];
       this.confetti.burst(rect.left + tip.x, rect.top + tip.y, colors, { count: big ? 160 : 60, pixel, power: big ? 1.1 : 0.7, spread: Math.PI * 1.3 });
     }
   }
 
   /** The result flies from under the wheel onto its row of the nation card. */
-  private flyToCard(outcome: WheelOutcome): void {
-    const row = this.rows[this.step];
+  private flyToCard(outcome: WheelOutcome, changed: string[]): void {
+    const row = this.rows[this.shown.index];
     const value = row.querySelector<HTMLElement>(".row-value")!;
     const from = this.el.readoutLabel.getBoundingClientRect();
     const to = value.getBoundingClientRect();
     const chip = document.createElement("div");
     chip.className = "ws-chip";
+    chip.classList.toggle("rare", !!outcome.rare);
+    chip.classList.toggle("golden", !!outcome.golden);
     chip.textContent = describeOutcome(outcome).main;
     this.root.append(chip);
     const cw = chip.offsetWidth;
@@ -607,9 +642,18 @@ class WheelScreen {
       chip.remove();
       this.fillRow(row, outcome);
       this.sounds.thunk(this.style);
-      this.phase = "result";
-      this.updateGo();
-      if (this.fast) this.later(120, () => this.phase === "result" && this.next());
+      // A golden bonus changed other numbers (e.g. double land → more people, bigger GDP).
+      changed.forEach((id, k) =>
+        this.later(250 + k * 200, () => {
+          const i = this.data.wheels.findIndex((w) => w.id === id);
+          if (i >= 0) this.fillRow(this.rows[i], this.roller.results[id]);
+        }),
+      );
+      this.later(changed.length ? 250 + changed.length * 200 : 0, () => {
+        this.phase = "result";
+        this.updateGo();
+        if (this.fast) this.later(120, () => this.phase === "result" && this.next());
+      });
     };
     anim.finished.then(land, land);
   }
@@ -619,7 +663,13 @@ class WheelScreen {
     row.querySelector(".row-value")!.textContent = main;
     row.querySelector(".row-est")!.textContent = sub;
     row.classList.toggle("rare", !!outcome.rare);
+    row.classList.toggle("golden", !!outcome.golden || !!outcome.estimate?.boost);
+    row.classList.toggle("none", !!outcome.none);
     row.classList.add("filled");
+    this.flashRow(row);
+  }
+
+  private flashRow(row: HTMLElement): void {
     row.classList.remove("flash");
     void row.offsetWidth;
     row.classList.add("flash");
@@ -627,21 +677,11 @@ class WheelScreen {
 
   private next(): void {
     this.sounds.click(this.style);
-    if (this.rangeSlice && !this.exact) {
-      this.exact = exactWheel(this.baseWheel, this.rangeSlice, this.data, chainBase(this.baseWheel, resultsById(this.outcomes)));
-    } else if (this.picksLeft()) {
-      this.pickWheel = withoutPicked(this.baseWheel, this.picks.map((p) => p.slice));
-    } else {
-      this.exact = null;
-      this.rangeSlice = null;
-      this.picks = [];
-      this.pickWheel = null;
-      if (this.step >= this.data.wheels.length - 1) {
-        this.reveal();
-        return;
-      }
-      this.step++;
+    if (this.roller.done) {
+      this.reveal();
+      return;
     }
+    if (this.roller.current!.index !== this.shown.index) this.pickLabels = [];
     const box = this.el.wheel;
     const out = box.animate([{ transform: "none", opacity: 1 }, { transform: "scale(0.6) rotate(-25deg)", opacity: 0 }], {
       duration: this.fast ? 90 : 200,
@@ -664,38 +704,26 @@ class WheelScreen {
     if (this.phase !== "ready" && this.phase !== "result") return;
     this.sounds.unlock();
     this.sounds.click(this.style);
-    const wheels = this.data.wheels;
-    const results = resultsById(this.outcomes);
-    const filled: number[] = [];
-    for (let i = this.step; i < wheels.length; i++) {
-      if (this.outcomes[i]) continue; // this wheel is already done
-      const wheel = wheels[i];
-      // A number wheel that already landed on its range only needs the exact number.
-      const outcome =
-        i === this.step && this.rangeSlice
-          ? rollExact(this.data, wheel, this.rangeSlice, results, this.rng)
-          : i === this.step && this.picks.length
-            ? rollPicks(wheel, this.picks, this.rng)
-            : rollWheel(this.data, wheel, results, this.rng);
-      this.outcomes[i] = results[wheel.id] = outcome;
-      filled.push(i);
-    }
-    this.exact = null;
-    this.rangeSlice = null;
-    this.picks = [];
-    this.pickWheel = null;
+    const added = this.roller.rollRest();
     this.phase = "landing";
     this.updateGo();
+    this.root.classList.remove("doom", "golden");
+    this.showSkull(false);
     this.rows.forEach((row) => row.classList.remove("current"));
     const gap = this.fast ? 40 : 90;
-    filled.forEach((i, k) =>
-      this.later(k * gap, () => {
-        this.fillRow(this.rows[i], this.outcomes[i]);
+    added.forEach((k, n) =>
+      this.later(n * gap, () => {
+        const outcome = this.roller.outcomes[k];
+        this.fillRow(this.rows[this.data.wheels.findIndex((w) => w.id === outcome.wheelId)], outcome);
         this.sounds.thunk(this.style);
       }),
     );
-    this.later(filled.length * gap + 250, () => {
-      this.step = wheels.length - 1;
+    this.later(added.length * gap + 250, () => {
+      // A golden bonus may have changed earlier numbers too: show them all as they are now.
+      this.data.wheels.forEach((w, i) => {
+        const r = this.roller.results[w.id];
+        if (r?.estimate) this.fillRow(this.rows[i], r);
+      });
       this.reveal();
     });
   }
@@ -703,8 +731,11 @@ class WheelScreen {
   // ---------------------------------------------------------------- the finished nation
 
   private reveal(): void {
-    const nation = createNation(this.data, this.outcomes, this.opts.mapName, this.rng);
+    const nation = this.roller.nation(this.opts.mapName);
     this.nation = nation;
+    this.root.classList.remove("doom", "golden");
+    this.showSkull(false);
+    if (this.data.chart) this.el.chart.innerHTML = nationChart(this.data.chart, nation.record.chart, this.text("chartTitle"));
     const card = this.el.card;
     const before = card.getBoundingClientRect();
     this.phase = "final";
@@ -802,19 +833,16 @@ class WheelScreen {
     this.timers = [];
     this.confetti.clear();
     this.rng = createRng();
-    this.outcomes = [];
+    this.roller = new NationRoller(this.data, this.rng);
+    this.pickLabels = [];
     this.nation = null;
-    this.rangeSlice = null;
-    this.exact = null;
-    this.picks = [];
-    this.pickWheel = null;
-    this.step = 0;
-    this.root.classList.remove("final");
+    this.root.classList.remove("final", "doom", "golden");
+    this.el.chart.innerHTML = "";
     const name = this.el.name as HTMLButtonElement;
     name.textContent = this.text("cardEmpty");
     name.disabled = true;
     this.rows.forEach((row) => {
-      row.classList.remove("filled", "flash", "rare");
+      row.classList.remove("filled", "flash", "rare", "golden", "none");
       row.querySelector(".row-value")!.textContent = this.text("cardEmpty");
       row.querySelector(".row-est")!.textContent = "";
     });

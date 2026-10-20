@@ -3,11 +3,9 @@
 
 import type { Wheel } from "../../game/wheels.ts";
 import { wrapText } from "./pixelFont.ts";
-import { TAU, sliceColor, sliceEdges, type WheelFrame, type WheelView } from "./wheelView.ts";
+import { DOOM_RED, TAU, sliceColor, sliceEdges, specialColors, type WheelFrame, type WheelView } from "./wheelView.ts";
 
 export const GAME_SHOW_COLORS = ["#ff3b4e", "#ff9f1c", "#ffd60a", "#2ec95c", "#1fb5ff", "#4a5cff", "#b04dff", "#ff4fb3"];
-/** The colour of rare slices. */
-const RARE_GOLD = "#ffd84a";
 export const GAME_SHOW_FONT = '"Luckiest Guy", "Arial Black", system-ui, sans-serif';
 
 const BULBS = 28;
@@ -83,6 +81,10 @@ export class GameShowWheelView implements WheelView {
 
   onTick(): void {}
 
+  hubCenter(): { x: number; y: number } {
+    return this.center;
+  }
+
   pointerTip(): { x: number; y: number } {
     return { x: this.center.x + this.R * 0.93, y: this.center.y };
   }
@@ -101,7 +103,8 @@ export class GameShowWheelView implements WheelView {
     wheel.slices.forEach((slice, i) => {
       const a0 = this.edges[i] * TAU;
       const a1 = this.edges[i + 1] * TAU;
-      const base = slice.rare ? RARE_GOLD : GAME_SHOW_COLORS[sliceColor(i, wheel.slices.length, GAME_SHOW_COLORS.length)];
+      const special = specialColors(wheel, slice, i);
+      const base = special ? special[1] : GAME_SHOW_COLORS[sliceColor(i, wheel.slices.length, GAME_SHOW_COLORS.length)];
       const grad = g.createRadialGradient(0, 0, r * 0.1, 0, 0, r);
       grad.addColorStop(0, shade(base, 0.45));
       grad.addColorStop(0.55, base);
@@ -129,18 +132,22 @@ export class GameShowWheelView implements WheelView {
       g.stroke();
     }
 
-    // Rare slices are often only a sliver: a glowing gold line marks them.
+    // Rare slices: a thin black wedge with glowing red edges, and no label.
     wheel.slices.forEach((slice, i) => {
       if (!slice.rare) return;
-      const a = ((this.edges[i] + this.edges[i + 1]) / 2) * TAU;
+      const a0 = this.edges[i] * TAU;
+      const a1 = this.edges[i + 1] * TAU;
       g.save();
-      g.shadowColor = "rgba(255, 230, 120, 0.95)";
-      g.shadowBlur = 10 * this.dpr;
+      g.shadowColor = "rgba(255, 30, 50, 0.9)";
+      g.shadowBlur = 8 * this.dpr;
       g.beginPath();
-      g.moveTo(Math.cos(a) * r * 0.2, Math.sin(a) * r * 0.2);
-      g.lineTo(Math.cos(a) * r, Math.sin(a) * r);
-      g.strokeStyle = RARE_GOLD;
-      g.lineWidth = 4 * this.dpr;
+      g.moveTo(Math.cos(a0) * r * 0.16, Math.sin(a0) * r * 0.16);
+      g.lineTo(Math.cos(a0) * r, Math.sin(a0) * r);
+      g.arc(0, 0, r, a0, a1);
+      g.lineTo(Math.cos(a1) * r * 0.16, Math.sin(a1) * r * 0.16);
+      g.strokeStyle = DOOM_RED;
+      g.lineWidth = 2.5 * this.dpr;
+      g.lineJoin = "round";
       g.stroke();
       g.restore();
     });
@@ -149,7 +156,7 @@ export class GameShowWheelView implements WheelView {
     wheel.slices.forEach((slice, i) => {
       const a0 = this.edges[i] * TAU;
       const a1 = this.edges[i + 1] * TAU;
-      if (a1 - a0 < 0.05) return; // too thin for a label (e.g. weight 0)
+      if (a1 - a0 < 0.05 || slice.rare) return; // too thin for a label (e.g. weight 0), or a rare slice
       const outer = r * 0.84;
       const inner = r * 0.24;
       const room = outer - inner;

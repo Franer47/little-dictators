@@ -4,18 +4,28 @@
 
   "notes": {
     "about": "Where the numbers come from. Not shown in the game; for whoever tunes the ranges.",
-    "odds": "Placeholder weights for now: every normal slice is 1. Rare slices (\"rare\": true, drawn in gold, big celebration) get a small weight: Eternal Republic 0.016 (≈ 1 in 1,000 governments), Satanist 0.065 (≈ 1 in 200 ideologies). Culture and Religion are switched off (\"off\": true) but kept for later.",
+    "odds": "Placeholder weights for now: every normal slice is 1. Rare pulls: Government and Ideology each have one dark \"rare\" slice with \"chance\": 0.015 (1.5% of the wheel). Landing on it spins its own wheel of 7 rare results. A nation gets at most \"rareLimit\" rare pulls (1): after one, the other wheel's rare slice is left off. So about 3% of nations get one. Culture and Religion are switched off (\"off\": true) but kept for later.",
     "land": "Area in km². Hard max 535,000 km² (1.5 × Germany's 357,600 km²); bigger is never rolled. The smallest real states c. 1500 (Ragusa, Lucca, the Italian and German city-states) held a few hundred to a few thousand km², so the wheel starts at 2,000.",
     "density": "People per km² c. 1500, after Colin McEvedy & Richard Jones, Atlas of World Population History (1978), and Angus Maddison's population tables: steppe, taiga and desert well under 1–2; Muscovy ~2–3; Poland-Lithuania ~5; Iberia ~13; England ~19; France ~27; the German lands ~30; Italy ~35; Japan ~40; the Low Countries, Lombardy and the Ganges valley ~40–60. Population = land × density, so a small land can never hold a huge population.",
     "wealth": "Output (GDP) per person c. 1500 from Angus Maddison's estimates, The World Economy: Historical Statistics (2003), in 1990 international dollars: bare subsistence ~400, Africa and the Americas ~415, Eastern Europe ~500, Japan 500, India 550, China 600, Portugal 606, Spain 661, Germany 688, England 714, France 727, the Netherlands 761, Belgium 875, Italy 1,100. Converted to today's money ×2.4 (US consumer prices 1990 → 2024) and rounded. GDP = population × output per person.",
     "check": "Sanity check: a vast (≈535,000 km²), dense (25–40/km²), comfortable-to-prosperous nation comes out at ~13–21M people and ~$25–45B, in line with France c. 1500 (~15M people, Maddison GDP 10.9B 1990$ ≈ $26B today) and Italy (~10.5M, ≈ $28B). A city-state that's empty and destitute is a few thousand people and a few million dollars. Run game.checkNumbers() in the browser console to see the spread."
   },
 
+  "chart": {
+    "about": "Every nation gets a dot on this chart, from the \"chart\" pushes of its results: [x, y], each -1..1 (null = no push). x: left = liberal, democratic, peaceful; right = nationalist, dictatorship. y: bottom = miserable, top = a good life. The dot is the average push on each axis times \"spread\", kept inside the chart. The bonus wheel's slices grow the nearer their \"at\" is to the dot; the golden chance grows toward the corners.",
+    "x": { "name": "Politics", "low": "Liberal & peaceful", "high": "Nationalist & tyrannical" },
+    "y": { "name": "Life", "low": "Miserable", "high": "Good life" },
+    "spread": [1.5, 1.6],
+    "corners": ["Free & happy", "Rich & ruthless", "Poor but free", "Miserable & evil"]
+  },
+
+  "rareLimit": 1,
+
   "groups": [
     { "name": "People", "wheels": ["culture", "religion"] },
     { "name": "Power", "wheels": ["government", "ideology", "stability", "acceptance"] },
     { "name": "Land & wealth", "wheels": ["land", "density", "wealth", "resource"] },
-    { "name": "Story", "wheels": ["history"] }
+    { "name": "Story & bonuses", "wheels": ["history", "bonus", "golden"] }
   ],
 
   "panel": {
@@ -91,23 +101,36 @@
       "name": "Government",
       "question": "Who holds power?",
       "slices": [
-        { "id": "feudal-monarchy", "label": "Feudal Monarchy", "short": "Feudal", "weight": 1, "blurb": "A crown on top, a tangle of oaths below." },
-        { "id": "absolute-monarchy", "label": "Absolute Monarchy", "short": "Absolute", "weight": 1, "blurb": "One ruler, answerable only to God." },
-        { "id": "elective-monarchy", "label": "Elected Monarchy", "short": "Elected", "weight": 1, "blurb": "The great lords vote for their king." },
-        { "id": "sultanate", "label": "Sultanate", "weight": 1, "blurb": "A sultan, his viziers and a very big palace." },
-        { "id": "khanate", "label": "Khanate", "weight": 1, "blurb": "A khan chosen by the clans, a horde behind him." },
-        { "id": "imperial-bureaucracy", "label": "Imperial Bureaucracy", "short": "Bureaucracy", "weight": 1, "blurb": "An emperor and an army of exam-passing officials." },
-        { "id": "merchant-republic", "label": "Merchant Republic", "short": "Merchants", "weight": 1, "blurb": "The richest families run the council." },
-        { "id": "noble-republic", "label": "Noble Republic", "short": "Nobles", "weight": 1, "blurb": "Every noble has a vote, and a veto." },
-        { "id": "city-state", "label": "City-State", "weight": 1, "blurb": "One great city rules the land around it." },
-        { "id": "theocracy", "label": "Theocracy", "weight": 1, "blurb": "The clergy rule in the name of heaven." },
-        { "id": "military-order", "label": "Knightly Order", "short": "Knights", "weight": 1, "blurb": "Warrior monks with a country of their own." },
-        { "id": "tribal-confederation", "label": "Tribal Confederation", "short": "Tribes", "weight": 1, "blurb": "Clans that agreed to stop fighting each other. Mostly." },
-        { "id": "chiefdom", "label": "Chiefdom", "weight": 1, "blurb": "A paramount chief and his kin." },
-        { "id": "despotate", "label": "Despot Rule", "short": "Despot", "weight": 1, "blurb": "A lord with a grand title and no one to check him." },
-        { "id": "warlord-rule", "label": "Warlord Rule", "short": "Warlord", "weight": 1, "blurb": "Whoever has the most soldiers this year." },
-        { "id": "regency", "label": "Regency", "weight": 1, "blurb": "The king is a child. Someone else is in charge." },
-        { "id": "eternal-republic", "label": "Eternal Republic", "short": "Eternal", "rare": true, "weight": 0.016, "blurb": "It has stood for a thousand years, and it will stand for a thousand more." }
+        { "id": "feudal-monarchy", "chart": [0.3, null], "label": "Feudal Monarchy", "short": "Feudal", "weight": 1, "blurb": "A crown on top, a tangle of oaths below." },
+        { "id": "elective-monarchy", "chart": [-0.3, null], "label": "Elected Monarchy", "short": "Elected", "weight": 1, "blurb": "The great lords vote for their king." },
+        { "id": "sultanate", "chart": [0.4, null], "label": "Sultanate", "weight": 1, "blurb": "A sultan, his viziers and a very big palace." },
+        { "id": "khanate", "chart": [0.6, null], "label": "Khanate", "weight": 1, "blurb": "A khan chosen by the clans, a horde behind him." },
+        { "id": "imperial-bureaucracy", "chart": [0.3, null], "label": "Imperial Bureaucracy", "short": "Bureaucracy", "weight": 1, "blurb": "An emperor and an army of exam-passing officials." },
+        { "id": "merchant-republic", "chart": [-0.7, null], "label": "Merchant Republic", "short": "Merchants", "weight": 1, "blurb": "The richest families run the council." },
+        { "id": "noble-republic", "chart": [-0.4, null], "label": "Noble Republic", "short": "Nobles", "weight": 1, "blurb": "Every noble has a vote, and a veto." },
+        { "id": "city-state", "chart": [-0.4, null], "label": "City-State", "weight": 1, "blurb": "One great city rules the land around it." },
+        { "id": "theocracy", "chart": [0.5, null], "label": "Theocracy", "weight": 1, "blurb": "The clergy rule in the name of heaven." },
+        { "id": "military-order", "chart": [0.6, null], "label": "Knightly Order", "short": "Knights", "weight": 1, "blurb": "Warrior monks with a country of their own." },
+        { "id": "tribal-confederation", "chart": [-0.2, null], "label": "Tribal Confederation", "short": "Tribes", "weight": 1, "blurb": "Clans that agreed to stop fighting each other. Mostly." },
+        { "id": "chiefdom", "chart": [0.1, null], "label": "Chiefdom", "weight": 1, "blurb": "A paramount chief and his kin." },
+        { "id": "despotate", "chart": [1, null], "label": "Despot Rule", "short": "Despot", "weight": 1, "blurb": "A lord with a grand title and no one to check him." },
+        { "id": "warlord-rule", "chart": [0.9, null], "label": "Warlord Rule", "short": "Warlord", "weight": 1, "blurb": "Whoever has the most soldiers this year." },
+        { "id": "regency", "chart": [0, null], "label": "Regency", "weight": 1, "blurb": "The king is a child. Someone else is in charge." },
+        {
+          "id": "rare", "label": "Rare pull", "rare": true, "chance": 0.015, "blurb": "Something terrible for the whole world.",
+          "then": {
+            "name": "Rare government", "question": "Something terrible is coming…", "theme": "doom",
+            "slices": [
+              { "id": "eternal-republic", "label": "Eternal Republic", "short": "Eternal", "chart": [0.3, -0.2], "blurb": "A republic whose founding laws and institutions are declared eternal.", "weight": 1 },
+              { "id": "absolute-monarchy", "label": "Absolute Monarchy", "short": "Absolute", "chart": [0.9, null], "blurb": "A monarch holds supreme power, answerable to no one.", "weight": 1 },
+              { "id": "stratocracy", "label": "Stratocracy", "chart": [1, -0.4], "blurb": "The army doesn't serve the state. The army is the state.", "weight": 1 },
+              { "id": "necrocracy", "label": "Necrocracy", "chart": [0.8, -0.8], "blurb": "The ruler is dead, but his decrees still bind everyone.", "weight": 1 },
+              { "id": "syndicalist-federation", "label": "Syndicalist Federation", "short": "Syndicalists", "chart": [-0.8, -0.2], "blurb": "Guilds and organised workers govern through federated councils.", "weight": 1 },
+              { "id": "oligarchic-republic", "label": "Oligarchic Republic", "short": "Oligarchy", "chart": [0.4, -0.2], "blurb": "A small group of rich families controls the state.", "weight": 1 },
+              { "id": "monastic-state", "label": "Monastic State", "short": "Monastic", "chart": [0.4, -0.3], "blurb": "A religious order rules through abbots, priests and monks.", "weight": 1 }
+            ]
+          }
+        }
       ]
     },
     {
@@ -203,12 +226,12 @@
         "detail": "{label} · {value} · today's money"
       },
       "slices": [
-        { "id": "destitute", "label": "Very poor", "weight": 1, "range": [900, 1100], "blurb": "Bare survival: one bad harvest from famine." },
-        { "id": "poor", "label": "Poor", "weight": 1, "range": [1100, 1300], "blurb": "Bread, beer and not much else." },
-        { "id": "modest", "label": "Modest", "weight": 1, "range": [1300, 1600], "blurb": "Enough to eat, most years." },
-        { "id": "comfortable", "label": "Comfortable", "weight": 1, "range": [1600, 1900], "blurb": "Busy markets and glass in the windows." },
-        { "id": "prosperous", "label": "Prosperous", "weight": 1, "range": [1900, 2400], "blurb": "Guildhalls, ships and fat tax rolls." },
-        { "id": "opulent", "label": "Very rich", "weight": 1, "range": [2400, 3100], "blurb": "Bankers, silk and painted ceilings." }
+        { "id": "destitute", "chart": [null, -1], "label": "Very poor", "weight": 1, "range": [900, 1100], "blurb": "Bare survival: one bad harvest from famine." },
+        { "id": "poor", "chart": [null, -0.6], "label": "Poor", "weight": 1, "range": [1100, 1300], "blurb": "Bread, beer and not much else." },
+        { "id": "modest", "chart": [null, -0.2], "label": "Modest", "weight": 1, "range": [1300, 1600], "blurb": "Enough to eat, most years." },
+        { "id": "comfortable", "chart": [null, 0.2], "label": "Comfortable", "weight": 1, "range": [1600, 1900], "blurb": "Busy markets and glass in the windows." },
+        { "id": "prosperous", "chart": [null, 0.6], "label": "Prosperous", "weight": 1, "range": [1900, 2400], "blurb": "Guildhalls, ships and fat tax rolls." },
+        { "id": "opulent", "chart": [null, 1], "label": "Very rich", "weight": 1, "range": [2400, 3100], "blurb": "Bankers, silk and painted ceilings." }
       ]
     },
     {
@@ -247,20 +270,34 @@
       "name": "Ideology",
       "question": "What do they believe in?",
       "slices": [
-        { "id": "traditionalist", "label": "Traditionalist", "short": "Tradition", "weight": 1, "blurb": "As our fathers did, so shall we." },
-        { "id": "expansionist", "label": "Expansionist", "short": "Expansion", "weight": 1, "blurb": "The border is only a suggestion." },
-        { "id": "mercantile", "label": "Trade-minded", "short": "Trade", "weight": 1, "blurb": "Buy cheap, sell dear, count everything." },
-        { "id": "zealous", "label": "Fanatical", "weight": 1, "blurb": "The faith must be spread, by word or by sword." },
-        { "id": "humanist", "label": "Humanist", "weight": 1, "blurb": "Old books, new ideas, and man at the centre." },
-        { "id": "isolationist", "label": "Isolationist", "short": "Isolation", "weight": 1, "blurb": "Close the ports and mind our own business." },
-        { "id": "militarist", "label": "Militarist", "weight": 1, "blurb": "The army is the pride of the realm." },
-        { "id": "reformist", "label": "Reformist", "weight": 1, "blurb": "The old order is rotten. Time to fix it." },
-        { "id": "chivalric", "label": "Honour-bound", "short": "Honour", "weight": 1, "blurb": "Honour, tournaments and noble deeds." },
-        { "id": "tolerant", "label": "Tolerant", "weight": 1, "blurb": "All faiths welcome, as long as they pay taxes." },
-        { "id": "seafaring", "label": "Seafaring", "weight": 1, "blurb": "Our future lies across the water." },
-        { "id": "scholarly", "label": "Scholarly", "weight": 1, "blurb": "Libraries, observatories and learned debates." },
-        { "id": "pragmatic", "label": "Pragmatic", "weight": 1, "blurb": "Whatever works this week." },
-        { "id": "satanist", "label": "Satanist", "rare": true, "weight": 0.065, "blurb": "Black candles, secret rites and a pact with the Devil." }
+        { "id": "traditionalist", "chart": [0.2, null], "label": "Traditionalist", "short": "Tradition", "weight": 1, "blurb": "As our fathers did, so shall we." },
+        { "id": "expansionist", "chart": [0.8, null], "label": "Expansionist", "short": "Expansion", "weight": 1, "blurb": "The border is only a suggestion." },
+        { "id": "mercantile", "chart": [-0.6, null], "label": "Trade-minded", "short": "Trade", "weight": 1, "blurb": "Buy cheap, sell dear, count everything." },
+        { "id": "zealous", "chart": [0.8, null], "label": "Fanatical", "weight": 1, "blurb": "The faith must be spread, by word or by sword." },
+        { "id": "humanist", "chart": [-0.9, null], "label": "Humanist", "weight": 1, "blurb": "Old books, new ideas, and man at the centre." },
+        { "id": "isolationist", "chart": [0.2, null], "label": "Isolationist", "short": "Isolation", "weight": 1, "blurb": "Close the ports and mind our own business." },
+        { "id": "militarist", "chart": [0.9, null], "label": "Militarist", "weight": 1, "blurb": "The army is the pride of the realm." },
+        { "id": "reformist", "chart": [-0.6, null], "label": "Reformist", "weight": 1, "blurb": "The old order is rotten. Time to fix it." },
+        { "id": "chivalric", "chart": [0, null], "label": "Honour-bound", "short": "Honour", "weight": 1, "blurb": "Honour, tournaments and noble deeds." },
+        { "id": "tolerant", "chart": [-1, null], "label": "Tolerant", "weight": 1, "blurb": "All faiths welcome, as long as they pay taxes." },
+        { "id": "seafaring", "chart": [-0.2, null], "label": "Seafaring", "weight": 1, "blurb": "Our future lies across the water." },
+        { "id": "scholarly", "chart": [-0.6, null], "label": "Scholarly", "weight": 1, "blurb": "Libraries, observatories and learned debates." },
+        { "id": "pragmatic", "chart": [0, null], "label": "Pragmatic", "weight": 1, "blurb": "Whatever works this week." },
+        {
+          "id": "rare", "label": "Rare pull", "rare": true, "chance": 0.015, "blurb": "Something terrible for the whole world.",
+          "then": {
+            "name": "Rare ideology", "question": "Something terrible is coming…", "theme": "doom",
+            "slices": [
+              { "id": "eternalism", "label": "Eternalism", "chart": [0.5, null], "blurb": "The state and its founding ideals must exist forever.", "weight": 1 },
+              { "id": "ultranationalism", "label": "Ultranationalism", "short": "Ultranation", "chart": [1, -0.2], "blurb": "The nation comes before every other loyalty.", "weight": 1 },
+              { "id": "satanism", "label": "Satanism", "chart": [1, -0.6], "blurb": "A forbidden faith built on rebellion against the established church.", "weight": 1 },
+              { "id": "syndicalism", "label": "Syndicalism", "chart": [-0.8, null], "blurb": "Workers' guilds together control production and power.", "weight": 1 },
+              { "id": "sacred-nation", "label": "Sacred Nation", "chart": [0.7, null], "blurb": "The nation is a holy community with a divine destiny.", "weight": 1 },
+              { "id": "divine-imperialism", "label": "Divine Imperialism", "short": "Divine Empire", "chart": [1, null], "blurb": "A sacred mandate to expand and unite the lands under heaven.", "weight": 1 },
+              { "id": "apocalypticism", "label": "Apocalypticism", "short": "Apocalypse", "chart": [0.6, -0.8], "blurb": "The end of the world is near, and the realm is getting ready.", "weight": 1 }
+            ]
+          }
+        }
       ]
     },
     {
@@ -268,26 +305,26 @@
       "name": "History",
       "question": "What's their story?",
       "slices": [
-        { "id": "civil-war", "label": "Recent civil war", "short": "Civil war", "weight": 1, "blurb": "Brother fought brother. The scars are fresh." },
-        { "id": "former-empire", "label": "Former empire", "short": "Old empire", "weight": 1, "blurb": "Once they ruled half the world, and they won't forget it." },
-        { "id": "survived-plague", "label": "Survived the plague", "short": "Plague", "weight": 1, "blurb": "The Black Death came and went. They're still here." },
-        { "id": "golden-age", "label": "Golden age", "weight": 1, "blurb": "Art, wealth and victories: the best of times." },
-        { "id": "conquered-freed", "label": "Conquered and freed", "short": "Freed", "weight": 1, "blurb": "Once ruled by foreigners, now free again." },
-        { "id": "founded-by-exiles", "label": "Founded by exiles", "short": "Exiles", "weight": 1, "blurb": "Driven out of their homeland, they built a new one." },
-        { "id": "succession-crisis", "label": "Fight for the throne", "short": "Throne fight", "weight": 1, "blurb": "Three claimants, one throne." },
-        { "id": "peasant-revolt", "label": "Peasant revolt", "short": "Revolt", "weight": 1, "blurb": "The farmers rose up. It was not forgotten." },
-        { "id": "holy-war", "label": "Back from holy war", "short": "Holy war", "weight": 1, "blurb": "Veterans of a great crusade or jihad." },
-        { "id": "great-famine", "label": "Great famine", "short": "Famine", "weight": 1, "blurb": "Years of hunger that emptied whole villages." },
+        { "id": "civil-war", "chart": [null, -0.6], "label": "Recent civil war", "short": "Civil war", "weight": 1, "blurb": "Brother fought brother. The scars are fresh." },
+        { "id": "former-empire", "chart": [0.3, null], "label": "Former empire", "short": "Old empire", "weight": 1, "blurb": "Once they ruled half the world, and they won't forget it." },
+        { "id": "survived-plague", "chart": [null, -0.6], "label": "Survived the plague", "short": "Plague", "weight": 1, "blurb": "The Black Death came and went. They're still here." },
+        { "id": "golden-age", "chart": [null, 0.8], "label": "Golden age", "weight": 1, "blurb": "Art, wealth and victories: the best of times." },
+        { "id": "conquered-freed", "chart": [-0.3, null], "label": "Conquered and freed", "short": "Freed", "weight": 1, "blurb": "Once ruled by foreigners, now free again." },
+        { "id": "founded-by-exiles", "chart": [-0.2, null], "label": "Founded by exiles", "short": "Exiles", "weight": 1, "blurb": "Driven out of their homeland, they built a new one." },
+        { "id": "succession-crisis", "chart": [null, -0.4], "label": "Fight for the throne", "short": "Throne fight", "weight": 1, "blurb": "Three claimants, one throne." },
+        { "id": "peasant-revolt", "chart": [null, -0.5], "label": "Peasant revolt", "short": "Revolt", "weight": 1, "blurb": "The farmers rose up. It was not forgotten." },
+        { "id": "holy-war", "chart": [0.5, null], "label": "Back from holy war", "short": "Holy war", "weight": 1, "blurb": "Veterans of a great crusade or jihad." },
+        { "id": "great-famine", "chart": [null, -0.9], "label": "Great famine", "short": "Famine", "weight": 1, "blurb": "Years of hunger that emptied whole villages." },
         { "id": "new-dynasty", "label": "New ruling family", "short": "New family", "weight": 1, "blurb": "A fresh family on the throne, with a lot to prove." },
-        { "id": "rising-power", "label": "Rising power", "short": "Rising", "weight": 1, "blurb": "Nobody took them seriously. That's changing." },
-        { "id": "tributary", "label": "Pays tribute", "short": "Tribute", "weight": 1, "blurb": "A stronger neighbour takes its cut every year." },
-        { "id": "ancient-bloodline", "label": "Ancient bloodline", "short": "Bloodline", "weight": 1, "blurb": "The same family has ruled for five hundred years." },
-        { "id": "capital-burned", "label": "Capital burned", "short": "Burned", "weight": 1, "blurb": "Sacked and burned within living memory, now rebuilt." },
-        { "id": "schism", "label": "Religious split", "short": "Split", "weight": 1, "blurb": "The faithful can't agree, and it's getting ugly." },
-        { "id": "trade-boom", "label": "Trade boom", "weight": 1, "blurb": "New routes, full warehouses, rich merchants." },
-        { "id": "long-peace", "label": "Long peace", "weight": 1, "blurb": "No war for three generations. The walls are crumbling." },
-        { "id": "border-wars", "label": "Endless border wars", "short": "Border wars", "weight": 1, "blurb": "Raids and counter-raids, every single summer." },
-        { "id": "united-by-marriage", "label": "United by marriage", "short": "Marriage", "weight": 1, "blurb": "Two crowns joined by a royal wedding." }
+        { "id": "rising-power", "chart": [null, 0.3], "label": "Rising power", "short": "Rising", "weight": 1, "blurb": "Nobody took them seriously. That's changing." },
+        { "id": "tributary", "chart": [null, -0.4], "label": "Pays tribute", "short": "Tribute", "weight": 1, "blurb": "A stronger neighbour takes its cut every year." },
+        { "id": "ancient-bloodline", "chart": [0.2, null], "label": "Ancient bloodline", "short": "Bloodline", "weight": 1, "blurb": "The same family has ruled for five hundred years." },
+        { "id": "capital-burned", "chart": [null, -0.6], "label": "Capital burned", "short": "Burned", "weight": 1, "blurb": "Sacked and burned within living memory, now rebuilt." },
+        { "id": "schism", "chart": [null, -0.3], "label": "Religious split", "short": "Split", "weight": 1, "blurb": "The faithful can't agree, and it's getting ugly." },
+        { "id": "trade-boom", "chart": [null, 0.7], "label": "Trade boom", "weight": 1, "blurb": "New routes, full warehouses, rich merchants." },
+        { "id": "long-peace", "chart": [-0.6, 0.5], "label": "Long peace", "weight": 1, "blurb": "No war for three generations. The walls are crumbling." },
+        { "id": "border-wars", "chart": [0.5, -0.3], "label": "Endless border wars", "short": "Border wars", "weight": 1, "blurb": "Raids and counter-raids, every single summer." },
+        { "id": "united-by-marriage", "chart": [-0.2, 0.2], "label": "United by marriage", "short": "Marriage", "weight": 1, "blurb": "Two crowns joined by a royal wedding." }
       ]
     },
     {
@@ -295,13 +332,13 @@
       "name": "Stability",
       "question": "How steady is the realm?",
       "slices": [
-        { "id": "collapsing", "label": "Collapsing", "weight": 1, "blurb": "Rebels, bandits and empty treasuries." },
-        { "id": "crumbling", "label": "Crumbling", "weight": 1, "blurb": "Provinces are drifting away." },
-        { "id": "shaky", "label": "Shaky", "weight": 1, "blurb": "One bad year from trouble." },
-        { "id": "uneasy", "label": "Uneasy", "weight": 1, "blurb": "Quiet, but everyone is watching." },
-        { "id": "steady", "label": "Steady", "weight": 1, "blurb": "Taxes come in, laws are kept." },
-        { "id": "solid", "label": "Solid", "weight": 1, "blurb": "Strong institutions and loyal lords." },
-        { "id": "rock-solid", "label": "Rock solid", "weight": 1, "blurb": "Nothing short of an earthquake could shake it." }
+        { "id": "collapsing", "chart": [null, -1], "label": "Collapsing", "weight": 1, "blurb": "Rebels, bandits and empty treasuries." },
+        { "id": "crumbling", "chart": [null, -0.67], "label": "Crumbling", "weight": 1, "blurb": "Provinces are drifting away." },
+        { "id": "shaky", "chart": [null, -0.33], "label": "Shaky", "weight": 1, "blurb": "One bad year from trouble." },
+        { "id": "uneasy", "chart": [null, 0], "label": "Uneasy", "weight": 1, "blurb": "Quiet, but everyone is watching." },
+        { "id": "steady", "chart": [null, 0.33], "label": "Steady", "weight": 1, "blurb": "Taxes come in, laws are kept." },
+        { "id": "solid", "chart": [null, 0.67], "label": "Solid", "weight": 1, "blurb": "Strong institutions and loyal lords." },
+        { "id": "rock-solid", "chart": [null, 1], "label": "Rock solid", "weight": 1, "blurb": "Nothing short of an earthquake could shake it." }
       ]
     },
     {
@@ -309,13 +346,80 @@
       "name": "Popularity",
       "question": "How popular are the rulers?",
       "slices": [
-        { "id": "hated", "label": "Hated", "weight": 1, "blurb": "Effigies of the ruler burn in the squares." },
-        { "id": "resented", "label": "Resented", "weight": 1, "blurb": "Grumbling in every tavern." },
-        { "id": "tolerated", "label": "Tolerated", "weight": 1, "blurb": "Better than the last lot, probably." },
-        { "id": "accepted", "label": "Accepted", "weight": 1, "blurb": "It's how things are." },
-        { "id": "respected", "label": "Respected", "weight": 1, "blurb": "The ruler is seen as fair and capable." },
-        { "id": "loved", "label": "Loved", "weight": 1, "blurb": "Crowds cheer whenever the ruler rides by." },
-        { "id": "revered", "label": "Revered", "weight": 1, "blurb": "The ruler is close to a saint, or a god." }
+        { "id": "hated", "chart": [0.3, -1], "label": "Hated", "weight": 1, "blurb": "Effigies of the ruler burn in the squares." },
+        { "id": "resented", "chart": [0.2, -0.67], "label": "Resented", "weight": 1, "blurb": "Grumbling in every tavern." },
+        { "id": "tolerated", "chart": [null, -0.33], "label": "Tolerated", "weight": 1, "blurb": "Better than the last lot, probably." },
+        { "id": "accepted", "chart": [null, 0], "label": "Accepted", "weight": 1, "blurb": "It's how things are." },
+        { "id": "respected", "chart": [null, 0.33], "label": "Respected", "weight": 1, "blurb": "The ruler is seen as fair and capable." },
+        { "id": "loved", "chart": [-0.2, 0.67], "label": "Loved", "weight": 1, "blurb": "Crowds cheer whenever the ruler rides by." },
+        { "id": "revered", "chart": [null, 1], "label": "Revered", "weight": 1, "blurb": "The ruler is close to a saint, or a god." }
+      ]
+    },
+    {
+      "id": "bonus",
+      "name": "Bonus spin",
+      "resultName": "Bonus",
+      "question": "Slices near your spot on the chart are bigger",
+      "chartWeights": { "mode": "near", "floor": 0.06, "reach": 0.45 },
+      "slices": [
+        { "id": "seeks-revenge", "label": "Seeks revenge", "short": "Revenge", "at": [0.7, -0.7], "blurb": "Someone wronged them once. They have not forgotten.", "weight": 1 },
+        { "id": "wipe-out-all", "label": "Wants to wipe out all other nations", "short": "Wipe out all", "at": [1, -1], "blurb": "There can be only one.", "weight": 1 },
+        { "id": "mandatory-enlistment", "label": "Mandatory enlistment", "short": "Enlistment", "at": [0.8, -0.4], "blurb": "Every man, boy and grandfather into the army.", "weight": 1 },
+        { "id": "secret-police", "label": "Secret police", "short": "Spies", "at": [0.6, -0.6], "blurb": "Careful what you say. The walls have ears.", "weight": 1 },
+        { "id": "burns-books", "label": "Burns books", "at": [0.5, -0.9], "blurb": "Ideas are dangerous. Fire is cheap.", "weight": 1 },
+        { "id": "grand-parades", "label": "Grand military parades", "short": "Parades", "at": [0.7, 0.5], "blurb": "Banners, drums and very shiny armour.", "weight": 1 },
+        { "id": "ruler-cult", "label": "Cult of the ruler", "short": "Ruler cult", "at": [0.9, 0.8], "blurb": "Statues in every square, portraits in every home.", "weight": 1 },
+        { "id": "bullies-neighbours", "label": "Bullies the neighbours", "short": "Bully", "at": [0.8, 0.3], "blurb": "Pay up, or else.", "weight": 1 },
+        { "id": "spy-network", "label": "Spies in every court", "short": "Spy network", "at": [0.5, 0.7], "blurb": "They know your secrets before you do.", "weight": 1 },
+        { "id": "open-borders", "label": "Open borders", "at": [-0.7, 0.6], "blurb": "Traders, scholars and travellers all welcome.", "weight": 1 },
+        { "id": "patron-of-arts", "label": "Patron of the arts", "short": "Arts", "at": [-0.6, 0.8], "blurb": "Painters, poets and builders flock here.", "weight": 1 },
+        { "id": "free-trade", "label": "Free trade pacts", "short": "Free trade", "at": [-0.8, 0.4], "blurb": "Low tolls, full markets, happy merchants.", "weight": 1 },
+        { "id": "peace-loving", "label": "Peace-loving", "short": "Peaceful", "at": [-1, 1], "blurb": "They'd rather talk than fight. Usually.", "weight": 1 },
+        { "id": "brave-underdogs", "label": "Brave underdogs", "short": "Underdogs", "at": [-0.6, -0.7], "blurb": "Poor, small, and absolutely unbowed.", "weight": 1 },
+        { "id": "mass-emigration", "label": "Mass emigration", "short": "Emigration", "at": [-0.5, -0.9], "blurb": "Whole villages pack up and leave.", "weight": 1 },
+        { "id": "asks-for-help", "label": "Asks the world for help", "short": "Asks for help", "at": [-0.8, -0.5], "blurb": "Envoys to every court, begging for grain.", "weight": 1 },
+        { "id": "folk-heroes", "label": "Folk heroes", "at": [-0.4, -0.6], "blurb": "Songs about outlaws who rob the rich.", "weight": 1 },
+        { "id": "quiet-neighbour", "label": "Quiet neighbour", "short": "Quiet", "at": [0, 0], "blurb": "Nobody notices them much. That suits them fine.", "weight": 1 },
+        { "id": "fence-sitter", "label": "Sits on the fence", "short": "Fence-sitter", "at": [0.1, -0.1], "blurb": "Never takes sides until the winner is clear.", "weight": 1 },
+        { "id": "nothing-special", "label": "Nothing special", "short": "Nothing", "at": [0, 0.15], "blurb": "Ordinary, and proud of it.", "weight": 1 }
+      ]
+    },
+    {
+      "id": "golden",
+      "name": "Golden spin",
+      "resultName": "Golden bonus",
+      "question": "Half the wheel doubles something, half fits your corner of the chart",
+      "theme": "golden",
+      "gate": {
+        "name": "Golden chance",
+        "question": "The closer your dot is to a corner of the chart, the better: {chance}",
+        "yes": "Golden spin!",
+        "no": "No luck",
+        "noResult": "No golden spin",
+        "maxChance": 0.6,
+        "power": 2.5
+      },
+      "chartWeights": { "mode": "quadrant" },
+      "slices": [
+        { "id": "double-land", "label": "Double land", "golden": true, "weight": 1.333, "effect": { "multiply": { "land": 2 } }, "blurb": "Twice the land, and twice the people and wealth that live on it." },
+        { "id": "double-people", "label": "Double people", "golden": true, "weight": 1.333, "effect": { "multiply": { "density": 2 } }, "blurb": "Twice as many people on the same land." },
+        { "id": "double-wealth", "label": "Double wealth", "golden": true, "weight": 1.333, "effect": { "multiply": { "wealth": 2 } }, "blurb": "Everyone is twice as rich." },
+        { "id": "wants-to-be-rich", "label": "Wants to become rich", "short": "Get rich", "golden": true, "at": [-1, 1], "blurb": "Money first, money second, money third.", "weight": 1 },
+        { "id": "world-police", "label": "A world police officer", "short": "World police", "golden": true, "at": [-1, 1], "blurb": "Keeps the peace everywhere, whether asked or not.", "weight": 1 },
+        { "id": "beacon-of-freedom", "label": "Beacon of freedom", "short": "Beacon", "golden": true, "at": [-1, 1], "blurb": "Refugees and dreamers sail here from everywhere.", "weight": 1 },
+        { "id": "friend-to-all", "label": "Friend to all", "short": "Friends", "golden": true, "at": [-1, 1], "blurb": "Allies on every border.", "weight": 1 },
+        { "id": "ruthless", "label": "Ruthless to others", "short": "Ruthless", "golden": true, "at": [1, 1], "blurb": "Mercy is for the weak.", "weight": 1 },
+        { "id": "insane-conquest", "label": "Has insane conquering ambitions", "short": "Conquer all", "golden": true, "at": [1, 1], "blurb": "Today the neighbours, tomorrow the world.", "weight": 1 },
+        { "id": "buys-enemies", "label": "Buys its enemies", "short": "Buys enemies", "golden": true, "at": [1, 1], "blurb": "Why fight a war when you can buy the general?", "weight": 1 },
+        { "id": "iron-discipline", "label": "Iron discipline", "short": "Discipline", "golden": true, "at": [1, 1], "blurb": "Everything on time, everyone in line.", "weight": 1 },
+        { "id": "never-gives-up", "label": "Never gives up", "short": "Stubborn", "golden": true, "at": [-1, -1], "blurb": "Knock them down, they get back up.", "weight": 1 },
+        { "id": "rebuilds-from-ashes", "label": "Rebuilds from the ashes", "short": "Rebuilds", "golden": true, "at": [-1, -1], "blurb": "Every disaster makes them stronger.", "weight": 1 },
+        { "id": "help-from-abroad", "label": "Help from abroad", "short": "Help arrives", "golden": true, "at": [-1, -1], "blurb": "Friends far away send grain, gold and ships.", "weight": 1 },
+        { "id": "shelter-for-hunted", "label": "Shelter for the hunted", "short": "Shelter", "golden": true, "at": [-1, -1], "blurb": "Anyone fleeing a tyrant finds a home here.", "weight": 1 },
+        { "id": "nothing-to-lose", "label": "Nothing left to lose", "short": "Nothing to lose", "golden": true, "at": [1, -1], "blurb": "The most dangerous kind of nation.", "weight": 1 },
+        { "id": "raids-everyone", "label": "Raids everyone", "short": "Raiders", "golden": true, "at": [1, -1], "blurb": "If it's not nailed down, it's theirs.", "weight": 1 },
+        { "id": "fanatical-army", "label": "A fanatical army", "short": "Fanatics", "golden": true, "at": [1, -1], "blurb": "Soldiers who would march into the sea if told to.", "weight": 1 },
+        { "id": "wants-world-to-suffer", "label": "Wants the world to suffer", "short": "Make them suffer", "golden": true, "at": [1, -1], "blurb": "If they're miserable, everyone should be.", "weight": 1 }
       ]
     }
   ],
@@ -339,7 +443,13 @@
       "tolerant": ["United {name}", "{name} of All Faiths"],
       "seafaring": ["Maritime {name}", "{name} of the Seas"],
       "scholarly": ["Learned {name}", "Wise {name}"],
-      "satanist": ["Infernal {name}", "Unholy {name}", "Black {name}"]
+      "eternalism": ["Eternal {name}", "Everlasting {name}"],
+      "ultranationalism": ["Supreme {name}", "Greater {place}"],
+      "satanism": ["Infernal {name}", "Unholy {name}", "Black {name}"],
+      "syndicalism": ["Workers' {name}", "{name} of the Guilds"],
+      "sacred-nation": ["Sacred {name}", "Blessed {name}"],
+      "divine-imperialism": ["Divine {name}", "Heaven-Sent {name}"],
+      "apocalypticism": ["Last {name}", "{name} of the End Times"]
     },
     "defaultTitles": ["Realm of {place}", "State of {place}"],
 
@@ -501,6 +611,27 @@
       "eternal-republic": {
         "styles": ["latin", "greek"],
         "default": ["Eternal Republic of {place}", "Most Serene and Eternal Republic of {place}"]
+      },
+      "stratocracy": {
+        "styles": ["germanic", "latin", "slavic", "japanese", "turkic", "mongol"],
+        "default": ["Military State of {place}", "Army State of {place}", "Garrison State of {place}"]
+      },
+      "necrocracy": {
+        "default": ["Tomb State of {place}", "Realm of the Dead King of {place}", "Necrocracy of {place}"]
+      },
+      "syndicalist-federation": {
+        "styles": ["latin", "germanic", "french", "iberian", "norse", "slavic"],
+        "default": ["Guild Federation of {place}", "Syndicalist Federation of {place}", "Free Guilds of {place}"]
+      },
+      "oligarchic-republic": {
+        "styles": ["latin", "greek", "germanic", "arabic", "malay"],
+        "default": ["Oligarchic Republic of {place}", "Republic of {place}", "Most Serene Republic of {place}"]
+      },
+      "monastic-state": {
+        "default": ["Monastic State of {place}", "Holy Abbey of {place}", "Order of {place}"],
+        "islamic": ["Sufi Order of {place}", "Holy Lodge of {place}"],
+        "east-asian": ["Temple State of {place}", "Monastery Realm of {place}"],
+        "southeast-asian": ["Sangha State of {place}"]
       },
       "regency": {
         "default": ["Regency of {place}", "Kingdom of {place}", "Regency Council of {place}"],

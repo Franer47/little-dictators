@@ -381,12 +381,13 @@
   color: var(--muted);
 }
 
-/* Landed on a rare slice: a gold badge and a gold glow. */
+/* Landed on a rare or golden slice: a badge over the readout (colours further down). */
 .ws-readout {
   position: relative;
 }
 
-.ws-readout.rare::before {
+.ws-readout.rare::before,
+.ws-readout.golden::before {
   content: attr(data-badge);
   position: absolute;
   top: -14px;
@@ -404,12 +405,8 @@
   animation: ws-rare 0.9s ease-in-out infinite alternate;
 }
 
-.ws-readout.rare .ws-readout-label {
-  color: #ffd84a;
-  text-shadow: 0 0 14px rgba(255, 216, 74, 0.7);
-}
-
-.style-retro .ws-readout.rare::before {
+.style-retro .ws-readout.rare::before,
+.style-retro .ws-readout.golden::before {
   border-radius: 0;
   animation: ws-rare 0.5s steps(2) infinite alternate;
 }
@@ -420,10 +417,6 @@
   }
 }
 
-.card-rows li.rare .row-value {
-  color: #ffd84a !important;
-  text-shadow: 0 0 10px rgba(255, 216, 74, 0.6);
-}
 
 .style-gameshow .ws-readout {
   border-radius: 14px;
@@ -1218,4 +1211,142 @@
   from {
     opacity: 0;
   }
+}
+
+/* ------------------------------------------------------------ rare pulls (doom) and golden spins */
+
+/* A rare pull darkens the whole screen with a red edge; it lifts when the rare wheel is done. */
+.ws-doom {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  opacity: 0;
+  background:
+    radial-gradient(ellipse at 50% 45%, rgba(0, 0, 0, 0) 30%, rgba(20, 0, 4, 0.55) 70%, rgba(90, 0, 12, 0.6) 100%),
+    rgba(0, 0, 0, 0.35);
+  transition: opacity 0.6s ease;
+}
+
+#wheel-screen.doom .ws-doom {
+  opacity: 1;
+  animation: ws-doom-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes ws-doom-pulse {
+  50% {
+    filter: brightness(1.25);
+  }
+}
+
+/* Keep the wheel, its readout and the card above the dark layer, but dimmed a little. */
+#wheel-screen.doom .ws-stage,
+#wheel-screen.doom .ws-card {
+  position: relative;
+  z-index: 41;
+}
+
+#wheel-screen.doom .ws-card {
+  filter: saturate(0.6) brightness(0.8);
+}
+
+#wheel-screen.doom .ws-wheel-name {
+  color: #ff4a5c !important;
+  text-shadow: 0 0 18px rgba(224, 24, 45, 0.8) !important;
+}
+
+#wheel-screen.doom .ws-rays {
+  opacity: 0.15;
+}
+
+/* The skull over the wheel's centre. */
+.ws-skull {
+  position: fixed;
+  z-index: 45;
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0.2) rotate(-30deg);
+  transition: opacity 0.25s, transform 0.5s cubic-bezier(0.2, 1.6, 0.4, 1);
+  filter: drop-shadow(0 0 12px rgba(224, 24, 45, 0.9));
+}
+
+.ws-skull svg {
+  width: 100%;
+  height: 100%;
+}
+
+.ws-skull.on {
+  opacity: 1;
+  transform: none;
+  animation: ws-skull-shake 0.5s 0.4s steps(4) 2;
+}
+
+@keyframes ws-skull-shake {
+  25% {
+    translate: -3px 1px;
+  }
+  50% {
+    translate: 3px -1px;
+  }
+  75% {
+    translate: -2px -2px;
+  }
+}
+
+#wheel-screen .ws-readout.rare::before {
+  background: linear-gradient(180deg, #ff4a5c, #a00c1e 60%, #50040e);
+  color: #fff;
+  box-shadow: 0 0 16px rgba(224, 24, 45, 0.85);
+}
+
+#wheel-screen .ws-readout.rare .ws-readout-label {
+  color: #ff4a5c;
+  text-shadow: 0 0 14px rgba(224, 24, 45, 0.8);
+}
+
+
+#wheel-screen .ws-readout.golden .ws-readout-label {
+  color: #ffd84a;
+  text-shadow: 0 0 14px rgba(255, 216, 74, 0.7);
+}
+
+/* The golden spin: a warm glow around everything. */
+#wheel-screen.golden .ws-wheel {
+  filter: drop-shadow(0 0 26px rgba(255, 216, 74, 0.55));
+}
+
+#wheel-screen.golden .ws-wheel-name {
+  color: #ffd84a !important;
+}
+
+.ws-chip.rare {
+  color: #ff4a5c;
+}
+
+.ws-chip.golden {
+  color: #ffd84a;
+}
+
+.card-rows li.rare .row-value {
+  color: #ff4a5c !important;
+  text-shadow: 0 0 10px rgba(224, 24, 45, 0.6);
+}
+
+.card-rows li.golden .row-value {
+  color: #ffd84a !important;
+  text-shadow: 0 0 10px rgba(255, 216, 74, 0.6);
+}
+
+.card-rows li.none .row-value {
+  color: var(--muted) !important;
+}
+
+/* The nation chart, on the finished card only. */
+.card-chart {
+  display: none;
+}
+
+#wheel-screen.final .card-chart:not(:empty) {
+  display: block;
+  margin-top: 6px;
 }

@@ -3,7 +3,8 @@
 //   game.checkNumbers(10000) rolls that many nations and prints min / median / max of the numbers
 //   game.sampleNations(5)    rolls a few whole nations and prints them
 
-import { describeOutcome, rollNation, type Nation } from "./nation.ts";
+import { describeOutcome, type Nation } from "./nation.ts";
+import { rollNation } from "./roller.ts";
 import { compactNumber } from "./numbers.ts";
 import { createRng } from "./random.ts";
 import { exactWheel, simulateSpins, type WheelData } from "./wheels.ts";
@@ -39,6 +40,8 @@ export function checkNumbers(data: WheelData, nations = 10_000): Record<string, 
     if (!columns.has(name)) columns.set(name, []);
     columns.get(name)!.push(value);
   };
+  let rare = 0;
+  let golden = 0;
   let poorest: Nation | null = null;
   let richest: Nation | null = null;
   const gdpOf = (n: Nation): number => lastNumber(n)?.estimate?.value ?? 0;
@@ -50,11 +53,16 @@ export function checkNumbers(data: WheelData, nations = 10_000): Record<string, 
       if (wheel.number?.times) add(`${wheel.name} (picked)`, e.rate);
       add(wheel.resultName ?? wheel.name, e.value);
     }
+    add("Chart x (left -1 … right 1)", nation.record.chart.x);
+    add("Chart y (miserable -1 … good life 1)", nation.record.chart.y);
+    add("Golden chance %", (nation.record.goldenChance ?? 0) * 100);
+    if (nation.record.spins.some((r) => r.rare)) rare++;
+    if (nation.record.spins.some((r) => !r.none && data.wheels.find((w) => w.id === r.wheelId)?.gate)) golden++;
     if (!poorest || gdpOf(nation) < gdpOf(poorest)) poorest = nation;
     if (!richest || gdpOf(nation) > gdpOf(richest)) richest = nation;
   }
   const table: Record<string, Spread> = {};
-  const fmt = (x: number): string => compactNumber(x, data.numberSuffixes);
+  const fmt = (x: number): string => (Math.abs(x) < 100 ? (Math.round(x * 100) / 100).toString() : compactNumber(x, data.numberSuffixes));
   for (const [name, values] of columns) {
     values.sort((a, b) => a - b);
     const at = (p: number): number => values[Math.min(values.length - 1, Math.floor(p * values.length))];
@@ -62,6 +70,9 @@ export function checkNumbers(data: WheelData, nations = 10_000): Record<string, 
   }
   console.log(`Numbers from ${nations.toLocaleString("en-US")} rolled nations:`);
   console.table(table);
+  const pct = (n: number): string => `${((n / nations) * 100).toFixed(2)}%`;
+  console.log(`Rare pulls: ${pct(rare)} of nations. Golden spins won: ${pct(golden)}.`);
+  table["Rare pull / golden spin"] = { min: "", "10%": "", median: `${pct(rare)} / ${pct(golden)}`, "90%": "", max: "" };
   if (poorest) console.log("Smallest economy:", summary(poorest));
   if (richest) console.log("Biggest economy:", summary(richest));
   return table;
