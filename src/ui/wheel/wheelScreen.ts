@@ -4,6 +4,9 @@
 
 import "@fontsource/press-start-2p/400.css";
 import "@fontsource/luckiest-guy/400.css";
+import "@fontsource/pixelify-sans/400.css";
+import "@fontsource/pixelify-sans/600.css";
+import "@fontsource/pixelify-sans/700.css";
 import "./wheel.css";
 import { createNation, describeOutcome, generateName, makeOutcome, type Nation, type WheelOutcome } from "../../game/nation.ts";
 import { createRng, type Rng } from "../../game/random.ts";
@@ -27,6 +30,8 @@ export interface WheelScreenOptions {
   mapReady: Promise<unknown>;
   /** Fixed random seed (for testing); a random one if not given. */
   seed?: number;
+  /** The screen stays hidden until this resolves, then swoops in (for the intro). */
+  showWhen?: Promise<void>;
 }
 
 /** Shows the wheel screen and resolves with the finished nation when the player continues. */
@@ -94,6 +99,14 @@ class WheelScreen {
     this.build();
     this.setStyle(this.style, false);
     this.showWheel();
+    if (opts.showWhen) {
+      this.root.classList.add("waiting");
+      opts.showWhen.then(() => {
+        this.root.classList.remove("waiting");
+        this.root.classList.add("arriving");
+        window.setTimeout(() => this.root.classList.remove("arriving"), 1000);
+      });
+    }
     opts.mapReady.then(
       () => {
         this.mapLoaded = true;
@@ -367,7 +380,7 @@ class WheelScreen {
   }
 
   private onKey = (e: KeyboardEvent): void => {
-    if (this.closed || e.repeat) return;
+    if (this.closed || e.repeat || this.root.classList.contains("waiting")) return;
     const target = e.target as HTMLElement | null;
     if (target?.closest("input, textarea, button, [contenteditable]")) return;
     if (e.code === "Space" || e.code === "Enter" || e.code === "NumpadEnter") {

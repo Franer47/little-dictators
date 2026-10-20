@@ -68,6 +68,14 @@ export class Camera {
     this.clamp();
   }
 
+  /** Jump to a centre and zoom (kept within the usual limits). */
+  moveTo(x: number, y: number, zoom: number): void {
+    this.x = x;
+    this.y = y;
+    this.zoom = Math.min(this.maxZoom, Math.max(this.minZoom, zoom));
+    this.clamp();
+  }
+
   /** Keep the map's edges off the screen (except the left/right seam of a wrapping map). */
   private clamp(): void {
     this.y = clampAxis(this.y, this.viewHeight / this.zoom, this.mapHeight);

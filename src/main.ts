@@ -2,6 +2,7 @@ import { loadMap } from "./map/gameMap.ts";
 import { TERRAINS } from "./map/terrain.ts";
 import { pixelToLonLat } from "./map/projection.ts";
 import { Camera } from "./render/camera.ts";
+import { tweenCamera } from "./render/cameraTween.ts";
 import { MapRenderer } from "./render/mapRenderer.ts";
 import { CameraControls } from "./input/cameraControls.ts";
 import { chooseMap } from "./ui/startMenu.ts";
@@ -36,11 +37,22 @@ async function main(): Promise<void> {
     showFatalError((e as Error).message);
     return;
   }
-  choice.done();
-  const nationReady =
-    params.get("wheel") === "skip"
-      ? Promise.resolve(rollNation(wheels, mapName, createRng(seed)))
-      : runWheelScreen({ data: wheels, mapName, mapReady: mapLoading, seed });
+  // The intro: the start screen fades, the map fades in and slowly zooms toward the
+  // centre, and the wheel screen swoops in on top. If the map is slow to load, the wheel
+  // comes in anyway after a moment (over the start backdrop) so nobody waits on a blank screen.
+  const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let wheelShown = false;
+  let showWheel = (): void => {};
+  const wheelCue = new Promise<void>((resolve) => (showWheel = resolve));
+  const bringInWheel = (): void => {
+    wheelShown = true;
+    showWheel();
+  };
+  const slowMapTimer = window.setTimeout(bringInWheel, reducedMotion ? 300 : 1500);
+  const skipWheel = params.get("wheel") === "skip";
+  const nationReady = skipWheel
+    ? Promise.resolve(rollNation(wheels, mapName, createRng(seed)))
+    : runWheelScreen({ data: wheels, mapName, mapReady: mapLoading, seed, showWhen: wheelCue });
 
   // Handy for poking at the game from the browser console while developing.
   // game.checkWeights() spins every wheel 100,000 times and compares the wins with the weights.
@@ -134,7 +146,24 @@ async function main(): Promise<void> {
 
   // The map waits behind the wheel screen until the nation is made.
   controls.enabled = false;
+  window.clearTimeout(slowMapTimer);
+  choice.done();
+  const fit = { x: camera.x, y: camera.y, zoom: camera.zoom };
+  if (skipWheel || reducedMotion) {
+    if (!wheelShown) bringInWheel();
+  } else {
+    // Zoom in toward the centre; the wheel arrives partway through.
+    tweenCamera(camera, { x: fit.x, y: fit.y, zoom: fit.zoom * 1.9 }, 2400, requestRender);
+    if (!wheelShown) window.setTimeout(bringInWheel, 1000);
+  }
   const nation = await nationReady;
+  // Back out to the whole map.
+  const home = (): void => {
+    camera.fitToMap();
+    requestRender();
+  };
+  if (reducedMotion) home();
+  else await tweenCamera(camera, { x: camera.x, y: camera.y, zoom: camera.minZoom }, 1100, requestRender).done.then(home);
   controls.enabled = true;
   document.querySelector<HTMLDivElement>("#hud")!.hidden = false;
   showNationPanel(nation, wheels);

@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@fontsource/luckiest-guy": "^5.3.0",
+    "@fontsource/pixelify-sans": "^5.3.0",
     "@fontsource/press-start-2p": "^5.3.0"
   }
 }

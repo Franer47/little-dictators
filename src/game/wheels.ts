@@ -10,6 +10,8 @@ export interface Slice {
   label: string;
   /** How likely this slice is compared to the others (all 1 = equal odds; 0 = never). */
   weight: number;
+  /** A shorter label for small wheels (the retro wheel uses it); the full label shows when it lands. */
+  short?: string;
   /** A short line of flavour text. */
   blurb?: string;
   /** What the wheel shows: the label, or for number wheels the range ("8M–25M"). Filled in on load. */
@@ -158,9 +160,10 @@ export function spinWheel(wheel: Wheel, rng: Rng): SpinResult {
   const { index, within } = weightedPick(rng, weights);
   const total = totalWeight(wheel);
   const before = weights.slice(0, index).reduce((a, b) => a + b, 0);
-  // Keep the stop a hair away from the slice's edges, so the pointer is never ambiguously
-  // on the line. This doesn't change which slice wins, only where inside it the wheel stops.
-  const inside = 0.04 + within * 0.92;
+  // Stop in the middle third of the winning slice, so its label rests nearly level and the
+  // pointer is never near a line. This doesn't change which slice wins (that's the roll),
+  // only where inside it the wheel comes to rest.
+  const inside = 1 / 3 + within / 3;
   return { index, slice: wheel.slices[index], stopAt: (before + inside * weights[index]) / total };
 }
 

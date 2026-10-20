@@ -19,6 +19,15 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 - **Nation panel** in the bottom-right corner of the map: flag placeholder, name and key
   results. Click it for the **creation record**: every roll with its odds, the date, the
   map and the random seed.
+- **Zoom into the map**: after Start, the start screen fades, the world fades in and
+  slowly zooms toward the centre, and the wheel screen swoops in on top (the map stays
+  faintly visible behind it). If the map is slow to load, the wheel comes in anyway.
+  "Continue to map" eases the camera back out to the whole world. With reduced motion
+  turned on in your system, it's a quick fade instead.
+- **Easier-to-read retro style**: the clear Pixelify Sans pixel font at bigger sizes,
+  calmer and darker slice colours with outlined white letters, short slice names on the
+  wheel (the full name shows big when it lands), and the wheel comes to rest near the
+  middle of the winning slice so its label sits level.
 - All wheel slices, odds (weights), ranges, name parts and screen text live in
   `public/data/wheels.json`. Testing shortcuts `?wheel=skip` and `?seed=123`.
 - **Start screen** (alpha): pick which map to play on, Earth (2000 × 1111, the

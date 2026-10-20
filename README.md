@@ -46,7 +46,8 @@ and nothing is saved when you reload.
 Everything on the wheels is in **`public/data/wheels.json`**, so you can change it without
 touching code (reload the page after saving):
 
-- **Slices**: each has a `label`, a `blurb` (the flavour line) and a `weight`. Weights
+- **Slices**: each has a `label`, a `blurb` (the flavour line) and a `weight`, and
+  optionally a `short` label for the retro wheel (e.g. "Junta" for "Military Junta"). Weights
   are relative odds: all 1 means equal chances, 2 is twice as likely as 1, 0 never comes
   up. Slices take up room on the wheel in proportion to their weight, so what you see is
   the real odds.

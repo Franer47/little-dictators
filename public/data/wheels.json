@@ -1,5 +1,5 @@
 {
-  "about": "The nation-creation wheels. Edit freely: slice labels, blurbs, weights (higher = more likely; 0 = never), ranges, name parts and screen text. Reload the page to see changes. Number wheels (those with an \"estimate\") show each slice's range on the wheel, written with the estimate's \"range\" pattern; the result is a number drawn from that range. Their labels (Small, Rich...) are names for the data file and are not shown.",
+  "about": "The nation-creation wheels. Edit freely: slice labels (and an optional \"short\" one for the retro wheel), blurbs, weights (higher = more likely; 0 = never), ranges, name parts and screen text. Reload the page to see changes. Number wheels (those with an \"estimate\") show each slice's range on the wheel, written with the estimate's \"range\" pattern; the result is a number drawn from that range. Their labels (Small, Rich...) are names for the data file and are not shown.",
 
   "wheels": [
     {
@@ -7,14 +7,14 @@
       "name": "Government",
       "question": "Who holds power?",
       "slices": [
-        { "id": "absolute-monarchy", "label": "Absolute Monarchy", "weight": 1, "blurb": "One crowned ruler, answerable to no one." },
-        { "id": "constitutional-monarchy", "label": "Constitutional Monarchy", "weight": 1, "blurb": "A crown for show, a parliament for business." },
-        { "id": "parliamentary-democracy", "label": "Parliamentary Democracy", "weight": 1, "blurb": "Voters pick a parliament; parliament picks the leader." },
-        { "id": "presidential-republic", "label": "Presidential Republic", "weight": 1, "blurb": "An elected president runs the show." },
-        { "id": "one-party-state", "label": "One-Party State", "weight": 1, "blurb": "Elections happen. The same party always wins." },
-        { "id": "military-junta", "label": "Military Junta", "weight": 1, "blurb": "The generals are in charge, for now." },
+        { "id": "absolute-monarchy", "label": "Absolute Monarchy", "short": "Absolutism", "weight": 1, "blurb": "One crowned ruler, answerable to no one." },
+        { "id": "constitutional-monarchy", "label": "Constitutional Monarchy", "short": "Const. Monarchy", "weight": 1, "blurb": "A crown for show, a parliament for business." },
+        { "id": "parliamentary-democracy", "label": "Parliamentary Democracy", "short": "Parliament", "weight": 1, "blurb": "Voters pick a parliament; parliament picks the leader." },
+        { "id": "presidential-republic", "label": "Presidential Republic", "short": "Presidency", "weight": 1, "blurb": "An elected president runs the show." },
+        { "id": "one-party-state", "label": "One-Party State", "short": "One Party", "weight": 1, "blurb": "Elections happen. The same party always wins." },
+        { "id": "military-junta", "label": "Military Junta", "short": "Junta", "weight": 1, "blurb": "The generals are in charge, for now." },
         { "id": "theocracy", "label": "Theocracy", "weight": 1, "blurb": "The clergy rule in the name of heaven." },
-        { "id": "personal-dictatorship", "label": "Personal Dictatorship", "weight": 1, "blurb": "One strongman, many statues." }
+        { "id": "personal-dictatorship", "label": "Personal Dictatorship", "short": "Dictator", "weight": 1, "blurb": "One strongman, many statues." }
       ]
     },
     {

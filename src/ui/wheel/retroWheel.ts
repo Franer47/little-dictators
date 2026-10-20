@@ -9,7 +9,8 @@ import { TAU, sliceColor, sliceEdges, type WheelFrame, type WheelView } from "./
 export const RETRO_PALETTE = {
   outline: "#0b1020",
   shadow: "#000000",
-  text: "#f4f1e6",
+  text: "#fffbea",
+  textDim: "#a8a8b8",
   rim: ["#6e4a1c", "#a8742a", "#d9a441"],
   studOff: "#5a3a14",
   studOn: ["#fff3b0", "#ffd84a"],
@@ -17,14 +18,14 @@ export const RETRO_PALETTE = {
   pointer: ["#7a1f22", "#c8423a", "#ef7a5e"],
   /** Slice colours, each [dark, base, light]. */
   slices: [
-    ["#8a2c2a", "#c0453a", "#e2705c"], // red
-    ["#2a6131", "#4a9a45", "#86c76a"], // plains green
-    ["#1f4f8a", "#2f6db3", "#5a9ee0"], // ocean blue
-    ["#a3561b", "#d97a2b", "#f0a05a"], // orange
-    ["#553577", "#7b4fa3", "#a57ccc"], // purple
-    ["#9c7b47", "#c9a66b", "#e3c995"], // highland tan
-    ["#256f7d", "#3ba3b3", "#7fd0d8"], // shallow cyan
-    ["#9a7a12", "#d8b22a", "#f2d86a"], // gold
+    ["#6e2424", "#a63a32", "#d0604f"], // red
+    ["#24532b", "#3c7f3a", "#6aab58"], // plains green
+    ["#1a3f70", "#285a96", "#4a85c4"], // ocean blue
+    ["#7f4318", "#ad5f22", "#d68a48"], // rust
+    ["#462c63", "#644287", "#8d6bb3"], // purple
+    ["#5e4a2c", "#86683e", "#b09060"], // highland brown
+    ["#1d5660", "#2c7f8c", "#55aab5"], // deep teal
+    ["#6b5410", "#957620", "#c6a43e"], // mustard
   ],
 };
 
@@ -39,7 +40,14 @@ const CY = R + MARGIN;
 const W = 2 * R + MARGIN * 2 + POINTER_LEN - 8 + SHADOW.x;
 const H = 2 * R + MARGIN * 2 + SHADOW.y;
 const STUDS = 24;
-const LINE_GAP = 1;
+const LINE_GAP = 2;
+// Where each label pixel is sampled (in pixels), so thin rotated strokes don't vanish.
+const SUBSAMPLES = [
+  [-0.3, -0.3],
+  [0.3, -0.3],
+  [-0.3, 0.3],
+  [0.3, 0.3],
+];
 
 // 4×4 ordered-dither thresholds (0..1), for the classic checkered shading.
 const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16);
@@ -75,6 +83,7 @@ export class RetroWheelView implements WheelView {
     outline: px(RETRO_PALETTE.outline),
     shadow: px(RETRO_PALETTE.shadow, 90),
     text: px(RETRO_PALETTE.text),
+    textDim: px(RETRO_PALETTE.textDim),
     rim: RETRO_PALETTE.rim.map((h) => px(h)),
     studOff: px(RETRO_PALETTE.studOff),
     studOn: RETRO_PALETTE.studOn.map((h) => px(h)),
@@ -99,7 +108,7 @@ export class RetroWheelView implements WheelView {
       const colors = palette[sliceColor(i, n, palette.length)].map((h) => px(h)) as [number, number, number];
       const start = this.edges[i];
       const end = this.edges[i + 1];
-      return { colors, center: (start + end) / 2, ...this.labelMask(slice.shown, (end - start) * TAU) };
+      return { colors, center: (start + end) / 2, ...this.labelMask(slice.short ?? slice.shown, (end - start) * TAU) };
     });
   }
 
@@ -241,21 +250,26 @@ export class RetroWheelView implements WheelView {
         let delta = (frac - art.center) * TAU;
         if (delta > Math.PI) delta -= TAU;
         if (delta < -Math.PI) delta += TAU;
-        const mx = Math.round(r * Math.cos(delta) - art.maskU);
-        const my = Math.round(r * Math.sin(delta) + art.maskH / 2 - 0.5);
-        if (mx >= 0 && my >= 0 && mx < art.maskW && my < art.maskH) {
-          const m = art.mask[my * art.maskW + mx];
-          if (m) {
-            const dim = f.winner !== null && f.winner !== i;
-            pixels[p] = m === 1 ? c.outline : dim && (x + y) & 1 ? art.colors[0] : c.text;
-            continue;
+        const u = r * Math.cos(delta) - art.maskU;
+        const v = r * Math.sin(delta) + art.maskH / 2 - 0.5;
+        let m = 0;
+        if (u > -1 && v > -1 && u < art.maskW && v < art.maskH) {
+          for (const [ox, oy] of SUBSAMPLES) {
+            const mx = Math.round(u + ox);
+            const my = Math.round(v + oy);
+            if (mx >= 0 && my >= 0 && mx < art.maskW && my < art.maskH) m = Math.max(m, art.mask[my * art.maskW + mx]);
           }
+        }
+        if (m) {
+          const dim = f.winner !== null && f.winner !== i;
+          pixels[p] = m === 1 ? c.outline : dim ? c.textDim : c.text;
+          continue;
         }
         const s = light * Math.max(0, (r - (sliceOuter - 40)) / 40);
         let color = s > 0.3 + bayer * 0.5 ? art.colors[2] : s < -0.3 - bayer * 0.5 ? art.colors[0] : art.colors[1];
         if (f.winner !== null) {
           if (f.winner === i) color = blinkOn ? art.colors[2] : art.colors[1];
-          else color = (x + y) & 1 ? art.colors[0] : c.outline;
+          else color = art.colors[0];
         }
         pixels[p] = color;
       }
