@@ -67,7 +67,8 @@ Victoria-style simulation as they grow, ally and fight over pixels like OpenFron
     sides.
   - The simulation must treat a wrapping map's left and right edges as neighbours
     (e.g. Alaska ↔ Chukotka), for borders, expansion and war.
-- **Start year:** the player picks it (e.g. 1800, 1900, 2000). The year sets the starting
+- **Start year:** the player picks it. **1500 is the first era built**; 1800, 1900 and
+  2000 later. The year sets the starting
   technology level and how much of the world is already claimed.
 - **Empty land:** the player can choose how full the map is, but the default depends on
   the start year (earlier = more unclaimed land to expand into).
@@ -179,9 +180,24 @@ The wheel setup is fully configurable, per wheel:
      show** (bright slices, ticking pointer, pop on the result), with a mute button.
      Wheel contents live in an editable data file. Purely cosmetic.
      After picking the map, a short **zoom-into-the-map transition** leads into the wheel. ✅ Done (PR #6).
-   - **2b. Wheel polish (later):** better generated nation names (more variety, names that
-     fit the culture/region), the rest of the wheels (Continent, Resource focus, History
-     cards…), tuned odds per slice, and more effects.
+   - **2b. Wheel content & realistic numbers (1500 start):**
+     - **Era-based wheels:** wheel contents depend on the start year; one set per era in
+       the data file. Build the **1500** set first (kingdoms, sultanates, merchant
+       republics, khanates… no anachronisms like communism). Later eras get their own sets.
+     - **Spins:** Culture, Religion, Government, Land size, Population density, Wealth,
+       Resource focus, Ideology/outlook, History, Stability, Acceptance of the government.
+       Way more options per wheel than the beta.
+     - **Realistic chained numbers:** land size (**max 1.5× Germany ≈ 535,000 km²**) →
+       density spin → population → wealth spin → GDP from population. All within
+       1500-era ranges. GDP shown as an estimate **in today's dollars**.
+     - **Names** generated from the Culture spin (names that sound like that culture).
+     - **Odds:** placeholder weights for now. Percentages, the government and ideology
+       lists, and rare "insane" slices (e.g. an *Eternal Republic*) get discussed in
+       detail later.
+   - **2c. Later polish:** flags and really advanced generation scripts (names, flags,
+     history) come with the polishing phase.
+   - **2d. Placing nations:** click a start spot, or let the wheel pick one ("Surprise
+     me", later the Continent wheel). Territory grows over land to the rolled size.
 3. **Stats matter** — wheel results turn into real numbers: derived values such as army
    strength, growth rate, stability, economy.
 4. **Ticks + basic simulation** — the clock runs; growth and peaceful expansion into empty
