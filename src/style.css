@@ -48,3 +48,120 @@ body {
   opacity: 0.6;
   font-size: 12px;
 }
+
+/* Start screen */
+#start-menu {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 40%, #2a4a74, #10203a);
+}
+
+#start-menu[hidden] {
+  display: none;
+}
+
+#start-menu .panel {
+  width: min(360px, calc(100vw - 32px));
+  padding: 28px 28px 24px;
+  background: rgba(14, 22, 34, 0.88);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  text-align: center;
+}
+
+#start-menu h1 {
+  margin: 0;
+  font-size: 28px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+#start-menu .version {
+  margin-bottom: 22px;
+  font-size: 12px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  opacity: 0.55;
+}
+
+#start-menu .label {
+  margin-bottom: 8px;
+  text-align: left;
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+#start-menu .map-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 22px;
+}
+
+.map-option {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  column-gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  text-align: left;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.map-option:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.map-option:has(input:checked) {
+  border-color: #7fb4e6;
+  background: rgba(127, 180, 230, 0.12);
+}
+
+.map-option input {
+  grid-row: span 2;
+  margin: 0;
+  accent-color: #7fb4e6;
+}
+
+.map-option .name {
+  font-weight: 600;
+}
+
+.map-option .size {
+  font-size: 12px;
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+
+.map-option .note {
+  grid-column: 2 / span 2;
+  font-size: 12px;
+  opacity: 0.55;
+}
+
+#start-menu .start {
+  width: 100%;
+  padding: 10px;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  color: #10203a;
+  background: #7fb4e6;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+#start-menu .start:hover:not(:disabled) {
+  background: #9cc6ee;
+}
+
+#start-menu .start:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}

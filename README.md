@@ -12,6 +12,9 @@ npm install      # once, downloads the tools
 npm run dev      # starts the game at http://localhost:5173
 ```
 
+The game opens on a start screen (alpha): pick a map and press **Start** (or Enter, or
+double-click a map). To pick another map, reload the page.
+
 ## Controls
 
 | Action | Input |
@@ -33,6 +36,7 @@ Each map says whether it wraps with `"wrapX"` in its `public/maps/<name>.json`;
 ```
 src/
   main.ts                 starts the game
+  ui/startMenu.ts         the start screen: pick a map
   map/terrain.ts          terrain types and their (data) colours
   map/projection.ts       turns longitude/latitude into map pixels
   map/gameMap.ts          loads a map into a grid of terrain values + elevation
@@ -51,11 +55,32 @@ data/raw/                 downloaded source data for the map builder (not commit
 
 ![The Earth map](docs/earth-map.jpg)
 
-The map is 1500 × 833 pixels, from 84°N to the South Pole, in the
+The map runs from 84°N to the South Pole, in the
 [Patterson projection](https://en.wikipedia.org/wiki/Patterson_projection) (it keeps
 Europe and North America looking like the familiar Miller world map, but squeezes the
-poles so Antarctica fits without a huge stretched strip). Each map is three files in
-`public/maps/`:
+poles so Antarctica fits without a huge stretched strip).
+
+### Map sizes
+
+The builder makes the same map in more than one size, from the same data and rules:
+
+| Map | Size | Coastlines | Used for |
+|---|---|---|---|
+| `earth` | 2000 × 1111 | Natural Earth 1:10m | The main map: the game loads this one. |
+| `earth-1500` | 1500 × 833 | Natural Earth 1:50m | The earlier, smaller map, kept for a future map-size option. |
+
+Pick either one on the start screen. The list is `MAP_CHOICES` in `src/ui/startMenu.ts`.
+For quick testing you can also skip the start screen by naming a map in the address, e.g.
+<http://localhost:5173/?map=earth-1500> (any map in `public/maps/` works this way).
+
+The sizes are listed in `MAPS` at the top of `scripts/build-earth-map.ts`; adding a size
+is one line. Settings measured in pixels (how far the shallow water reaches, the size of
+the snow edge's wiggles, how far a river mouth may be joined to the sea…) were tuned on
+the 1500 map and are scaled to each size so they cover the same distance on the ground,
+and the shading is scaled the same way, so every size looks alike. Rivers stay exactly
+1 pixel wide at every size.
+
+Each map is three files in `public/maps/` (here for `earth`; `earth-1500` has the same three):
 
 | File | What it is |
 |---|---|
@@ -67,7 +92,7 @@ Terrain comes from real elevation, averaged over each pixel:
 
 | Terrain | Rule |
 |---|---|
-| Ocean / Shallow water | Water (the sea and big lakes); shallow if within 2 pixels of land |
+| Ocean / Shallow water | Water (the sea and big lakes); shallow if within about 50 km of land (2 pixels on the 1500 map, 3 on the 2000 map) |
 | River | Major rivers: a line exactly 1 pixel wide (see below). Beats every land type except Ice. |
 | Plains | Land below 700 m |
 | Highlands | Land from 700 m to 2000 m |
@@ -107,6 +132,9 @@ branches of a delta, `extraLines` to draw stretches the data is missing. Edit it
 npm run build:map
 ```
 
+This builds every size (`earth` and `earth-1500`) in a few seconds. It stops with an
+error if any river ends up touching another river or the sea only at a corner.
+
 The first run downloads the elevation data (about 50 MB) into `data/raw/etopo1-5min.asc`,
 and the Natural Earth lakes and rivers (under 1 MB each) into `data/raw/ne_50m_*.geojson`.
 If the download fails, get it by hand from
@@ -115,8 +143,8 @@ If the download fails, get it by hand from
 
 ### Data sources
 
-- Coastlines and Greenland: [Natural Earth](https://www.naturalearthdata.com/) 1:50m
-  (public domain), via the `world-atlas` package.
+- Coastlines and Greenland: [Natural Earth](https://www.naturalearthdata.com/) 1:10m
+  (the 2000 map) and 1:50m (the 1500 map), public domain, via the `world-atlas` package.
 - Lakes and rivers: [Natural Earth](https://www.naturalearthdata.com/) 1:50m "Lakes" and
   "Rivers + lake centerlines" (public domain), version 5.1.2, downloaded from the
   [natural-earth-vector](https://github.com/nvkelso/natural-earth-vector) repository.

@@ -48,8 +48,13 @@ const SHORE_MIX = 0.5;
 
 /** How strong the hillshade is (0 = off). */
 const HILLSHADE_STRENGTH = 0.55;
-/** Height difference (metres) between neighbouring pixels that counts as a 45° slope. Smaller = more dramatic. */
+/**
+ * Height difference (metres) between neighbouring pixels that counts as a 45° slope, on a
+ * 1500-px-wide world map. Smaller = more dramatic. On a wider map a pixel covers less
+ * ground, so neighbours differ less in height; the relief is scaled to look the same.
+ */
 const HILLSHADE_RELIEF = 2500;
+const HILLSHADE_TUNED_AT_WIDTH = 1500;
 // Light from the north-west, a bit above the horizon (x right, y down, z up).
 const LIGHT = normalize([-1, -1, 1.2]);
 
@@ -77,6 +82,7 @@ export function paintTerrain(map: GameMap, out: Uint8ClampedArray): void {
   // Neighbour x across the left/right edge on a wrapping map; clamped at the edge otherwise.
   const nx = (x: number): number => (map.wraps ? map.wrapX(x) : Math.min(width - 1, Math.max(0, x)));
   const landHeight = (x: number, y: number): number => Math.max(0, elevation[y * width + x]);
+  const relief = (HILLSHADE_RELIEF * HILLSHADE_TUNED_AT_WIDTH) / width;
 
   for (let y = 0; y < height; y++) {
     const up = Math.max(0, y - 1);
@@ -96,8 +102,8 @@ export function paintTerrain(map: GameMap, out: Uint8ClampedArray): void {
         color = mix(ramp.low, ramp.high, clamp01((h - ramp.from) / (ramp.to - ramp.from)));
 
         // Hillshade: compare the surface's slope with the light direction. Flat ground = 1.
-        const dx = (landHeight(right, y) - landHeight(left, y)) / (2 * HILLSHADE_RELIEF);
-        const dy = (landHeight(x, down) - landHeight(x, up)) / (2 * HILLSHADE_RELIEF);
+        const dx = (landHeight(right, y) - landHeight(left, y)) / (2 * relief);
+        const dy = (landHeight(x, down) - landHeight(x, up)) / (2 * relief);
         const normal = normalize([-dx, -dy, 1]);
         const lit = (normal[0] * LIGHT[0] + normal[1] * LIGHT[1] + normal[2] * LIGHT[2]) / LIGHT[2];
         const shade = Math.min(1.25, Math.max(0.6, 1 + HILLSHADE_STRENGTH * (lit - 1)));
