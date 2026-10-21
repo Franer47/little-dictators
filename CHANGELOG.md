@@ -23,6 +23,11 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 - **Wars on the map:** crossed swords mark every war front, and armies at war stand on the
   border with their enemy. Buildings appear on the map where they were built.
 - **Letters:** a war declared on you or a peace you sign pops up and pauses the game.
+- **Winning pays:** when you're winning a war you decide when it ends, and the bigger the win
+  the more land you take (up to 60%, or a whole small nation). The Wars panel shows what
+  peace now would give, your recent treaties, and the Wars button counts your wars. Fixed:
+  beating a nation spread over islands only took the bit touching you; allies of the winner
+  now get tribute too.
 - **How to play:** a short guide the first time you play (and from the How to button).
 
 ### Changed

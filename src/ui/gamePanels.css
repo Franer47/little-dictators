@@ -745,3 +745,34 @@
 .gd-box.howto .gd-actions {
   justify-content: flex-end;
 }
+
+/* How your recent wars ended (Wars panel). */
+.gp-treaty {
+  margin: 0;
+  padding: 4px 0;
+  font-size: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.gp-treaty small {
+  color: rgba(241, 232, 212, 0.5);
+}
+
+/* The number of wars you're in, on the Wars button. */
+#side-menu button {
+  position: relative;
+}
+
+.gp-count {
+  position: absolute;
+  top: 3px;
+  right: 5px;
+  min-width: 17px;
+  padding: 1px 4px;
+  font: 700 10px/14px system-ui, sans-serif;
+  color: #fff;
+  text-align: center;
+  background: #c8392b;
+  border-radius: 9px;
+  box-shadow: 0 0 0 2px rgba(20, 17, 13, 0.9);
+}

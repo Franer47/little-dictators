@@ -89,12 +89,15 @@
   },
 
   "peace": {
-    "about": "When a war ends. Computer nations make peace when the war score reaches 'winAt' (after 'minMonths'), or after 'maxMonths' whatever it is. Terms by score: at 'landAt' or more the winner takes border land: up to 'landShare' of the loser's land at score 100. At 'tributeAt' or more the loser pays 'tributeShare' of its income every year for 'tributeYears' years. Below that, white peace.",
+    "about": "When a war ends. Computer nations make peace when the war score reaches 'winAt' (after 'minMonths'), or after 'maxMonths' whatever it is. When YOUR nation is winning, you decide: the war goes on until you offer peace or the score reaches 100 (or twice 'maxMonths'). Terms by score: at 'landAt' or more the winner takes border land, from 'minLandShare' of the loser's land at 'landAt' up to 'maxLandShare' at a score of 100; a loser smaller than 'annexSize' × the winner's land is taken whole at 'annexAt' or more. At 'tributeAt' or more (below 'landAt') the loser pays 'tributeShare' of its income every year for 'tributeYears' years. Below that, a draw.",
     "winAt": 50,
     "minMonths": 6,
     "maxMonths": 48,
     "landAt": 40,
-    "landShare": 0.3,
+    "minLandShare": 0.15,
+    "maxLandShare": 0.6,
+    "annexAt": 90,
+    "annexSize": 0.25,
     "tributeAt": 20,
     "tributeShare": 0.1,
     "tributeYears": 10

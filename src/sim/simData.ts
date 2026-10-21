@@ -32,7 +32,19 @@ export interface SimData {
   ai: { buildReserve: number; warChance: number; warOdds: number; allianceAt: number; breakAllianceAt: number; maxAllies: number; allyJoinsAttack: number };
   relations: { base: number; aggression: number; sameIdeology: number; random: number; drift: number; war: number; afterPeace: number; push: number };
   war: { scorePerMonth: number; losses: number; maxLosses: number };
-  peace: { winAt: number; minMonths: number; maxMonths: number; landAt: number; landShare: number; tributeAt: number; tributeShare: number; tributeYears: number };
+  peace: {
+    winAt: number;
+    minMonths: number;
+    maxMonths: number;
+    landAt: number;
+    minLandShare: number;
+    maxLandShare: number;
+    annexAt: number;
+    annexSize: number;
+    tributeAt: number;
+    tributeShare: number;
+    tributeYears: number;
+  };
   save: { everyYears: number };
 }
 
@@ -146,7 +158,7 @@ export function parseSimData(raw: unknown): SimData {
     ai: numbers("ai", ["buildReserve", "warChance", "warOdds", "allianceAt", "breakAllianceAt", "maxAllies", "allyJoinsAttack"]),
     relations: numbers("relations", ["base", "aggression", "sameIdeology", "random", "drift", "war", "afterPeace", "push"]),
     war: numbers("war", ["scorePerMonth", "losses", "maxLosses"]),
-    peace: numbers("peace", ["winAt", "minMonths", "maxMonths", "landAt", "landShare", "tributeAt", "tributeShare", "tributeYears"]),
+    peace: numbers("peace", ["winAt", "minMonths", "maxMonths", "landAt", "minLandShare", "maxLandShare", "annexAt", "annexSize", "tributeAt", "tributeShare", "tributeYears"]),
     save: numbers("save", ["everyYears"]),
   };
 }

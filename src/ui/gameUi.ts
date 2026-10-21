@@ -8,6 +8,7 @@ import "./gamePanels.css";
 import type { PlacementPreview } from "../render/mapRenderer.ts";
 import type { BrushId, BuildingSpec } from "../sim/simData.ts";
 import { money, type Decision, type GameEvent, type TickResult, type War, type World } from "../sim/world.ts";
+import { describeTerms, peaceTerms } from "../sim/war.ts";
 import { badge, icon, scoreColor } from "./icons.ts";
 import { escapeHtml } from "./uiBits.ts";
 import { loadPref, savePref } from "./prefs.ts";
@@ -181,6 +182,7 @@ export class GameUi {
 
   private onTick(r: TickResult): void {
     if (r.events.length) this.renderFeed();
+    this.updateBadges();
     // Big news about your nation comes as a letter, and the game waits for you.
     const mine = this.host.world().mineId;
     const big = r.events.filter((e) => e.nations.includes(mine) && (e.kind === "war" || e.kind === "peace" || (e.kind === "diplomacy" && e.text.includes("no longer"))));
@@ -211,9 +213,27 @@ export class GameUi {
     this.renderPanel();
   }
 
-  /** Redraws whatever panel is open (after the world changed). */
+  /** Redraws whatever panel is open (after the world changed), and the war count on the Wars button. */
   refresh(): void {
     if (this.panel) this.renderPanel();
+    this.updateBadges();
+  }
+
+  /** A red count of your wars on the Wars button. */
+  private updateBadges(): void {
+    const w = this.host.world();
+    const n = w.mineId ? w.warsOf(w.mineId).length : 0;
+    const btn = this.menu.querySelector<HTMLElement>('[data-open="wars"]');
+    if (!btn) return;
+    let badgeEl = btn.querySelector<HTMLElement>(".gp-count");
+    if (!n) return badgeEl?.remove();
+    if (!badgeEl) {
+      badgeEl = document.createElement("b");
+      badgeEl.className = "gp-count";
+      btn.append(badgeEl);
+    }
+    badgeEl.textContent = String(n);
+    btn.title = `Wars, allies and neighbours: you're in ${n} ${n === 1 ? "war" : "wars"}`;
   }
 
   private renderPanel(): void {
@@ -271,7 +291,8 @@ export class GameUi {
         <div class="gp-war-name">${escapeHtml(war.name)} <span class="gp-sub">· ${war.months} months</span></div>
         <div class="gp-sides"><div>${(attacking ? war.attackers : war.defenders).map(name).join("")}</div><span>vs</span><div>${(attacking ? war.defenders : war.attackers).map(name).join("")}</div></div>
         <div class="gp-score" title="War score: ${Math.round(ours)} for you (−100 lost … 100 won)"><span style="width:${pct}%;background:${scoreColor(pct)}"></span></div>
-        <button type="button" class="gp-btn" data-peace="${war.id}">Offer peace <small>✦${costs.offerPeace}</small></button>
+        <div class="gp-sub">War score ${ours > 0 ? "+" : ""}${Math.round(ours)}. Peace now: ${escapeHtml(describeTerms(w, peaceTerms(w, war)))}.${ours > 0 ? " Keep fighting to win more; it's up to you when to stop." : ""}</div>
+        <button type="button" class="gp-btn" data-peace="${war.id}">Make peace <small>✦${costs.offerPeace}</small></button>
       </div>`;
     });
     const allies = w.allies(id);
@@ -291,8 +312,15 @@ export class GameUi {
         </span></div>`,
       )
       .join("");
+    const treaties = w.events
+      .filter((e) => e.kind === "peace" && e.nations.includes(id))
+      .slice(-4)
+      .reverse()
+      .map((e) => `<p class="gp-treaty"><small>${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][e.month]} ${e.year}</small> ${escapeHtml(e.text.replace(/^Peace: /, ""))}</p>`)
+      .join("");
     return `
       <h3>Your wars</h3>${wars.join("") || '<p class="gp-hint">At peace.</p>'}
+      ${treaties ? `<h3>Recent treaties</h3>${treaties}` : ""}
       <h3>Allies</h3><p class="gp-hint">${allies.length ? allies.map(name).join(" ") : "None yet. Allies join each other's defensive wars."}</p>
       <h3>Neighbours</h3>${rows || '<p class="gp-hint">No neighbours.</p>'}
       <p class="gp-hint">Right-click any nation on the map for the same choices.</p>`;

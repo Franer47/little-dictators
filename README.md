@@ -419,11 +419,16 @@ The menu on the left:
 
 **Wars** are simple for now (front lines come later): every month the two sides' armies
 clash, both lose troops, and the war score moves toward the stronger side (troops × army
-quality, defenders helped by their defence). When one side is clearly winning, or after
-four years, peace is signed: a big win takes **border land** (the pixels really change owner),
-a smaller one makes the loser pay **tribute** (10% of its income for 10 years), otherwise
-it's a white peace. You can offer peace yourself from the Wars panel. Allies join each
-other's defensive wars. A nation that loses all its land has **fallen**; if it's yours you
+quality, defenders helped by their defence). Computer nations make peace when one side is
+clearly winning (score 50) or after four years. **When your nation is winning, you decide**:
+the war goes on until you press **Make peace** or the score reaches 100, and the Wars panel
+always says what peace now would give. Terms by score: from 40 the winner takes **land**,
+15% of the loser's land rising to 60% at a full win (spreading from the shared border, then on
+to the loser's other islands); a nation under a quarter of the winner's size is **taken
+whole** from a score of 90; from 20 the loser pays **tribute** (10% of its income for 10
+years); below that it's a draw. The winner's allies get half that tribute. Allies join each
+other's defensive wars. The Wars panel lists your **recent treaties**, and the Wars button
+shows how many wars you're in. A nation that loses all its land has **fallen**; if it's yours you
 can keep watching or pick another nation to guide.
 
 **On the map**, every war has crossed swords at the middle of its front (big and red when

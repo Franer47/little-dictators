@@ -585,6 +585,7 @@ export class Placement {
     if (changed.length) {
       this.world.checkFallen();
       this.afterTick({ changedPixels: changed, events: [], newYear: false, playerFell: false });
+      this.ui.refresh();
       return;
     }
     this.refreshDivisions();
