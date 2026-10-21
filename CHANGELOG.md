@@ -6,6 +6,9 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 ## Unreleased
 
 ### Changed
+- **Land sizes are more balanced.** Big lands are rarer (360,000 km² or more: 20% → 12%
+  of rolls; 535,000 or more: 10% → 5%) and so are the tiniest (under 25,000 km²: 18% →
+  10%), so most nations are modest to large (60,000–360,000 km²: 49% → 64%).
 - **The land wheel follows the map.** The more of Europe is taken, the rarer the big land
   sizes, and sizes bigger than the biggest free patch of land shrink or disappear, so a
   late nation no longer rolls "Vast" and then gets scraps. The land wheel shows how much

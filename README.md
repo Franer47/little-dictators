@@ -29,7 +29,9 @@ question, **11 spins** in this order:
    Tribal Confederation, Chiefdom, Despot Rule, Warlord Rule, Regency, and a **rare pull**
    (below).
 2. **Land size**: a range, then the exact area in km² (never more than 800,000 km², about
-   2.25× Germany; the biggest sizes are rare), with a comparison such as "≈ the size of Portugal".
+   2.25× Germany), with a comparison such as "≈ the size of Portugal". Most nations are
+   modest to large (60,000–360,000 km², about 2 in 3 rolls); very big and very small lands
+   are rare (360,000+ km²: 12%, under 25,000 km²: 10%).
 3. **Population density**: Empty … Crowded, then the exact people per km². **Population =
    land × density**, so a tiny land can never hold millions of people.
 4. **Wealth**: Very poor … Very rich, then the exact output per person.
@@ -155,7 +157,7 @@ server only):
 
 ## Placing nations (Europe test)
 
-![Europe filled with 89 nations (all of its land)](docs/europe-filled.jpg)
+![Europe filled with 73 nations (all of its land)](docs/europe-filled.jpg)
 
 After **Continue to map** the camera flies to Europe and asks where the nation goes. The
 nation card and the corner panel show its **colour**, which is its flag for now.
@@ -172,7 +174,7 @@ nation card and the corner panel show its **colour**, which is its flag for now.
 - The land then **grows out from that spot** in a second or two. Only the rolled land size
   matters for now (a golden "Double land" simply means more land).
 - **Next nation** goes back to the wheel for another one. The list in the top-right corner
-  shows the **top 3 nations by land plus yours** (marked "You"), under e.g. "89 nations ·
+  shows the **top 3 nations by land plus yours** (marked "You"), under e.g. "73 nations ·
   100% of Europe". The arrow opens the full list (biggest first, it scrolls) and closes it
   again; it remembers your choice. Click a row, or a nation on the map, to see it in the
   corner panel. Hovering the map shows who owns the land.
