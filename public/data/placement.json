@@ -1,11 +1,16 @@
 {
   "about": "How nations are placed on the map and how their starting land grows. Used by src/game/territory.ts and src/ui/placement.ts.",
 
-  "region": "europe",
+  "region": "world",
   "regions": {
+    "world": {
+      "name": "the world",
+      "about": "All land on Earth except Antarctica (everything north of 60°S).",
+      "outline": [[-180, 90], [180, 90], [180, -60], [-180, -60]]
+    },
     "europe": {
       "name": "Europe",
-      "about": "Where nations may be placed for the Europe test. A rough outline as [longitude, latitude] points (east and north are positive). It follows the middle of the Mediterranean and the Black Sea, so North Africa and Anatolia stay out.",
+      "about": "The Europe test region (set 'region' to 'europe' to use it). A rough outline as [longitude, latitude] points (east and north are positive). It follows the middle of the Mediterranean and the Black Sea, so North Africa and Anatolia stay out.",
       "outline": [
         [-25, 72], [45, 72], [45, 42.5], [41.5, 41.4], [35, 42.6], [29.2, 41.2], [26.2, 40.1],
         [26.6, 34.6], [12.0, 36.4], [11.2, 37.6], [9.0, 38.2], [-1.0, 36.9], [-5.6, 35.98],
@@ -22,22 +27,23 @@
   },
 
   "fill": {
-    "about": "The 'Fill' testing button rolls and places nations until 'percent' of the region's land is owned (100 = until no gap is left with room for a nation of at least 'minArea' km²). It also stops after maxNations nations or maxAttempts tries. At the end of a 100% fill, the leftover land (small islands, slivers between borders) goes to the nearest nations: each spreads 'absorbSteps' pixels into it at a time (across water too, to reach islands), repeated while that still takes land; far-off islands then go to the nearest nation.",
+    "about": "The 'Fill' testing button rolls and places nations until 'percent' of the region's land is owned (100 = until no gap is left with room for a nation of at least 'minArea' km²). It also stops after maxNations nations or maxAttempts tries. At the end of a 100% fill, the leftover land (small islands, slivers between borders) goes to the nearest nations: each spreads 'absorbSteps' pixels into it at a time (across water too, to reach islands), repeated while that still takes land; far-off islands then go to the nearest nation. For speed, Fill looks over the free land once per batch of nations: about one nation per 'batchArea' km² of free land (up to 40 at a time on an empty world, one at a time near the end). Fill picks each nation's spot first and then rolls its land size for the free patch of land around it: sizes bigger than that patch shrink or go (like the land wheel's 'room' rule, but local), so an island gets an island-sized nation while the middle of a continent, settled late, still gets big ones.",
     "percent": 100,
     "minArea": 2000,
-    "maxNations": 250,
-    "maxAttempts": 600,
-    "absorbSteps": 10
+    "maxNations": 3000,
+    "maxAttempts": 6000,
+    "absorbSteps": 10,
+    "batchArea": 1000000
   },
 
   "growth": {
     "about": "Starting land grows out from the chosen spot, always taking the cheapest pixel it can reach next, until it has the rolled area. 'cost' is how hard each terrain is to take (plains = 1). Sea, lakes and ice can't be taken; neither can another nation's land. Rivers can be taken but cost a lot, so they tend to become borders. 'wobble' makes some areas randomly cheaper or dearer (0 = perfect blobs), so borders look natural. Afterwards 1-pixel strings are trimmed and free pockets of up to 'holeSize' pixels inside a nation are filled in (adding at most a tenth of its size).",
     "cost": {
       "Plains": 1,
-      "Highlands": 2.2,
-      "Mountains": 6,
-      "Snow": 2.6,
-      "River": 20
+      "Highlands": 3.5,
+      "Mountains": 15,
+      "Snow": 4,
+      "River": 40
     },
     "wobble": 0.7,
     "holeSize": 25

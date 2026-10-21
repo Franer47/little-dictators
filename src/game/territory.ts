@@ -61,6 +61,8 @@ export interface FillRules {
   /** …or after this many nations or tries. */
   maxNations: number;
   maxAttempts: number;
+  /** Fill places about one nation per this many km² of free land per look at the map (speed). */
+  batchArea: number;
   /** At the end of a 100% fill, nations spread up to this many pixels into the leftover land and islands. */
   absorbSteps: number;
 }
@@ -169,6 +171,15 @@ function insideOutline(lon: number, lat: number, outline: [number, number][]): b
   return inside;
 }
 
+/** A look at the region's free land (see Territory.survey). */
+export interface Survey {
+  room: { left: number; taken: number; biggestGap: number };
+  free: number[];
+  shore: number[];
+  farFree: number[];
+  farShore: number[];
+}
+
 /** One nation's land. */
 export interface Holding {
   /** Its number in the ownership grid (1, 2, 3…; 0 means nobody). */
@@ -200,6 +211,11 @@ export class Territory {
   private readonly key: Float64Array;
   private readonly seen: Uint32Array;
   private stamp = 0;
+  // Reused by survey() for the distance-from-nations field.
+  private boxDist = new Int32Array(0);
+  private boxQueue = new Int32Array(0);
+  /** Per pixel: the size (km²) of the free pocket it was in at the last survey (good pockets only). */
+  private pocketArea: Float32Array;
 
   constructor(
     readonly map: GameMap,
@@ -209,6 +225,7 @@ export class Territory {
     this.owner = new Uint16Array(size);
     this.key = new Float64Array(size);
     this.seen = new Uint32Array(size);
+    this.pocketArea = new Float32Array(size);
     this.areas = rowAreas(map);
     for (const [name, cost] of Object.entries(rules.cost)) {
       if (typeof cost === "number" && cost > 0) this.cost[Terrain[name as keyof typeof Terrain]] = cost;
@@ -243,52 +260,6 @@ export class Territory {
       if (this.owner[i] !== 0) owned += a;
     }
     return total > 0 ? owned / total : 0;
-  }
-
-  /** Free land left in the region (km²), how much is taken (0..1), and the biggest free patch (km²). */
-  room(region: Region): { left: number; taken: number; biggestGap: number } {
-    const { width, height } = this.map;
-    let total = 0;
-    let left = 0;
-    let biggestGap = 0;
-    // Marks visited pixels with a fresh stamp in the shared `seen` array (no map-sized allocation).
-    if (++this.stamp === 0xffffffff) {
-      this.seen.fill(0);
-      this.stamp = 1;
-    }
-    const stamp = this.stamp;
-    const seen = this.seen;
-    const isFree = (i: number): boolean => this.owner[i] === 0 && region.inside[i] === 1 && this.cost[this.map.terrain[i]] < Infinity;
-    for (const i of region.land) {
-      const a = this.areas[(i / width) | 0];
-      total += a;
-      if (this.owner[i] !== 0 || seen[i] === stamp) continue;
-      // Flood this free patch to measure it.
-      let gap = 0;
-      const queue = [i];
-      seen[i] = stamp;
-      while (queue.length) {
-        const j = queue.pop()!;
-        const x = j % width;
-        const y = (j - x) / width;
-        const pa = this.areas[y];
-        gap += pa;
-        for (const [dx, dy] of SIDES) {
-          const ny = y + dy;
-          if (ny < 0 || ny >= height) continue;
-          const p = this.map.normalize(x + dx, ny);
-          if (!p) continue;
-          const k = ny * width + p[0];
-          if (seen[k] !== stamp && isFree(k)) {
-            seen[k] = stamp;
-            queue.push(k);
-          }
-        }
-      }
-      biggestGap = Math.max(biggestGap, gap);
-    }
-    for (const i of region.land) if (this.owner[i] === 0) left += this.areas[(i / width) | 0];
-    return { left, taken: total > 0 ? 1 - left / total : 0, biggestGap };
   }
 
   /** The ids of the nations whose land touches this one's (side by side, across the map's seam too). */
@@ -399,114 +370,107 @@ export class Territory {
   }
 
   /**
-   * A random free spot in the region for a nation of `targetArea` km², or null if no gap
-   * has room for at least `minArea` km² (or the whole target, if that's smaller).
-   * Usually (`coastPreference`) a spot next to the sea, a lake or a river, so nations line
-   * the coasts and rivers and the inland gaps stay open. Prefers spots far from other
-   * nations, and of a few such spots the one with the most room to grow.
+   * A look at the region's free land, used to pick start spots. It's the slow part of
+   * placing a nation on a big map, so Fill takes one and places several nations with it.
+   * - `room`: free land left (km²), how much is taken (0..1), the biggest free patch (km²).
+   * - `free` / `shore`: free pixels in pockets a new nation may start in (at least `minGap`
+   *   km², and not an enclave inside one nation unless at least `enclaveArea` km²), and the
+   *   ones of those next to water.
+   * - `farFree` / `farShore`: the same, only those at least 60% as far from any nation as
+   *   the furthest one.
    */
-  freeSpot(region: Region, rng: Rng, targetArea: number, rules: SpotRules = {}): [number, number] | null {
-    const { coastPreference = 0, minArea = 0 } = rules;
-    const { width } = this.map;
-    // Small pockets, and pockets inside a single nation, are left for that nation to take later.
-    const goodPocket = this.goodPockets(region, rules.minGap ?? 0, rules.enclaveArea ?? 0);
-    const isFree = (i: number): boolean => this.owner[i] === 0 && goodPocket(i);
-    const free = Array.from(region.land).filter(isFree);
-    if (!free.length) return null;
-    const freeShore = Array.from(region.shore).filter(isFree);
-    const pool = freeShore.length && rng.next() < coastPreference ? freeShore : free;
-    const enough = Math.min(minArea, targetArea);
-    let best: [number, number] | null = null;
-    let bestArea = 0;
-    const tryPixels = (candidates: number[], tries: number): void => {
-      for (let t = 0; t < tries && candidates.length; t++) {
-        const i = candidates[Math.floor(rng.next() * candidates.length)];
-        const x = i % width;
-        const y = (i - x) / width;
-        // A test growth, undone straight away, to see how much room there is.
-        const area = this.testGrow(x, y, targetArea);
-        if (area >= enough && area > bestArea + 1e-6) {
-          best = [x, y];
-          bestArea = area;
-        }
-      }
-    };
-    tryPixels(this.farFromOthers(region, pool), 6);
-    // Nothing roomy there: look anywhere that's free before giving up.
-    if (!best) tryPixels(this.farFromOthers(region, free), 6);
-    if (!best) tryPixels(free, 10);
-    return best;
-  }
-
-  /**
-   * Splits the region's free land into pockets (patches joined side by side) and returns a
-   * test for "this pixel is in a pocket a new nation may start in": at least `minGap` km²,
-   * and not an enclave (touching just one nation) unless it's at least `enclaveArea` km².
-   */
-  private goodPockets(region: Region, minGap: number, enclaveArea: number): (i: number) => boolean {
-    if (minGap <= 0 && enclaveArea <= 0) return () => true;
-    const { width, height } = this.map;
-    if (++this.stamp === 0xffffffff) {
+  survey(region: Region, rules: SpotRules = {}): Survey {
+    const { width, height, terrain } = this.map;
+    const { owner, areas, cost } = this;
+    const minGap = rules.minGap ?? 0;
+    const enclaveArea = rules.enclaveArea ?? 0;
+    if (++this.stamp >= 0xfffffffe) {
       this.seen.fill(0);
       this.stamp = 1;
     }
     const visited = this.stamp;
-    const seen = this.seen;
-    // Pixels in good pockets get a second, different stamp.
     const good = ++this.stamp;
-    const isFree = (i: number): boolean => this.owner[i] === 0 && region.inside[i] === 1 && this.cost[this.map.terrain[i]] < Infinity;
+    const seen = this.seen;
+    const wraps = this.map.wraps;
+    const isFree = (i: number): boolean => owner[i] === 0 && region.inside[i] === 1 && cost[terrain[i]] < Infinity;
+
+    // 1. Flood each free pocket once: its size, and whether it's inside a single nation.
+    let total = 0;
+    let left = 0;
+    let biggestGap = 0;
+    const pocket: number[] = [];
     for (const start of region.land) {
-      if (this.owner[start] !== 0 || seen[start] === visited || seen[start] === good) continue;
-      const pocket = [start];
+      total += areas[(start / width) | 0];
+      if (owner[start] !== 0 || seen[start] === visited || seen[start] === good) continue;
+      pocket.length = 0;
+      pocket.push(start);
       seen[start] = visited;
-      const around = new Set<number>();
       let area = 0;
+      let firstOwner = 0;
+      let manyOwners = false;
       for (let k = 0; k < pocket.length; k++) {
         const j = pocket[k];
         const x = j % width;
         const y = (j - x) / width;
-        area += this.areas[y];
-        for (const [dx, dy] of SIDES) {
-          const ny = y + dy;
+        area += areas[y];
+        for (let s = 0; s < 4; s++) {
+          let nx = x + SIDES[s][0];
+          const ny = y + SIDES[s][1];
           if (ny < 0 || ny >= height) continue;
-          const q = this.map.normalize(x + dx, ny);
-          if (!q) continue;
-          const n = ny * width + q[0];
-          if (this.owner[n] !== 0) around.add(this.owner[n]);
-          else if (seen[n] !== visited && isFree(n)) {
+          if (nx < 0 || nx >= width) {
+            if (!wraps) continue;
+            nx = nx < 0 ? nx + width : nx - width;
+          }
+          const n = ny * width + nx;
+          const o = owner[n];
+          if (o !== 0) {
+            if (firstOwner === 0) firstOwner = o;
+            else if (o !== firstOwner) manyOwners = true;
+          } else if (seen[n] !== visited && isFree(n)) {
             seen[n] = visited;
             pocket.push(n);
           }
         }
       }
-      const ok = area >= minGap && (around.size !== 1 || area >= enclaveArea);
-      if (ok) for (const j of pocket) seen[j] = good;
+      biggestGap = Math.max(biggestGap, area);
+      const enclave = firstOwner !== 0 && !manyOwners;
+      if (area >= minGap && (!enclave || area >= enclaveArea)) {
+        for (const j of pocket) {
+          seen[j] = good;
+          this.pocketArea[j] = area;
+        }
+      }
     }
-    return (i) => seen[i] === good;
-  }
+    // Rivers count as free land in the pockets but not in `region.land`; keep "left" to region.land.
+    left = 0;
+    for (const i of region.land) if (owner[i] === 0) left += areas[(i / width) | 0];
+    const room = { left, taken: total > 0 ? 1 - left / total : 0, biggestGap };
+    const free = Array.from(region.land).filter((i) => seen[i] === good);
+    const shore = Array.from(region.shore).filter((i) => seen[i] === good);
+    if (!this.holdings.length) return { room, free, shore, farFree: free, farShore: shore };
 
-  /** The free pixels that are at least 60% as far from any nation as the furthest one. */
-  private farFromOthers(region: Region, free: number[]): number[] {
-    if (!this.holdings.length) return free;
-    // Distance (in steps) from the nearest owned pixel, inside the region's box.
+    // 2. Distance (in steps) from the nearest owned pixel, inside the region's box.
     const { x0, y0, x1, y1 } = region.box;
     const bw = x1 - x0 + 1;
     const bh = y1 - y0 + 1;
-    const dist = new Int32Array(bw * bh).fill(-1);
-    const queue = new Int32Array(bw * bh);
+    if (this.boxDist.length < bw * bh) {
+      this.boxDist = new Int32Array(bw * bh);
+      this.boxQueue = new Int32Array(bw * bh);
+    }
+    const dist = this.boxDist;
+    const queue = this.boxQueue;
+    dist.fill(-1, 0, bw * bh);
     let head = 0;
     let tail = 0;
-    const { width } = this.map;
     for (let y = y0; y <= y1; y++) {
       for (let x = x0; x <= x1; x++) {
-        if (this.owner[y * width + x] !== 0) {
+        if (owner[y * width + x] !== 0) {
           const b = (y - y0) * bw + (x - x0);
           dist[b] = 0;
           queue[tail++] = b;
         }
       }
     }
-    if (tail === 0) return free;
     while (head < tail) {
       const b = queue[head++];
       const bx = b % bw;
@@ -517,14 +481,114 @@ export class Territory {
       if (by > 0 && dist[b - bw] < 0) (dist[b - bw] = d), (queue[tail++] = b - bw);
       if (by < bh - 1 && dist[b + bw] < 0) (dist[b + bw] = d), (queue[tail++] = b + bw);
     }
-    const distOf = (i: number): number => {
-      const x = i % width;
-      const y = (i - x) / width;
-      return dist[(y - y0) * bw + (x - x0)];
+    const far = (list: number[]): number[] => {
+      const distOf = (i: number): number => {
+        const x = i % width;
+        return dist[(((i - x) / width) - y0) * bw + (x - x0)];
+      };
+      let max = 0;
+      for (const i of list) max = Math.max(max, distOf(i));
+      return list.filter((i) => distOf(i) >= max * 0.6);
     };
-    let max = 0;
-    for (const i of free) max = Math.max(max, distOf(i));
-    return free.filter((i) => distOf(i) >= max * 0.6);
+    return { room, free, shore, farFree: far(free), farShore: far(shore) };
+  }
+
+  /** Free land left in the region (km²), how much is taken (0..1), and the biggest free patch (km²). */
+  room(region: Region): Survey["room"] {
+    return this.survey(region).room;
+  }
+
+  /**
+   * A random free spot in the region for a nation of `targetArea` km², or null if no
+   * suitable pocket has room for at least `minArea` km² (or the whole target, if smaller).
+   * Usually (`coastPreference`) a spot next to the sea, a lake or a river, so nations line
+   * the coasts and rivers and the inland gaps stay open. Prefers spots far from other
+   * nations, and of a few such spots the one with the most room to grow.
+   */
+  freeSpot(region: Region, rng: Rng, targetArea: number, rules: SpotRules = {}): [number, number] | null {
+    return this.spotFrom(this.survey(region, rules), rng, targetArea, rules);
+  }
+
+  /**
+   * A start pixel from a survey, chosen the same way as in spotFrom (coast first, far from
+   * others, not taken since, not too close to `avoid`) but before the nation is rolled, so
+   * its land size can depend on the free land around it. -1 if none is found.
+   */
+  pickStart(survey: Survey, rng: Rng, rules: SpotRules = {}, avoid: Holding[] = []): number {
+    const { width } = this.map;
+    const pools = [survey.farShore.length && rng.next() < (rules.coastPreference ?? 0) ? survey.farShore : survey.farFree, survey.farFree, survey.free];
+    for (const pool of pools) {
+      for (let pick = 0; pick < 30 && pool.length; pick++) {
+        const i = pool[Math.floor(rng.next() * pool.length)];
+        if (this.owner[i] !== 0) continue;
+        const x = i % width;
+        const y = (i - x) / width;
+        if (avoid.some((h) => this.nearHolding(x, y, 0, h))) continue;
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  /** The size (km²) of the free pocket pixel i was in at the last survey. */
+  pocketAt(i: number): number {
+    return this.pocketArea[i];
+  }
+
+  /** Test-grows a nation of `targetArea` from pixel i (undone straight away): the area it would get. */
+  roomAt(i: number, targetArea: number): number {
+    const x = i % this.map.width;
+    return this.testGrow(x, (i - x) / this.map.width, targetArea);
+  }
+
+  /** True if (x, y) is closer to holding h's start than their two expected radii together. */
+  private nearHolding(x: number, y: number, ownRadius: number, h: Holding): boolean {
+    const { width } = this.map;
+    let dx = Math.abs(x - h.start[0]);
+    if (this.map.wraps) dx = Math.min(dx, width - dx);
+    const dy = y - h.start[1];
+    const r = ownRadius + Math.sqrt(h.area / this.areas[h.start[1]] / Math.PI);
+    return dx * dx + dy * dy < r * r;
+  }
+
+  /**
+   * Like freeSpot, from a survey that may be a little out of date (Fill places several
+   * nations per survey): pixels taken since are skipped, and so are spots too close to the
+   * nations in `avoid` (placed since the survey).
+   */
+  spotFrom(survey: Survey, rng: Rng, targetArea: number, rules: SpotRules = {}, avoid: Holding[] = []): [number, number] | null {
+    const { coastPreference = 0, minArea = 0 } = rules;
+    const { width } = this.map;
+    const enough = Math.min(minArea, targetArea);
+    const tooClose = (x: number, y: number): boolean => {
+      const own = Math.sqrt(targetArea / this.areas[y] / Math.PI);
+      return avoid.some((h) => this.nearHolding(x, y, own, h));
+    };
+    let best: [number, number] | null = null;
+    let bestArea = 0;
+    const tryPixels = (candidates: number[], tries: number): void => {
+      let tested = 0;
+      for (let pick = 0; pick < tries * 6 && tested < tries && candidates.length; pick++) {
+        const i = candidates[Math.floor(rng.next() * candidates.length)];
+        if (this.owner[i] !== 0) continue;
+        const x = i % width;
+        const y = (i - x) / width;
+        if (tooClose(x, y)) continue;
+        tested++;
+        // A test growth, undone straight away, to see how much room there is.
+        const area = this.testGrow(x, y, targetArea);
+        if (area >= enough && area > bestArea + 1e-6) {
+          best = [x, y];
+          bestArea = area;
+        }
+      }
+    };
+    const pool = survey.farShore.length && rng.next() < coastPreference ? survey.farShore : survey.farFree;
+    tryPixels(pool, 6);
+    // Nothing roomy there: look anywhere that's free before giving up.
+    if (!best) tryPixels(survey.farFree, 6);
+    if (!best) tryPixels(survey.free, 10);
+    return best;
   }
 
   private testGrow(x: number, y: number, targetArea: number): number {

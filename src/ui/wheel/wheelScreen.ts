@@ -386,7 +386,7 @@ class WheelScreen {
     this.el.room.hidden = !(step.base.room && room && room.taken > 0);
     if (room && !this.el.room.hidden) {
       this.el.room.textContent = this.text("roomNote", {
-        region: room.region,
+        region: room.region.charAt(0).toUpperCase() + room.region.slice(1),
         left: compactNumber(room.left, this.data.numberSuffixes),
         taken: Math.round(room.taken * 100),
       });

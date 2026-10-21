@@ -17,7 +17,7 @@ import type { CameraControls } from "../input/cameraControls.ts";
 import type { Nation } from "../game/nation.ts";
 import { rollNation } from "../game/roller.ts";
 import { createRng, randomSeed, type Rng } from "../game/random.ts";
-import { Region, Territory, type Holding, type PlacementData } from "../game/territory.ts";
+import { Region, Territory, type Holding, type PlacementData, type Survey } from "../game/territory.ts";
 import type { WheelData } from "../game/wheels.ts";
 import type { LandRoom } from "../game/room.ts";
 import { runWheelScreen } from "./wheel/wheelScreen.ts";
@@ -52,7 +52,7 @@ export interface PlacementOptions {
   reducedMotion: boolean;
 }
 
-type State = "placing" | "growing" | "idle" | "wheel";
+type State = "placing" | "growing" | "idle" | "wheel" | "filling";
 
 export class Placement {
   readonly territory: Territory;
@@ -70,6 +70,8 @@ export class Placement {
   private growth: { holding: Holding; startedAt: number; ms: number; done: number } | null = null;
   private cameraMove: CameraTween | null = null;
   private note = "";
+  /** While filling: how much of the region is taken (%). */
+  private fillProgress = 0;
   /** The nation list shows everything (true) or just the top 3 and yours (remembered). */
   private listOpen = loadPref<boolean>("nationListOpen", false);
 
@@ -152,7 +154,7 @@ export class Placement {
     const t = this.opts.map.terrainAt(x, y);
     if (t === Terrain.Ice) return "Nobody can live on the ice.";
     if (!this.territory.claimableTerrain(t) || t === Terrain.River) return "Pick land, not water.";
-    if (!this.region.contains(x, y)) return `For this test, nations go in ${this.regionName}.`;
+    if (!this.region.contains(x, y)) return `Nations can only start in ${this.regionName}.`;
     return "";
   }
 
@@ -252,29 +254,85 @@ export class Placement {
    * Testing shortcut: rolls and places nations at random spots until `fill.percent` of the
    * region's land is owned. Late nations land in the gaps and end up smaller than rolled.
    */
-  private fill(): void {
-    if (this.state === "wheel") return;
+  private async fill(): Promise<void> {
+    if (this.state === "wheel" || this.state === "filling") return;
     this.finishGrowth();
-    const { percent, minArea, maxNations, maxAttempts, absorbSteps } = this.opts.data.fill;
+    this.state = "filling";
+    this.opts.renderer.preview = null;
+    this.update();
+    const { percent, minArea, maxNations, maxAttempts, absorbSteps, batchArea } = this.opts.data.fill;
     const spotRules = { ...this.opts.data.start, minArea };
     const started = performance.now();
     let full = false;
     let lastId = 0;
-    const placeAnywhere = (pending: Pending): void => {
-      const spot = this.territory.freeSpot(this.region, this.rng, rolledArea(pending.nation), spotRules);
+    // Looking over the free land is the slow part on a big map, so one look (a survey) is used
+    // for a batch of nations: about one per `batchArea` km² of free land (fewer as it fills),
+    // keeping each batch's nations apart. A failed spot with an old survey just takes a new one.
+    let survey: Survey | null = null;
+    let fresh = false;
+    let batchLeft = 0;
+    const batch: Holding[] = [];
+    const resurvey = (): void => {
+      survey = this.territory.survey(this.region, spotRules);
+      fresh = true;
+      batchLeft = Math.max(1, Math.min(40, Math.round(survey.room.left / batchArea)));
+      batch.length = 0;
+    };
+    const placeAnywhere = (pending: Pending): boolean => {
+      if (!survey || batchLeft <= 0) resurvey();
+      const spot = this.territory.spotFrom(survey!, this.rng, rolledArea(pending.nation), spotRules, batch);
       if (!spot) {
-        full = true;
-        return;
+        if (fresh) full = true;
+        else batchLeft = 0;
+        return false;
       }
       this.pending = pending;
-      lastId = this.place(spot[0], spot[1], "fill")!.holding.id;
+      const placed = this.place(spot[0], spot[1], "fill")!;
+      lastId = placed.holding.id;
+      batch.push(placed.holding);
+      batchLeft--;
+      fresh = false;
+      return true;
     };
     // The nation waiting to be placed goes first (it keeps the colour on its card).
-    if (this.pending) placeAnywhere(this.pending);
+    const first = this.pending;
+    if (first) while (!placeAnywhere(first) && !full);
     // Every placement takes at least one free pixel, so this always ends; the caps keep it short.
+    // It works in short bursts and lets the page draw in between, so you can watch the map fill.
+    let burst = performance.now();
     for (let tries = 0; !full && tries < maxAttempts && this.nations.length < maxNations; tries++) {
-      if (this.territory.ownedShare(this.region) * 100 >= percent) break;
-      placeAnywhere({ nation: rollNation(this.opts.wheels, this.opts.mapName, createRng(this.nextSeed()), this.room()), color: "" });
+      if (performance.now() - burst > 40) {
+        const last = survey as Survey | null;
+        this.fillProgress = Math.round((last ? last.room.taken : 0) * 100);
+        this.updateBar();
+        this.opts.requestRender();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        burst = performance.now();
+      }
+      if (!survey || batchLeft <= 0) resurvey();
+      if (survey!.room.taken * 100 >= percent) break;
+      // Pick the spot first, then roll the nation for the free land around it: sizes bigger
+      // than the free patch it starts in shrink or go (an island gets an island-sized nation),
+      // but wide open land (the middle of Africa, settled late) still gives big nations.
+      const start = this.territory.pickStart(survey!, this.rng, spotRules, batch);
+      if (start < 0) {
+        if (fresh) full = true;
+        else batchLeft = 0;
+        continue;
+      }
+      const pocket = this.territory.pocketAt(start);
+      const room = { region: this.regionName, left: pocket, taken: 0, biggestGap: pocket };
+      const pending: Pending = { nation: rollNation(this.opts.wheels, this.opts.mapName, createRng(this.nextSeed()), room), color: "" };
+      const target = rolledArea(pending.nation);
+      const x = start % this.opts.map.width;
+      if (this.territory.roomAt(start, target) >= Math.min(minArea, target)) {
+        this.pending = pending;
+        const placed = this.place(x, (start - x) / this.opts.map.width, "fill")!;
+        lastId = placed.holding.id;
+        batch.push(placed.holding);
+        batchLeft--;
+        fresh = false;
+      } else placeAnywhere(pending);
     }
     // A full fill ends with the leftovers (small islands, slivers between borders) going to the
     // nearest nations, so the whole region is owned when the game starts.
@@ -301,7 +359,7 @@ export class Placement {
   }
 
   private clear(): void {
-    if (this.state === "wheel") return;
+    if (this.state === "wheel" || this.state === "filling") return;
     this.growth = null;
     this.territory.clear();
     this.layer.clear();
@@ -438,7 +496,7 @@ export class Placement {
       if (action === "surprise") this.surprise();
       else if (action === "next") void this.next();
     });
-    this.list.querySelector(".nl-fill")!.addEventListener("click", () => this.fill());
+    this.list.querySelector(".nl-fill")!.addEventListener("click", () => void this.fill());
     this.list.querySelector(".nl-clear")!.addEventListener("click", () => this.clear());
     this.list.querySelector(".nl-toggle")!.addEventListener("click", () => {
       this.listOpen = !this.listOpen;
@@ -464,6 +522,8 @@ export class Placement {
     if (this.state === "placing" && this.pending) {
       html = `<div class="pb-main">${swatch(this.pending.color)}<span>Place <b>${escapeHtml(this.pending.nation.name)}</b>: click any land in ${escapeHtml(this.regionName)}</span>
         <button type="button" data-action="surprise">Surprise me</button></div>`;
+    } else if (this.state === "filling") {
+      html = `<div class="pb-main"><span>Filling ${escapeHtml(this.regionName)}… ${this.nations.length.toLocaleString("en-US")} nations · ${this.fillProgress}%</span></div>`;
     } else if (this.state === "growing" && this.growth) {
       const placed = this.nations[this.growth.holding.id - 1];
       html = `<div class="pb-main">${swatch(placed.color)}<span><b>${escapeHtml(placed.nation.name)}</b> is taking its land…</span></div>`;
@@ -507,7 +567,8 @@ export class Placement {
         </li>`;
       })
       .join("");
-    (this.list.querySelector(".nl-fill") as HTMLButtonElement).disabled = this.state === "wheel";
+    (this.list.querySelector(".nl-fill") as HTMLButtonElement).disabled = this.state === "wheel" || this.state === "filling";
+    (this.list.querySelector(".nl-clear") as HTMLButtonElement).disabled = this.state === "filling";
     this.list.querySelector(".nl-rows li.selected")?.scrollIntoView({ block: "nearest" });
   }
 }

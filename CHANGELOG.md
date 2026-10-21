@@ -6,6 +6,16 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 ## Unreleased
 
 ### Changed
+- **Nations go anywhere in the world now, not just Europe.** Place your own nation
+  anywhere on Earth (except Antarctica), then keep making nations yourself or press
+  **Fill the world**: about 1,100–1,400 nations in about 4 seconds, and you can watch the
+  map fill up. Every piece of land ends up owned. Fill picks each nation's spot first
+  and then rolls a land size that fits the free land there, so islands get small nations
+  and the middle of a continent, settled late, still gets big ones. (The Europe test is
+  still in `public/data/placement.json`.)
+- **Mountains, highlands and rivers are much harder to cross** (mountains 15× plains
+  instead of 6×, highlands 3.5×, snow 4×, rivers 40×), so nations settle open land
+  first instead of pushing straight through mountain ranges.
 - **Land sizes are more balanced.** Big lands are rarer (360,000 km² or more: 20% → 12%
   of rolls; 535,000 or more: 10% → 5%) and so are the tiniest (under 25,000 km²: 18% →
   10%), so most nations are modest to large (60,000–360,000 km²: 49% → 64%).
