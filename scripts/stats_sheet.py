@@ -532,18 +532,53 @@ CATEGORY_FILLS = {
 
 def import_list(wb):
     """Reads the 'What you want it to give' column and writes those things into the stats file."""
+    ws = wb[LIST_TAB]
+    entries = []
+    for r in range(6, ws.max_row + 1):
+        wish, section, key, name = ws.cell(row=r, column=5).value, ws.cell(row=r, column=6).value, ws.cell(row=r, column=7).value, ws.cell(row=r, column=2).value
+        if section and wish is not None and str(wish).strip():
+            entries.append((f"Row {r} ({name})", name, wish, section, key))
+    apply_wishes(entries)
+
+
+def row_id(section, key):
+    """A row's id on the tuning page: 'results/government|khanate'."""
+    return f"{section}|{key}"
+
+
+def page_items():
+    """Everything the tuning page shows: the rows and the words it understands."""
+    stats = json.loads(STATS.read_text(encoding="utf8"))
+    wheels = json.loads(WHEELS.read_text(encoding="utf8"))
+    rows = [{"id": row_id("/".join(p), k), "cat": c, "name": n, "what": w, "now": now} for c, n, w, now, p, k in list_rows(stats, wheels)]
+    words = [{"id": f, "name": NAMES[f], "kind": KIND[f]} for f, _, _ in FACTORS]
+    return {"rows": rows, "stats": words, "aliases": ALIASES}
+
+
+def import_wishes(path):
+    """Reads the tuning page's answers ({"w": {row id: text}}, as saved in its database) into the stats file."""
+    data = json.loads(Path(path).read_text(encoding="utf8"))
+    wishes = data.get("w", data)
+    names = {r["id"]: r["name"] for r in page_items()["rows"]}
+    entries = []
+    for rid, wish in wishes.items():
+        if rid not in names or not str(wish or "").strip():
+            continue
+        section, key = rid.split("|", 1)
+        entries.append((names[rid], names[rid], wish, section, key))
+    apply_wishes(entries)
+
+
+def apply_wishes(entries):
+    """Writes (label, name, wish, section, key) rows into the stats file, changing only those lines."""
     stats = json.loads(STATS.read_text(encoding="utf8"))
     text = STATS.read_text(encoding="utf8")
-    ws = wb[LIST_TAB]
     problems = []
     changed = []
     pairs = {}  # score -> {0: mods, 1: mods} for the stability/popularity effects
-    for r in range(6, ws.max_row + 1):
-        wish, section, key, name = ws.cell(row=r, column=5).value, ws.cell(row=r, column=6).value, ws.cell(row=r, column=7).value, ws.cell(row=r, column=2).value
-        if not section or wish is None or not str(wish).strip():
-            continue
+    for label, name, wish, section, key in entries:
         try:
-            mods = understand(wish, f"Row {r} ({name})")
+            mods = understand(wish, label)
         except ValueError as e:
             problems.append(str(e))
             continue
@@ -588,8 +623,16 @@ if __name__ == "__main__":
         export_list(Path(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_LIST)
     elif cmd == "export-grid":
         export(Path(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_XLSX)
+    elif cmd == "page-items":
+        out = Path(sys.argv[2]) if len(sys.argv) > 2 else ROOT / "tuning/page-items.json"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(page_items(), ensure_ascii=False), encoding="utf8")
+        print(f"Wrote {out}")
     elif cmd == "import":
         file = Path(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_LIST
+        if file.suffix == ".json":
+            import_wishes(file)
+            sys.exit(0)
         book = load_workbook(file, data_only=True)
         if LIST_TAB in book.sheetnames:
             import_list(book)

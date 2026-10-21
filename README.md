@@ -373,7 +373,9 @@ what it gives now in plain words ("+30% recruit rate, +20 aggression"). Write th
 the yellow column, save, and `python scripts/stats_sheet.py import` puts it into the data
 file, changing only those lines (and says exactly what changed, or which row it couldn't
 read). `export-grid` makes the same as a grid, one column per number, with the starting
-values too. Needs Python with
+values too. The same list also lives on a private Claude page (the "Stat Ledger") where you
+can type your changes in the browser; `page-items` makes its list, and `import <answers>.json`
+reads its saved answers (`{"w": {row id: text}}`) back in the same way. Needs Python with
 `openpyxl` (`pip install openpyxl`).
 
 In the dev server's console, **`game.checkStats()`** prints the smallest, typical and
