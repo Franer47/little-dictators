@@ -1,8 +1,12 @@
-"""The stats spreadsheet: every wheel result (governments, ideologies, history, traits,
-resources…) and what it gives, as an Excel workbook you can tune, and back again.
+"""The stats spreadsheet: everything that gives a nation stats (governments, ideologies,
+history, traits, wealth, resources, land, stability…) and what it gives, as an Excel file you
+can change, and back again.
 
-    python scripts/stats_sheet.py export [file.xlsx]   # data file -> workbook (default tuning/1500-stats.xlsx)
-    python scripts/stats_sheet.py import [file.xlsx]   # workbook -> public/data/eras/1500-stats.json
+    python scripts/stats_sheet.py export [file.xlsx]       # the list: one row per thing, in plain words
+                                                         # (default tuning/1500-stats-list.xlsx)
+    python scripts/stats_sheet.py export-grid [file.xlsx]  # the same as a grid, one column per number
+                                                         # (default tuning/1500-stats.xlsx)
+    python scripts/stats_sheet.py import [file.xlsx]       # either one -> public/data/eras/1500-stats.json
 
 Export reads public/data/eras/1500-stats.json (the numbers) and public/data/eras/1500.json
 (names, descriptions, chart positions). Import writes the numbers you changed back into the
@@ -380,12 +384,216 @@ def set_line(text, path, key, value):
     return "\n".join(lines)
 
 
+# ---------------------------------------------------------------- the list: one row per thing, in plain words
+
+DEFAULT_LIST = ROOT / "tuning/1500-stats-list.xlsx"
+LIST_TAB = "Everything"
+NAMES = {fid: name.lower() for fid, name, _ in FACTORS}
+# Other words people might use for a number.
+ALIASES = {
+    "recruits": "recruitRate", "recruit": "recruitRate", "manpower": "recruitRate",
+    "army size": "armyShare", "standing army": "armyShare", "army cost": "soldierCost", "soldier cost": "soldierCost",
+    "quality": "armyQuality", "taxes": "taxRate", "tax": "taxRate", "admin": "adminCost", "court": "adminCost",
+    "treasury": "treasuryYears", "money": "treasuryYears", "growth": "growthRate", "population growth": "growthRate",
+    "food": "food", "navy": "naval", "naval": "naval", "defense": "defence",
+}
+
+# Rows that aren't wheel results: (category, name, what it is, json path, key).
+LAND_ROWS = [
+    ("Land type", "Plains", "Flat farmland. Effects are scaled by its share of the land (all plains = all of it).", ["terrain"], "Plains"),
+    ("Land type", "Highlands", "Hills and plateaus. Scaled by its share of the land.", ["terrain"], "Highlands"),
+    ("Land type", "Mountains", "High mountains. Scaled by its share of the land.", ["terrain"], "Mountains"),
+    ("Land type", "Snow", "Tundra in the far north. Scaled by its share of the land.", ["terrain"], "Snow"),
+    ("Land type", "Rivers (owned)", "River pixels the nation owns. Scaled by their share of the land.", ["terrain"], "River"),
+    ("Coast & rivers", "Coast", "Scaled by how much of the land touches the sea or a lake (an island = all of it, one side = half).", ["access"], "coast"),
+    ("Coast & rivers", "Rivers", "Scaled by how much of the land is on a river bank.", ["access"], "river"),
+    ("Coast & rivers", "Water borders", "Scaled by how much of its border is water instead of land (an island = all of it).", ["access"], "waterBorder"),
+    ("Coast & rivers", "Landlocked", "A nation with no coast at all.", ["access"], "landlocked"),
+    ("Coast & rivers", "Land overseas", "A nation whose land is in more than one piece.", ["access"], "overseas"),
+    ("Nation chart", "Nationalist side", "The right (nationalist, tyrannical) side of the chart; scaled by how far right. The left side gets the opposite.", ["chart"], "x"),
+    ("Nation chart", "Good life", "The top (good life) of the chart; scaled by how high. The bottom (miserable) gets the opposite.", ["chart"], "y"),
+]
+CATEGORIES = [
+    ("Government", "government"), ("Ideology", "ideology"), ("History", "history"), ("Bonus trait", "bonus"),
+    ("Golden trait", "golden"), ("Wealth", "wealth"), ("Resource", "resource"),
+    ("Stability word", "stability"), ("Popularity word", "acceptance"),
+]
+
+
+def describe(mods):
+    """{"recruitRate": "+30%", "aggression": "+20"} -> '+30% recruit rate, +20 aggression'."""
+    parts = []
+    for fid, text in mods.items():
+        if fid == "about":
+            continue
+        t = str(text).replace("−", "-")
+        parts.append(f"{t} {NAMES.get(fid, fid)}")
+    return ", ".join(parts)
+
+
+def understand(text, where):
+    """'+30% recruit rate, -5 stability' -> {"recruitRate": "+30%", "stability": "-5"}; 'none' -> {}."""
+    import re
+
+    t = str(text).strip()
+    if t.lower() in ("none", "nothing", "-", "no effect", "0"):
+        return {}
+    out = {}
+    for part in re.split(r"[,;\n]+|\band\b", t):
+        part = part.strip()
+        if not part:
+            continue
+        m = re.match(r"^([+\-−]?\s*\d+(?:[.,]\d+)?)\s*(%?)\s*(.+)$", part) or re.match(r"^([×x*]\s*\d+(?:[.,]\d+)?)\s*()(.+)$", part)
+        if not m:
+            raise ValueError(f"{where}: I can't read '{part}'. Write it like '+30% recruit rate' or '-5 stability'.")
+        number, pct, name = m.group(1).replace(" ", "").replace(",", ".").replace("−", "-"), m.group(2), m.group(3).strip().lower().rstrip(".")
+        fid = next((f for f, n in NAMES.items() if n == name or f.lower() == name), None) or ALIASES.get(name)
+        if not fid:
+            raise ValueError(f"{where}: '{name}' isn't a stat I know. Use one of: {', '.join(NAMES.values())}.")
+        if number[0] in "×x*":
+            out[fid] = "×" + number[1:]
+            continue
+        if KIND[fid] == "pct" and not pct:
+            raise ValueError(f"{where}: {NAMES[fid]} changes by a percentage; write it like '{number}% {NAMES[fid]}'.")
+        if KIND[fid] == "pts" and pct:
+            raise ValueError(f"{where}: {NAMES[fid]} is in points; write it like '{number} {NAMES[fid]}' (no %).")
+        value = float(number) / (100 if pct else 1)
+        out[fid] = fmt(value, KIND[fid])
+    return out
+
+
+def list_rows(stats, wheels):
+    """Every thing that gives stats: (category, name, what it is, current stats, json path, key)."""
+    rows = []
+    for category, wheel_id in CATEGORIES:
+        mods = stats["results"].get(wheel_id, {})
+        for s in wheel_slices(wheels, wheel_id):
+            name = s["label"] + (" (rare)" if s.get("rare") else "")
+            rows.append((category, name, s.get("blurb", ""), describe(mods.get(s["id"], {})), ["results", wheel_id], s["id"]))
+    for category, name, what, path, key in LAND_ROWS:
+        section = stats[path[0]]
+        rows.append((category, name, what, describe(section.get(key, {})), path, key))
+    for score in ("stability", "popularity"):
+        effects = stats["scoreEffects"].get(score, {})
+        for end, label in ((0, f"{score.capitalize()} at 0"), (1, f"{score.capitalize()} at 100")):
+            mods = {fid: pair[end] for fid, pair in effects.items() if fid != "about"}
+            what = f"What a nation at {score} {'0 (the worst)' if end == 0 else '100 (the best)'} gets; at 50 nothing, at 25 half of the 0 row, at 75 half of the 100 row."
+            rows.append((f"{score.capitalize()} effects", label, what, describe(mods), ["scoreEffects", score], f"@{end}"))
+    return rows
+
+
+def export_list(path):
+    stats = json.loads(STATS.read_text(encoding="utf8"))
+    wheels = json.loads(WHEELS.read_text(encoding="utf8"))
+    wb = Workbook()
+    ws = wb.active
+    ws.title = LIST_TAB
+    cell(ws, 1, 1, "Everything that gives a nation stats, and what it gives now", bold=True, size=14, color=GOLD)
+    cell(ws, 2, 1, "To change a thing, write its full new list in the yellow column, in the same words as 'Gives now' (e.g.  +30% recruit rate, +20 aggression, -5 stability). "
+                    "It replaces 'Gives now' completely, so copy that and change what you want. Leave it empty to keep it as it is; write  none  to make it give nothing.", italic=True)
+    cell(ws, 3, 1, "Stats: " + ", ".join(f"{NAMES[f]} ({'%' if KIND[f] == 'pct' else 'points'})" for f, _, _ in FACTORS) + ".", size=9, color="7A6F58")
+    heads = ["Category", "Name", "What it is", "Gives now", "What you want it to give", "section", "key"]
+    for i, h in enumerate(heads, start=1):
+        cell(ws, 5, i, h, bold=True, color="F1E8D4", fill=HEAD_FILL)
+    yellow = PatternFill("solid", fgColor="FFF2A8")
+    last = None
+    r = 6
+    for category, name, what, now, path_, key in list_rows(stats, wheels):
+        if category != last and last is not None:
+            r += 1  # a gap between categories
+        last = category
+        cat_fill = PatternFill("solid", fgColor=CATEGORY_FILLS.get(category, "F3EEE2"))
+        cell(ws, r, 1, category, bold=True, fill=cat_fill)
+        cell(ws, r, 2, name, bold=True)
+        cell(ws, r, 3, what, color="5A5040", align=Alignment(wrap_text=True, vertical="top"))
+        cell(ws, r, 4, now or "(nothing)", color=INK if now else "9A8F78", align=Alignment(wrap_text=True, vertical="top"))
+        c = cell(ws, r, 5, None, fill=yellow, align=Alignment(wrap_text=True, vertical="top"))
+        c.border = BOX
+        cell(ws, r, 6, "/".join(path_), size=8, color="A89F8A")
+        cell(ws, r, 7, key, size=8, color="A89F8A")
+        for col in range(1, 5):
+            ws.cell(row=r, column=col).border = BOX
+        r += 1
+    for i, w in enumerate([16, 30, 46, 52, 52, 14, 18], start=1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+    ws.freeze_panes = "C6"
+    ws.auto_filter.ref = f"A5:G{r - 1}"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    wb.save(path)
+    print(f"Wrote {path}")
+
+
+CATEGORY_FILLS = {
+    "Government": "F6DCD6", "Ideology": "E9DDF6", "History": "F8EBC8", "Bonus trait": "DDE8F2", "Golden trait": "FBEAB0",
+    "Wealth": "F6EFC8", "Resource": "DCEFD6", "Stability word": "E2ECF4", "Popularity word": "F6DDE6",
+    "Land type": "EADFCB", "Coast & rivers": "D8E9F4", "Nation chart": "ECE6DA", "Stability effects": "E2ECF4", "Popularity effects": "F6DDE6",
+}
+
+
+def import_list(wb):
+    """Reads the 'What you want it to give' column and writes those things into the stats file."""
+    stats = json.loads(STATS.read_text(encoding="utf8"))
+    text = STATS.read_text(encoding="utf8")
+    ws = wb[LIST_TAB]
+    problems = []
+    changed = []
+    pairs = {}  # score -> {0: mods, 1: mods} for the stability/popularity effects
+    for r in range(6, ws.max_row + 1):
+        wish, section, key, name = ws.cell(row=r, column=5).value, ws.cell(row=r, column=6).value, ws.cell(row=r, column=7).value, ws.cell(row=r, column=2).value
+        if not section or wish is None or not str(wish).strip():
+            continue
+        try:
+            mods = understand(wish, f"Row {r} ({name})")
+        except ValueError as e:
+            problems.append(str(e))
+            continue
+        path_ = section.split("/")
+        if path_[0] == "scoreEffects":
+            pairs.setdefault(path_[1], {})[int(key[1:])] = mods
+            continue
+        old = stats[path_[0]] if len(path_) == 1 else stats[path_[0]].get(path_[1], {})
+        prev = old.get(key, {})
+        ordered = {k: mods[k] for k in prev if k in mods}
+        ordered.update({k: v for k, v in mods.items() if k not in ordered})
+        if ordered != {k: v for k, v in prev.items() if k != "about"}:
+            changed.append(f"{name}: {describe(prev) or 'nothing'}  ->  {describe(ordered) or 'nothing'}")
+            text = set_line(text, path_, key, one_line(ordered) if ordered else None)
+    for score, ends in pairs.items():
+        effects = {k: v for k, v in stats["scoreEffects"][score].items() if k != "about"}
+        lo = ends.get(0, {fid: p[0] for fid, p in effects.items()})
+        hi = ends.get(1, {fid: p[1] for fid, p in effects.items()})
+        for fid in list(dict.fromkeys([*effects, *lo, *hi])):
+            zero = "+0%" if KIND[fid] == "pct" else "+0"
+            pair = [lo.get(fid, zero), hi.get(fid, zero)]
+            if pair == [zero, zero]:
+                if fid in effects:
+                    changed.append(f"{score} effect on {NAMES[fid]}: removed")
+                    text = set_line(text, ["scoreEffects", score], fid, None)
+            elif pair != effects.get(fid):
+                changed.append(f"{score} effect on {NAMES[fid]}: {effects.get(fid)} -> {pair}")
+                text = set_line(text, ["scoreEffects", score], fid, one_line(pair))
+    if problems:
+        print("Nothing imported yet; please fix these rows first:\n  " + "\n  ".join(problems))
+        sys.exit(1)
+    json.loads(text)  # still valid JSON
+    STATS.write_text(text, encoding="utf8")
+    print(f"Updated {STATS.relative_to(ROOT)}: {len(changed)} changes.")
+    for line in changed:
+        print("  " + line)
+
+
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else ""
-    file = Path(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_XLSX
     if cmd == "export":
-        export(file)
+        export_list(Path(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_LIST)
+    elif cmd == "export-grid":
+        export(Path(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_XLSX)
     elif cmd == "import":
-        import_(file)
+        file = Path(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_LIST
+        book = load_workbook(file, data_only=True)
+        if LIST_TAB in book.sheetnames:
+            import_list(book)
+        else:
+            import_(file)
     else:
         print(__doc__)

@@ -365,13 +365,15 @@ is added as is, and `"×0"` multiplies the result. A typo (an unknown wheel, sli
 or terrain, or a modifier like `"+30 percent"`) stops the game with a message that says
 exactly where the mistake is.
 
-**The stats spreadsheet.** To tune many numbers at once, use the workbook: every government,
-ideology, history, trait, wealth level and resource is a row, and every number a column
-(green raises it, red lowers it). `python scripts/stats_sheet.py export` writes it to
-`tuning/1500-stats.xlsx` (not kept in git; the JSON file is the real copy), and after you've
-edited and saved it, `python scripts/stats_sheet.py import` puts your numbers back into the
-data file, changing only the lines you changed. It also has tabs for what stability and
-popularity do to everything and for each number's starting value. Needs Python with
+**The stats spreadsheet.** To tune many things at once: `python scripts/stats_sheet.py export`
+writes `tuning/1500-stats-list.xlsx` (not kept in git; the JSON file is the real copy), one
+row for everything that gives stats (every government, ideology, history, trait, wealth
+level, resource, land type, coast, the chart, and what stability and popularity do), with
+what it gives now in plain words ("+30% recruit rate, +20 aggression"). Write the new list in
+the yellow column, save, and `python scripts/stats_sheet.py import` puts it into the data
+file, changing only those lines (and says exactly what changed, or which row it couldn't
+read). `export-grid` makes the same as a grid, one column per number, with the starting
+values too. Needs Python with
 `openpyxl` (`pip install openpyxl`).
 
 In the dev server's console, **`game.checkStats()`** prints the smallest, typical and
