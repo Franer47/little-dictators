@@ -215,6 +215,11 @@ The wheel setup is fully configurable, per wheel:
      by filling **Europe with ~15 nations** one after another. **Only land size matters**
      here: no stats or bonuses affect it yet. Once it works it becomes the normal start.
 
+   - **2e. Better placement (next):** territory grows as a **compact blob** (no long
+     snakes or peninsulas across the map). Random/auto starts **prefer coasts and
+     riverbanks**, so the inland gaps between nations stay open for new nations later.
+     If it looks good, Fill Europe goes to **100%**. The nation list shows only the
+     **top 3 + your nation**, with an arrow to open the full list.
 3. **Stats matter** — wheel results turn into real numbers: derived values such as army
    strength, growth rate, stability, economy.
 4. **Ticks + basic simulation** — the clock runs; growth and peaceful expansion into empty
