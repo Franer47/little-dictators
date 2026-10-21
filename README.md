@@ -218,7 +218,7 @@ left · 48% already taken" (the picture below is from the Europe test). So natio
 ![The land wheel when Europe is half taken](docs/land-wheel-room.jpg)
 
 Tune it in **`public/data/placement.json`**: which region nations go in (`region`:
-`"world"`, or `"europe"` for the Europe test, which fills Europe with 70–90 nations), each
+`"world"`, or `"europe"` for the Europe test, which fills Europe with 70–95 nations), each
 region's outline (longitude/latitude points), how often random starts pick a coast or riverbank (`start.coastPreference`), the
 smallest gap they use (`start.minGap`) and the smallest enclave (`start.enclaveArea`), how
 much of the land **Fill** covers (`fill.percent`; 100 = until no gap has room for
