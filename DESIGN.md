@@ -188,7 +188,9 @@ The wheel setup is fully configurable, per wheel:
        resources (×3, no repeats) → Ideology → History → Stability → Popularity → Bonus
        spin → Golden spin. **Culture and Religion are switched off** for now (lists kept
        in the data file with `"off": true`).
-     - **Chained numbers:** land 2,000–535,000 km² (max 1.5× Germany) with a size
+     - **Chained numbers:** land 2,000–800,000 km² (max ≈2.25× Germany; raised from
+       535,000 on 2026-10-20 with 3 new slices Immense/Colossal/Titanic; land odds 8/10/13/
+       16/18/15/10/5/3/2%) with a size
        comparison; density 0.5–60/km²; output $900–3,100 per person (Maddison 1500, in
        today's dollars). Population = land × density, GDP = population × output.
      - **Rare pulls:** a thin black slice (1.5%) on Government and Ideology opens a dark
