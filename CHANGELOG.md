@@ -76,9 +76,16 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
   are hard to hold together. Point at any stat to see where the number comes from. All the
   numbers are in `public/data/eras/1500-stats.json`, so they're easy to tune. They don't
   change over time yet (that comes with the clock).
-- **Your nation's numbers in the top-left corner:** treasury and yearly gain or loss,
+- **Your nation's numbers in a strip across the top:** treasury and yearly gain or loss,
   population and growth, stability, popularity, army, development and what the people
   believe. Click the name to open your nation.
+- **Armies on the map.** Every nation's army is split into divisions of 400 troops, each a
+  little flag along its borders. Zoom in close to see them (nearby flags merge into one with
+  the total). Click a flag or the **Army** button to see a nation's divisions; for your own
+  nation you can ask for a new division or a bigger one, and it agrees or refuses (not
+  enough money, men or stability) and tells you why.
+- **Nation names on the map**, written across each nation's land, tilted along it and sized
+  to fit.
 - **Ideology mix and development.** The people are now split between several ideologies
   (the rolled one is the biggest, more so in a stable nation), and every nation has a
   development level from 0 to 100.

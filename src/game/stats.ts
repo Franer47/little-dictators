@@ -17,6 +17,7 @@ import type { GameMap } from "../map/gameMap.ts";
 import type { Nation, WheelOutcome } from "./nation.ts";
 import { compactNumber } from "./numbers.ts";
 import { createRng } from "./random.ts";
+import type { DivisionRules } from "./army.ts";
 import type { Wheel, WheelData } from "./wheels.ts";
 
 // ---------------------------------------------------------------- the data file
@@ -85,6 +86,7 @@ export interface StatsData {
   /** Development points per point of trade and cohesion. */
   development: { trade: number; cohesion: number };
   ideology?: IdeologyRules;
+  divisions: DivisionRules;
   numberSuffixes: string[];
 }
 
@@ -298,7 +300,17 @@ export function parseStatsData(raw: unknown, wheels: WheelData, url: string): St
     };
   }
 
+  const div = section("divisions");
+  const divisions: DivisionRules = {
+    size: num(div.size, "divisions.size"),
+    growBy: num(div.growBy, "divisions.growBy"),
+    maxSize: num(div.maxSize, "divisions.maxSize"),
+    minStability: num(div.minStability, "divisions.minStability"),
+  };
+  if (!(divisions.size > 0) || divisions.maxSize < divisions.size) fail(`divisions: "size" must be above 0 and "maxSize" at least "size"`);
+
   return {
+    divisions,
     scoreEffects,
     development: { trade: num(dev.trade, "development.trade"), cohesion: num(dev.cohesion, "development.cohesion") },
     ideology,
@@ -538,6 +550,8 @@ export interface StatSheet {
   land: LandFacts;
   /** The people's ideologies, biggest first (empty if the data has no "ideology" rules). */
   ideologies: IdeologyShare[];
+  /** The peacetime army before any divisions the player asked for. */
+  baseArmy: number;
 }
 
 interface Contribution {
@@ -547,8 +561,11 @@ interface Contribution {
   scale: number;
 }
 
-/** Works out a nation's stat sheet from its wheel results and its land. */
-export function statSheet(nation: Nation, land: LandFacts, data: StatsData): StatSheet {
+/**
+ * Works out a nation's stat sheet from its wheel results and its land. `extraTroops` are
+ * soldiers the player asked for (army requests, src/game/army.ts) on top of the peacetime army.
+ */
+export function statSheet(nation: Nation, land: LandFacts, data: StatsData, extraTroops = 0): StatSheet {
   const sfx = data.numberSuffixes;
   const people = (v: number): string => compactNumber(Math.max(0, Math.round(v)), sfx);
   const money = (v: number): string => (v < 0 ? "−" : "") + "$" + compactNumber(Math.abs(Math.round(v)), sfx);
@@ -647,7 +664,8 @@ export function statSheet(nation: Nation, land: LandFacts, data: StatsData): Sta
   const manpower = population * f("recruitRate");
   const wanted = manpower * f("armyShare");
   const affordable = (income * f("armyBudget")) / f("soldierCost");
-  const army = Math.max(0, Math.min(wanted, affordable));
+  const baseArmy = Math.max(0, Math.min(wanted, affordable));
+  const army = baseArmy + extraTroops;
   const armyCost = army * f("soldierCost");
   const admin = income * f("adminCost");
   const upkeep = armyCost + admin;
@@ -708,6 +726,7 @@ export function statSheet(nation: Nation, land: LandFacts, data: StatsData): Sta
         affordable < wanted
           ? `Capped: it can only pay for ${people(affordable)} (income ${money(income)} × army budget ${pctText(f("armyBudget"), 0)} ÷ ${money(f("soldierCost"))} a soldier)`
           : `It could pay for up to ${people(affordable)} (income ${money(income)} × army budget ${pctText(f("armyBudget"), 0)} ÷ ${money(f("soldierCost"))} a soldier)`,
+        ...(extraTroops ? [`Divisions you asked for: +${people(extraTroops)}`] : []),
         ...indent("armyShare"),
         ...indent("soldierCost"),
         ...indent("armyBudget"),
@@ -775,7 +794,7 @@ export function statSheet(nation: Nation, land: LandFacts, data: StatsData): Sta
     naval: score("naval"),
     cohesion: score("cohesion"),
   };
-  return { stats, factors, land, ideologies };
+  return { stats, factors, land, ideologies, baseArmy };
 }
 
 /**

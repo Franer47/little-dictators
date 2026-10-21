@@ -153,7 +153,7 @@ async function main(): Promise<void> {
     onClick: (sx, sy) => {
       const p = pixelUnder(sx, sy);
       if (!p) return;
-      if (placement) placement.click(...p);
+      if (placement) placement.click(...p, sx, sy);
       else console.log("Clicked", describe(...p));
       updateHover();
     },

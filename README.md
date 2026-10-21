@@ -267,12 +267,14 @@ comes from, e.g. "Manpower 80K = Population 2.93M × recruit rate 2.7%: Base 2% 
 Order +20% · Fanatical +15% · Highlands (30% of land) +1.5%". The ▾ next to "Stats" folds
 the sheet away (remembered).
 
-**Your own nation's key numbers** stay in the **top-left corner**: treasury (and how much it
-gains or loses a year), population and growth, stability, popularity, army, development and
-the ideology mix. Point at any of them for the breakdown, or click the name to open your
-nation. (The game's name and the ⓘ button for map info moved to the bottom-left corner.)
+**Your own nation's key numbers** run along a **strip across the top**: treasury (and how
+much it gains or loses a year), population and growth, stability, popularity, army,
+development and the ideology mix, plus the **Army** button. Point at any of them for the
+breakdown, or click the name to open your nation. (The game's name and the ⓘ button for map
+info are in the bottom-left corner.) Every nation's name is written across its land, tilted
+along it and as big as it fits, like on a Paradox map.
 
-![Your nation's bar, the stat sheet and a breakdown](docs/stats-panel.jpg)
+![The top strip, nation names and the stat sheet](docs/stats-panel.jpg)
 
 The stats come from the wheel results **and the land the nation actually got**: a nation
 boxed in by its neighbours has fewer people than it rolled, and mountains, coasts and
@@ -313,6 +315,30 @@ The four extra stats (defence, trade, naval reach, cohesion) are there because t
 simulation needs them: defence for wars and front lines, trade for income and contact
 between nations, naval reach for overseas invasions, and cohesion for revolts and
 breakaways.
+
+## Armies: divisions on the map
+
+Every nation's army is split into **divisions** of 400 troops, each a little flag in the
+nation's colour along its borders: its future front line (wars come in milestone 5). An
+island nation with only a small land border guards its coasts too. The flags only show when
+you **zoom in close**, so the map stays readable; there, a nation's flags that would overlap
+merge into one with their total, and zooming in further shows every division.
+
+Click a flag (or **Army** in the top strip) to open that nation's **Army section**: its
+troops, divisions, manpower, yearly cost and quality, and a list of its divisions. While it's
+open, that nation's flags show from further out too. For **your own** nation you can ask for:
+
+- **New division** (+400 troops), or
+- **Bigger** (+400 troops to the division you picked, up to 4,000).
+
+You only ask; your nation decides at once and says why. It refuses if it's too unstable
+(stability under 25), hasn't got the men (more than its manpower) or can't pay (its net
+income would go below zero). If it agrees, the new troops are added to its army and upkeep,
+and the flag is striped while they're **in training** (they'll take time once the clock
+exists). Other nations' armies you can look at but not change. The numbers are in
+`"divisions"` in `public/data/eras/1500-stats.json`.
+
+![Divisions along the borders and the Army section](docs/army.jpg)
 
 ### Tuning the stats
 
@@ -360,7 +386,12 @@ src/
   ui/startMenu.ts         the start screen: pick a map
   ui/wheel/               the wheel screen: flow, the two wheel looks, sounds, confetti
   ui/nationPanel.ts       the nation panel in the corner: stat sheet, creation record
-  ui/nationBar.ts         your nation's key numbers in the top-left corner
+  ui/nationBar.ts         the strip across the top: your nation's key numbers and the Army button
+  ui/armyPanel.ts         the Army section: divisions, and requests for new or bigger ones
+  game/army.ts            divisions: how many, where their flags stand, whether a nation agrees to a request
+  game/labels.ts          where each nation's name goes on the map
+  render/divisionLayer.ts draws the army flags (merged when zoomed out)
+  render/labelLayer.ts    draws the nation names
   ui/icons.ts             the small stat icons and meter colours
   ui/placement.ts         placing nations: the hint bar, nation list, Surprise me, Fill, Clear
   game/wheels.ts          loads the wheel data, spins (weighted random picks)

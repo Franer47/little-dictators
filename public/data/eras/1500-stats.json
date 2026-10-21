@@ -110,6 +110,14 @@
     "about": "The standing army is manpower × 'kept under arms', but never more than army budget × income ÷ cost per soldier (it has to be paid)."
   },
 
+  "divisions": {
+    "about": "The army on the map: it's split into divisions of 'size' troops, each a little flag along the nation's borders. In your nation's Army section you can ask for a new division ('size' troops) or a bigger one ('growBy' more, up to 'maxSize'). The nation says no if its stability is under 'minStability', if it hasn't got the men (manpower) or if it can't pay for them (net income would go below zero).",
+    "size": 400,
+    "growBy": 400,
+    "maxSize": 4000,
+    "minStability": 25
+  },
+
   "growth": {
     "about": "Growth per year = birth rate × (1 − food used). At 60% of the food used it grows at 40% of the birth rate; over 100% it shrinks. Kept between 'min' and 'max'.",
     "min": -0.02,
