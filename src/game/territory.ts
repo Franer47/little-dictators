@@ -54,7 +54,7 @@ export interface SpotRules {
 }
 
 export interface FillRules {
-  /** Fill stops when this share (%) of the region's land is owned… */
+  /** Fill stops making new nations when this share (%) of the region's land is owned (then neighbours take the rest)… */
   percent: number;
   /** …or when no gap has room for a nation of at least this many km²… */
   minArea: number;
@@ -63,7 +63,7 @@ export interface FillRules {
   maxAttempts: number;
   /** Fill places about one nation per this many km² of free land per look at the map (speed). */
   batchArea: number;
-  /** At the end of a 100% fill, nations spread up to this many pixels into the leftover land and islands. */
+  /** At the end of a fill, nations spread up to this many pixels at a time into the leftover land and islands. */
   absorbSteps: number;
 }
 

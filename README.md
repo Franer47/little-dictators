@@ -157,7 +157,7 @@ server only):
 
 ## Placing nations (the whole world)
 
-![The world filled with 1,385 nations](docs/world-filled.jpg)
+![The world filled with 790 nations](docs/world-filled.jpg)
 
 After **Continue to map** you choose where your nation goes, **anywhere on Earth** (except
 Antarctica). Then either keep making nations yourself (**Next nation**), or press **Fill the
@@ -168,26 +168,27 @@ show each nation's **colour**, which is its flag for now.
   me (and Fill) start nations on a **coast or riverbank** whenever one with room is left,
   away from other nations, so the water closes off one side and the land grows into a
   fuller shape instead of snaking off; the inland gaps left between them are filled by
-  later nations. They never start in a gap smaller than 20,000 km², or in a pocket
-  surrounded by just one nation, so no dot-sized nations end up stuck inside big ones;
-  those bits go to the nations around them at the end of a fill. The dashed circle under the
+  later nations. They never start in a gap smaller than 60,000 km², or in a pocket
+  surrounded by just one nation (unless it's at least 150,000 km²), so no clusters of
+  dot-sized nations fill the gaps between big ones; those bits go to the nations around
+  them at the end of a fill. The dashed circle under the
   mouse is roughly how big the nation will get; a red cross means it can't start there
   (sea, lakes, rivers, ice or another nation).
 - The land then **grows out from that spot** in a second or two. Only the rolled land size
   matters for now (a golden "Double land" simply means more land).
 - **Next nation** goes back to the wheel for another one. The list in the top-right corner
-  shows the **top 3 nations by land plus yours** (marked "You"), under e.g. "1385 nations ·
+  shows the **top 3 nations by land plus yours** (marked "You"), under e.g. "790 nations ·
   100% of the world". The arrow opens the full list (biggest first, it scrolls) and closes it
   again; it remembers your choice. Click a row, or a nation on the map, to see it in the
   corner panel. Hovering the map shows who owns the land.
-- **Fill the world** rolls and places nations until **no gap is left with room for another
-  nation**: usually 1,100–1,400 nations, in about 4 seconds, and you can watch the map fill
+- **Fill the world** rolls and places nations until **95% of the land is taken** (or no gap
+  of 60,000 km² is left): usually 800–1,000 nations, in about 3 seconds, and you can watch the map fill
   up ("Filling the world… 241 nations · 28%"). Coasts and riverbanks fill first, then the
   inland gaps. Fill picks each nation's spot first and then rolls its land size for the
   free patch around it: sizes that wouldn't fit there are left off the wheel, so an island
   gets an island-sized nation while the middle of Africa, settled late, still gets big
-  ones. Then the **leftover bits** (small islands, slivers between borders) go to the
-  nearest nations, which spread up to 10 pixels at a time into them (across water to
+  ones. Then the **last 5% and the leftover bits** (small gaps, islands, slivers between
+  borders) go to the nearest nations instead of to lots of tiny new ones, which spread up to 10 pixels at a time into them (across water to
   reach islands), so **every piece of land is owned** when the game starts. Fill picks colours so
   that nations that touch never share one (with 60+ nations, colours repeat elsewhere).
   **Clear** removes them all.
@@ -218,11 +219,11 @@ left · 48% already taken" (the picture below is from the Europe test). So natio
 ![The land wheel when Europe is half taken](docs/land-wheel-room.jpg)
 
 Tune it in **`public/data/placement.json`**: which region nations go in (`region`:
-`"world"`, or `"europe"` for the Europe test, which fills Europe with 70–95 nations), each
+`"world"`, or `"europe"` for the Europe test, which fills Europe with 55–70 nations), each
 region's outline (longitude/latitude points), how often random starts pick a coast or riverbank (`start.coastPreference`), the
 smallest gap they use (`start.minGap`) and the smallest enclave (`start.enclaveArea`), how
-much of the land **Fill** covers (`fill.percent`; 100 = until no gap has room for
-`fill.minArea` km², plus caps on nations and tries), the cost of each terrain, the wobble,
+much of the land **Fill** gives to new nations before the neighbours take the rest
+(`fill.percent`, 95), plus caps on nations and tries, the cost of each terrain, the wobble,
 the biggest hole that gets filled (`holeSize`), how far nations spread into the leftovers
 per round (`fill.absorbSteps`), how many nations Fill places per look at the map
 (`fill.batchArea`, for speed), and the colour list.

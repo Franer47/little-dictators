@@ -334,11 +334,12 @@ export class Placement {
         fresh = false;
       } else placeAnywhere(pending);
     }
-    // A full fill ends with the leftovers (small islands, slivers between borders) going to the
-    // nearest nations, so the whole region is owned when the game starts.
+    // The fill ends with the leftovers (the last few % of the land: small gaps, islands, slivers
+    // between borders) going to the nearest nations, so the whole region is owned when the game
+    // starts, instead of being filled with lots of tiny late nations.
     // Rounds of `absorbSteps` pixels each while that still takes land, then one last pass with
     // no limit for far-off islands (e.g. Jan Mayen), which go to the nearest nation.
-    if (percent >= 100) {
+    if (absorbSteps > 0) {
       for (let round = 0; round <= 10; round++) {
         const gained = this.territory.absorbLeftovers(this.region, round < 10 ? absorbSteps : 30000);
         for (const [, pixels] of gained) this.layer.reveal(pixels);
@@ -351,8 +352,7 @@ export class Placement {
     }
     this.pending = null;
     this.state = "idle";
-    // Stopping because the gaps left are too small for another nation is the normal end of a 100% fill.
-    this.note = full && percent < 100 ? `No room for more nations in ${this.regionName}.` : "";
+    this.note = "";
     if (lastId) this.showNation(lastId);
     this.update();
     this.opts.requestRender();
@@ -487,7 +487,7 @@ export class Placement {
       </header>
       <ol class="nl-rows"></ol>
       <footer>
-        <button type="button" class="nl-fill" title="Testing shortcut: roll and place nations at random until ${this.opts.data.fill.percent < 100 ? `${this.opts.data.fill.percent}% of ${escapeHtml(this.regionName)}'s land is taken` : `there's no room left in ${escapeHtml(this.regionName)}`}">Fill ${escapeHtml(this.regionName)}</button>
+        <button type="button" class="nl-fill" title="Make and place nations until ${this.opts.data.fill.percent}% of ${escapeHtml(this.regionName)}'s land is taken; then the nations spread into what's left">Fill ${escapeHtml(this.regionName)}</button>
         <button type="button" class="nl-clear" title="Remove every nation from the map">Clear</button>
       </footer>`;
     document.body.append(this.bar, this.list);

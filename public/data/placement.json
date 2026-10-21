@@ -22,13 +22,13 @@
   "start": {
     "about": "Where 'Surprise me' and Fill put nations. coastPreference: how often (0 to 1) they pick a spot next to the sea, a lake or a river while there is one with room. The water closes off one side, so nations don't snake out in every direction, and the inland gaps left between them are filled by later nations. They also never start a nation in a free pocket of land smaller than minGap km², or in a pocket surrounded by only one nation (an enclave) smaller than enclaveArea km²; those pockets go to the nation around them at the end of a fill. Clicking by hand can go anywhere.",
     "coastPreference": 1,
-    "minGap": 20000,
-    "enclaveArea": 60000
+    "minGap": 60000,
+    "enclaveArea": 150000
   },
 
   "fill": {
-    "about": "The 'Fill' testing button rolls and places nations until 'percent' of the region's land is owned (100 = until no gap is left with room for a nation of at least 'minArea' km²). It also stops after maxNations nations or maxAttempts tries. At the end of a 100% fill, the leftover land (small islands, slivers between borders) goes to the nearest nations: each spreads 'absorbSteps' pixels into it at a time (across water too, to reach islands), repeated while that still takes land; far-off islands then go to the nearest nation. For speed, Fill looks over the free land once per batch of nations: about one nation per 'batchArea' km² of free land (up to 40 at a time on an empty world, one at a time near the end). Fill picks each nation's spot first and then rolls its land size for the free patch of land around it: sizes bigger than that patch shrink or go (like the land wheel's 'room' rule, but local), so an island gets an island-sized nation while the middle of a continent, settled late, still gets big ones.",
-    "percent": 100,
+    "about": "The 'Fill' button rolls and places new nations until 'percent' of the region's land is owned, or no gap is left with room for a nation of at least 'minArea' km² (or after maxNations nations or maxAttempts tries). Then the leftover land (small islands, slivers between borders) goes to the nearest nations: each spreads 'absorbSteps' pixels into it at a time (across water too, to reach islands), repeated while that still takes land; far-off islands then go to the nearest nation. For speed, Fill looks over the free land once per batch of nations: about one nation per 'batchArea' km² of free land (up to 40 at a time on an empty world, one at a time near the end). Fill picks each nation's spot first and then rolls its land size for the free patch of land around it: sizes bigger than that patch shrink or go (like the land wheel's 'room' rule, but local), so an island gets an island-sized nation while the middle of a continent, settled late, still gets big ones.",
+    "percent": 95,
     "minArea": 2000,
     "maxNations": 3000,
     "maxAttempts": 6000,
