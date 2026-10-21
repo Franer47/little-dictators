@@ -267,8 +267,12 @@ comes from, e.g. "Manpower 80K = Population 2.93M × recruit rate 2.7%: Base 2% 
 Order +20% · Fanatical +15% · Highlands (30% of land) +1.5%". The ▾ next to "Stats" folds
 the sheet away (remembered).
 
-![The stat sheet](docs/stats-panel.jpg)
-![A stat's breakdown](docs/stats-breakdown.png)
+**Your own nation's key numbers** stay in the **top-left corner**: treasury (and how much it
+gains or loses a year), population and growth, stability, popularity, army, development and
+the ideology mix. Point at any of them for the breakdown, or click the name to open your
+nation. (The game's name and the ⓘ button for map info moved to the bottom-left corner.)
+
+![Your nation's bar, the stat sheet and a breakdown](docs/stats-panel.jpg)
 
 The stats come from the wheel results **and the land the nation actually got**: a nation
 boxed in by its neighbours has fewer people than it rolled, and mountains, coasts and
@@ -289,13 +293,21 @@ rivers change food, defence, trade and ships. Money is in today's US dollars.
 | | **Growth** | % per year | Birth rate (about 0.5%/yr) × the room left on the land; negative when over its food. Stability, history, traits |
 | | **Food** | How many people the land can feed, and how much is used | Plains 45 people/km², highlands 18, mountains 6, snow 3; +50% on rivers, +20% on coasts; grain, rice, fish, cattle |
 | | **Stability** | How solid the state is (0–100) | The Stability wheel (Collapsing 5 … Rock solid 95), plus government and traits |
-| | **Popularity** | How the people feel about the ruler (0–100) | The Popularity wheel (Hated 5 … Revered 95), plus traits |
+| | **Popularity** | How the people feel about the ruler (0–100) | The Popularity wheel (Hated 5 … Revered 95), plus traits; it nudges stability, taxes and recruits |
+| | **Ideology** | What the people believe, in shares | The rolled ideology is the biggest group (35% when collapsing, 75% when rock solid); the rest follow the ideologies near the nation on the chart |
+| | **Development** | How advanced it is (0–100) | Wealth, trade, cohesion, learning (Scholarly, Humanist, golden age; Burns books lowers it) and stability |
 | Land & power | **Land** | km² it got, and what kind | Plains / highlands / mountains / snow, number of pieces, how compact |
 | | **Coast** | Coastline and riverbanks | Land pixels touching sea or lake, and rivers |
 | | **Defence** | How hard it is to invade (0–100) | Mountains (+60 if all mountains), highlands, rivers, water borders (an island +25), traits |
 | | **Trade** | How much it trades (0–100) | Coast, rivers, valuable resources (spices, silk…), Trade-minded, Seafaring, Merchant Republic |
 | | **Navy** | How far its ships reach (0–100) | Coast, Seafaring, timber, fish; a landlocked nation has none |
 | | **Cohesion** | How well the land holds together (0–100) | Land outside its main piece, number of islands/exclaves, how spread out it is; government and history |
+
+**Stability changes almost everything.** It isn't just a number on the sheet: the further
+it is from 50, the more it pushes taxes, recruits, growth, farming, savings, army quality,
+trade, cohesion and development up (stable) or down (unstable), and an unstable nation is
+a bit more aggressive. Every breakdown shows its share, e.g. "Stability 80 +3". The amounts
+are in `scoreEffects` in the data file (popularity has a few too).
 
 The four extra stats (defence, trade, naval reach, cohesion) are there because the coming
 simulation needs them: defence for wars and front lines, trade for income and contact
@@ -330,7 +342,7 @@ lists anything that looks absurd for 1500; `game.sheet(1)` is the first nation's
 | Move camera | Drag with the mouse, or WASD / arrow keys (hold Shift for faster) |
 | Zoom | Mouse wheel, or Q / E |
 | Zoom all the way out | F |
-| Map info (what's under the mouse) and the controls | the ⓘ button, top left |
+| Map info (what's under the mouse) and the controls | the ⓘ button, bottom left |
 
 ## Map edges
 
@@ -348,6 +360,8 @@ src/
   ui/startMenu.ts         the start screen: pick a map
   ui/wheel/               the wheel screen: flow, the two wheel looks, sounds, confetti
   ui/nationPanel.ts       the nation panel in the corner: stat sheet, creation record
+  ui/nationBar.ts         your nation's key numbers in the top-left corner
+  ui/icons.ts             the small stat icons and meter colours
   ui/placement.ts         placing nations: the hint bar, nation list, Surprise me, Fill, Clear
   game/wheels.ts          loads the wheel data, spins (weighted random picks)
   game/nation.ts          a nation and its creation record; chained numbers; name generator

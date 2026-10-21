@@ -24,9 +24,11 @@ body {
   cursor: grabbing;
 }
 
+/* The game's name and the ⓘ button (map info and controls), in the bottom-left corner;
+   the top-left corner is your nation's bar. */
 #hud {
   position: fixed;
-  top: 12px;
+  bottom: 12px;
   left: 12px;
   padding: 10px 14px;
   background: rgba(14, 22, 34, 0.82);

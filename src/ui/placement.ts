@@ -23,6 +23,7 @@ import { statSheet, surveyLand, type StatSheet, type StatsData } from "../game/s
 import type { LandRoom } from "../game/room.ts";
 import { runWheelScreen } from "./wheel/wheelScreen.ts";
 import { closeNationPanel, landText, showNationPanel } from "./nationPanel.ts";
+import { initNationBar, setNationBarHidden, showNationBar } from "./nationBar.ts";
 import { escapeHtml } from "./uiBits.ts";
 import { loadPref, savePref } from "./prefs.ts";
 
@@ -93,6 +94,10 @@ export class Placement {
     opts.renderer.territory = this.layer;
     this.rng = createRng(opts.seed ?? randomSeed());
     this.build();
+    initNationBar(() => {
+      const mine = this.nations.find((n) => n.mine);
+      if (mine && (this.state === "idle" || this.state === "growing")) this.showNation(mine.holding.id);
+    });
   }
 
   /** The first colour not in use yet (the first nation's colour is picked before the map exists). */
@@ -378,6 +383,7 @@ export class Placement {
     this.layer.clear();
     this.nations.length = 0;
     this.sheets = [];
+    showNationBar(null);
     this.shownId = 0;
     this.note = "";
     if (this.pending) {
@@ -403,6 +409,14 @@ export class Placement {
     const land = surveyLand(this.opts.map, owner, areas, this.nations.length);
     this.sheets = this.nations.map((n, i) => statSheet(n.nation, land[i], this.opts.stats));
     this.statsMs = performance.now() - t0;
+    this.updateNationBar();
+  }
+
+  /** The top-left bar shows your own nation's numbers (once it's on the map). */
+  private updateNationBar(): void {
+    const mine = this.nations.find((n) => n.mine);
+    const sheet = mine ? this.sheets[mine.holding.id - 1] : undefined;
+    showNationBar(mine && sheet ? { name: mine.nation.name, color: mine.color, sheet, data: this.opts.stats } : null);
   }
 
   /** The room left in the region now, for the land wheel. */
@@ -498,6 +512,7 @@ export class Placement {
   private setUiHidden(hidden: boolean): void {
     this.bar.hidden = hidden;
     this.list.hidden = hidden;
+    setNationBarHidden(hidden);
     if (hidden) closeNationPanel();
   }
 

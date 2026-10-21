@@ -1,0 +1,204 @@
+/* The top-left bar: your nation's key numbers. Shares the dark glass look of the other panels. */
+
+#nation-bar {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 5;
+  width: 248px;
+  padding: 8px 10px 10px;
+  color: #eef2f6;
+  background: linear-gradient(180deg, rgba(22, 34, 52, 0.92), rgba(12, 19, 30, 0.92));
+  border: 1px solid rgba(127, 180, 230, 0.28);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(6px);
+  font-size: 12.5px;
+  animation: nb-in 0.4s cubic-bezier(0.2, 1.3, 0.4, 1);
+}
+
+#nation-bar[hidden] {
+  display: none;
+}
+
+@keyframes nb-in {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+}
+
+.nb-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 2px 4px 8px;
+  margin-bottom: 4px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+}
+
+.nb-flag {
+  flex: none;
+  width: 30px;
+  height: 21px;
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35), 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.nb-title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.nb-you {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #7fb4e6;
+}
+
+.nb-name {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.nb-head:hover .nb-name {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.nb-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 5px;
+  border-radius: 6px;
+  cursor: help;
+}
+
+.nb-row:hover,
+.nb-row:focus-visible,
+.nb-ideology:hover,
+.nb-ideology:focus-visible {
+  background: rgba(127, 180, 230, 0.12);
+  outline: none;
+}
+
+.nb-row .icon,
+.nb-row-top .icon {
+  flex: none;
+  color: #7fb4e6;
+}
+
+.nb-label {
+  flex: 1;
+  color: rgba(238, 242, 246, 0.6);
+}
+
+.nb-value {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.nb-delta {
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.nb-delta.up {
+  color: #6fdc8c;
+}
+
+.nb-delta.down {
+  color: #ff7b72;
+}
+
+.nb-sub {
+  font-size: 11px;
+  color: rgba(238, 242, 246, 0.5);
+  white-space: nowrap;
+}
+
+.nb-meter {
+  display: inline-block;
+  width: 64px;
+  height: 6px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.nb-meter span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+}
+
+.nb-value b {
+  min-width: 18px;
+  text-align: right;
+}
+
+.nb-ideology {
+  padding: 4px 5px 2px;
+  border-radius: 6px;
+  cursor: help;
+}
+
+.nb-row-top {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.nb-stack {
+  display: flex;
+  height: 8px;
+  margin: 6px 0 5px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.nb-stack span {
+  height: 100%;
+}
+
+.nb-stack span + span {
+  box-shadow: inset 1px 0 0 rgba(12, 19, 30, 0.7);
+}
+
+.nb-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  font-size: 11px;
+  color: rgba(238, 242, 246, 0.75);
+}
+
+.nb-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.nb-legend-item i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}

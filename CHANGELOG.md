@@ -7,7 +7,9 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 
 ### Changed
 - **The map info is folded away.** What's under the mouse (terrain, height, position) and
-  the controls now hide behind the ⓘ button in the top left; click it to show them.
+  the controls now hide behind the ⓘ button in the bottom-left corner; click it to show them.
+- **A cleaner look for the panels:** small icons for every stat, coloured meters for the
+  0–100 scores, green and red for going up and down.
 - **Fairer nation sizes north and south.** The biggest-looking nations were all in Europe
   and the far north because the flat map stretches land away from the equator (a pixel in
   Europe covers about half the km² of one in Africa). A nation's land is now scaled
@@ -74,6 +76,14 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
   are hard to hold together. Point at any stat to see where the number comes from. All the
   numbers are in `public/data/eras/1500-stats.json`, so they're easy to tune. They don't
   change over time yet (that comes with the clock).
+- **Your nation's numbers in the top-left corner:** treasury and yearly gain or loss,
+  population and growth, stability, popularity, army, development and what the people
+  believe. Click the name to open your nation.
+- **Ideology mix and development.** The people are now split between several ideologies
+  (the rolled one is the biggest, more so in a stable nation), and every nation has a
+  development level from 0 to 100.
+- **Stability changes almost everything:** taxes, recruits, growth, farming, trade,
+  cohesion, development and more go up when a nation is stable and down when it isn't.
 - **Play it online.** The game is published to GitHub Pages at
   https://franer47.github.io/little-dictators/ and updates itself whenever something is
   merged into main, so friends can try it without installing anything.

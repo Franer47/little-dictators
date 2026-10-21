@@ -229,3 +229,19 @@
 #map.placing:not(.dragging) {
   cursor: crosshair;
 }
+
+/* On narrow screens the top corners are taken (your nation's bar and the nation list):
+   the hint bar fits between them, or moves to the bottom if it can't. */
+@media (max-width: 1180px) {
+  #place-bar {
+    max-width: calc(100vw - 2 * 290px);
+  }
+}
+
+@media (max-width: 860px) {
+  #place-bar {
+    top: auto;
+    bottom: 64px;
+    max-width: calc(100vw - 24px);
+  }
+}

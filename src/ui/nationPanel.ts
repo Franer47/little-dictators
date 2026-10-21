@@ -10,6 +10,7 @@ import { resultGroups, type WheelData } from "../game/wheels.ts";
 import type { StatSheet, StatsData } from "../game/stats.ts";
 import { escapeHtml, flagPlaceholder, formatText, hoverTips, nationChart, oddsText, outcomeTip } from "./uiBits.ts";
 import { loadPref, savePref } from "./prefs.ts";
+import { STAT_ICONS, icon, ideologyColor, scoreColor } from "./icons.ts";
 
 export interface PanelExtras {
   /** The nation's colour, shown as its flag. */
@@ -156,19 +157,39 @@ export function landText(land: { rolled: number; target?: number; actual?: numbe
 /** The stat sheet box: the stats in their groups, each with its breakdown on hover. */
 function statsBox(sheet: StatSheet, data: StatsData): string {
   const open = loadPref<boolean>("statsOpen", true);
+  // Scores (0–100) get a coloured meter; the ideology mix gets a stacked bar.
+  const scores = new Set(Object.entries(data.factors).filter(([, f]) => f.format === "score").map(([id]) => id));
+  const options = data.ideology?.options ?? [];
+  const mixBar = sheet.ideologies.length
+    ? `<span class="np-mix">${sheet.ideologies
+        .map((m) => {
+          const i = options.findIndex((o) => o.id === m.id);
+          return `<span style="width:${(m.share * 100).toFixed(1)}%;background:${ideologyColor(i >= 0 ? i : m.id.length, m.id)}"></span>`;
+        })
+        .join("")}</span>`
+    : "";
+  const groupIcons: Record<string, string> = { military: "swords", economy: "coin", people: "people", land: "mountain" };
   const groups = data.groups
     .map((g) => {
       const rows = g.stats
         .map((id) => sheet.stats[id])
-        .map(
-          (s) => `<div class="np-stat${s.warn ? " warn" : ""}" data-stat="${s.id}" tabindex="0">
-            <span class="np-stat-name">${escapeHtml(s.short)}</span>
-            <span class="np-stat-val">${escapeHtml(s.text)}</span>
-            ${s.detail ? `<span class="np-stat-detail">${escapeHtml(s.detail)}</span>` : ""}
-          </div>`,
-        )
+        .map((s) => {
+          const isScore = scores.has(s.id);
+          const val = isScore ? `<b style="color:${scoreColor(s.value)}">${escapeHtml(s.text)}</b>` : escapeHtml(s.text);
+          const under = isScore
+            ? `<span class="np-meter"><span style="width:${Math.max(2, Math.min(100, s.value))}%;background:${scoreColor(s.value)}"></span></span>`
+            : s.id === "ideology"
+              ? mixBar
+              : s.detail
+                ? `<span class="np-stat-detail">${escapeHtml(s.detail)}</span>`
+                : "";
+          return `<div class="np-stat${s.warn ? " warn" : ""}" data-stat="${s.id}" tabindex="0">
+            ${icon(STAT_ICONS[s.id])}<span class="np-stat-name">${escapeHtml(s.short)}</span>
+            <span class="np-stat-val">${val}</span>${under}
+          </div>`;
+        })
         .join("");
-      return `<section class="np-stat-group"><h3>${escapeHtml(g.name)}</h3>${rows}</section>`;
+      return `<section class="np-stat-group"><h3>${icon(groupIcons[g.id])}${escapeHtml(g.name)}</h3>${rows}</section>`;
     })
     .join("");
   return `<div class="np-stats${open ? "" : " collapsed"}">

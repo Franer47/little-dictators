@@ -16,6 +16,7 @@ import { TERRAINS, Terrain } from "../map/terrain.ts";
 import type { GameMap } from "../map/gameMap.ts";
 import type { Nation, WheelOutcome } from "./nation.ts";
 import { compactNumber } from "./numbers.ts";
+import { createRng } from "./random.ts";
 import type { Wheel, WheelData } from "./wheels.ts";
 
 // ---------------------------------------------------------------- the data file
@@ -23,14 +24,15 @@ import type { Wheel, WheelData } from "./wheels.ts";
 /** The numbers stats are built from (each one in the data file's "factors"). */
 export const FACTOR_IDS = [
   "recruitRate", "armyShare", "soldierCost", "armyBudget", "armyQuality", "taxRate", "adminCost", "treasuryYears",
-  "food", "growthRate", "stability", "popularity", "aggression", "defence", "trade", "naval", "cohesion",
+  "food", "growthRate", "stability", "popularity", "aggression", "defence", "trade", "naval", "cohesion", "development",
 ] as const;
 export type FactorId = (typeof FACTOR_IDS)[number];
 
 /** The stats on the sheet. */
 export const STAT_IDS = [
   "manpower", "army", "armyQuality", "aggression", "gdp", "income", "upkeep", "net", "treasury",
-  "population", "growth", "food", "stability", "popularity", "land", "access", "defence", "trade", "naval", "cohesion",
+  "population", "growth", "food", "stability", "popularity", "ideology", "development",
+  "land", "access", "defence", "trade", "naval", "cohesion",
 ] as const;
 export type StatId = (typeof STAT_IDS)[number];
 
@@ -78,7 +80,31 @@ export interface StatsData {
   chart: { x?: ModSet; y?: ModSet };
   /** By wheel id, then slice id. */
   results: Record<string, Record<string, ModSet>>;
+  /** What stability and popularity do to the other factors: [at 0, at 100] (nothing at 50). */
+  scoreEffects: Partial<Record<"stability" | "popularity", Partial<Record<FactorId, [Modifier, Modifier]>>>>;
+  /** Development points per point of trade and cohesion. */
+  development: { trade: number; cohesion: number };
+  ideology?: IdeologyRules;
   numberSuffixes: string[];
+}
+
+/** How the people's ideologies are split: the rolled one is the biggest. */
+export interface IdeologyRules {
+  wheel: string;
+  /** Every ideology the people can follow (the wheel's ordinary slices), with its chart x. */
+  options: { id: string; label: string; x: number }[];
+  /** The rolled ideology's share at stability 0 and at stability 100. */
+  mainShare: [number, number];
+  /** How far along the chart's x-axis the other ideologies spread (0.5 = the nearby ones). */
+  spread: number;
+  /** Shares under this go into "Others". */
+  minShare: number;
+}
+
+export interface IdeologyShare {
+  id: string;
+  label: string;
+  share: number;
 }
 
 /** Loads public/data/eras/<era>-stats.json and checks it against the wheels. */
@@ -231,7 +257,51 @@ export function parseStatsData(raw: unknown, wheels: WheelData, url: string): St
     }
   }
 
+  // What stability and popularity do to everything else.
+  const effectsRaw = section("scoreEffects");
+  const scoreEffects: StatsData["scoreEffects"] = {};
+  for (const score of keysOf(effectsRaw)) {
+    if (score !== "stability" && score !== "popularity") fail(`scoreEffects: "${score}" isn't known (use "stability" or "popularity")`);
+    const byFactor = effectsRaw[score];
+    if (!isObject(byFactor)) fail(`scoreEffects.${score} must be { "factor": ["at 0", "at 100"], … }`);
+    const out: Partial<Record<FactorId, [Modifier, Modifier]>> = {};
+    for (const key of keysOf(byFactor as Record<string, unknown>)) {
+      const where = `scoreEffects.${score}.${key}`;
+      if (!(FACTOR_IDS as readonly string[]).includes(key)) fail(`${where}: "${key}" isn't a factor (factors: ${factorList})`);
+      if (key === score) fail(`${where}: ${score} can't change itself`);
+      const pair = (byFactor as Record<string, unknown>)[key];
+      if (!Array.isArray(pair) || pair.length !== 2) fail(`${where} must be ["at 0", "at 100"], e.g. ["-50%", "+20%"]`);
+      const [lo, hi] = (pair as unknown[]).map(parseModifier);
+      if (!lo || !hi || lo.kind === "mult" || lo.kind !== hi.kind) fail(`${where}: both ends must be percentages ("-50%", "+20%") or both plain numbers ("-10", "+5")`);
+      out[key as FactorId] = [lo!, hi!];
+    }
+    scoreEffects[score as "stability" | "popularity"] = out;
+  }
+  if (scoreEffects.stability?.popularity && scoreEffects.popularity?.stability) fail(`scoreEffects: stability and popularity can't both change each other`);
+
+  const dev = section("development");
+
+  // The ideology mix.
+  let ideology: IdeologyRules | undefined;
+  if (raw.ideology !== undefined) {
+    const ide = section("ideology");
+    const wheel = wheelById.get(ide.wheel as string) ?? fail(`ideology.wheel: "${String(ide.wheel)}" isn't a wheel (wheels: ${wheelList})`);
+    const share = ide.mainShare;
+    if (!Array.isArray(share) || share.length !== 2 || !share.every((v) => typeof v === "number" && v > 0 && v <= 1))
+      fail(`ideology.mainShare must be [at stability 0, at stability 100], each above 0 and up to 1, e.g. [0.4, 0.75]`);
+    ideology = {
+      wheel: wheel.id,
+      options: wheel.slices.filter((sl) => !sl.rare && !sl.then).map((sl) => ({ id: sl.id, label: sl.label, x: sl.chart?.[0] ?? 0 })),
+      mainShare: share as [number, number],
+      spread: num(ide.spread, "ideology.spread"),
+      minShare: num(ide.minShare, "ideology.minShare"),
+    };
+  }
+
   return {
+    scoreEffects,
+    development: { trade: num(dev.trade, "development.trade"), cohesion: num(dev.cohesion, "development.cohesion") },
+    ideology,
     inputs: { land: numberWheel("land"), people: numberWheel("people"), wealth: numberWheel("wealth"), resources: resources || undefined },
     groups,
     stats,
@@ -466,6 +536,8 @@ export interface StatSheet {
   stats: Record<StatId, Stat>;
   factors: Record<FactorId, Factor>;
   land: LandFacts;
+  /** The people's ideologies, biggest first (empty if the data has no "ideology" rules). */
+  ideologies: IdeologyShare[];
 }
 
 interface Contribution {
@@ -539,8 +611,25 @@ export function statSheet(nation: Nation, land: LandFacts, data: StatsData): Sta
   if (spread > 0) add({ cohesion: { kind: "flat", amount: c.spread } }, `Spread out (${Math.round(spread * 100)}%)`, spread);
 
   // ---- the factors
+  // Popularity first, then stability (which popularity can change), then what they both change.
+  // Development comes last: it builds on trade and cohesion.
   const factors = {} as Record<FactorId, Factor>;
-  for (const id of FACTOR_IDS) factors[id] = computeFactor(data.factors[id], contributions.get(id) ?? [], sfx);
+  const compute = (id: FactorId): void => void (factors[id] = computeFactor(data.factors[id], contributions.get(id) ?? [], sfx));
+  const scoreOrder: ("popularity" | "stability")[] = data.scoreEffects.stability?.popularity ? ["stability", "popularity"] : ["popularity", "stability"];
+  for (const score of scoreOrder) {
+    compute(score);
+    const v = factors[score].value;
+    const t = (v - 50) / 50;
+    if (t === 0) continue;
+    const name = data.factors[score].name;
+    for (const [id, [lo, hi]] of Object.entries(data.scoreEffects[score] ?? {}) as [FactorId, [Modifier, Modifier]][])
+      add({ [id]: t < 0 ? lo : hi }, `${name} ${Math.round(v)}`, Math.abs(t));
+  }
+  for (const id of FACTOR_IDS) if (id !== "development" && !factors[id]) compute(id);
+  const d = data.development;
+  if (d.trade) add({ development: { kind: "flat", amount: d.trade } }, `Trade ${Math.round(factors.trade.value)}`, factors.trade.value);
+  if (d.cohesion) add({ development: { kind: "flat", amount: d.cohesion } }, `Cohesion ${Math.round(factors.cohesion.value)}`, factors.cohesion.value);
+  compute("development");
   const f = (id: FactorId): number => factors[id].value;
   const indent = (id: FactorId): string[] => [`${data.factors[id].name}:`, ...factors[id].lines.map((l) => `  ${l}`)];
 
@@ -590,6 +679,8 @@ export function statSheet(nation: Nation, land: LandFacts, data: StatsData): Sta
     return { id, name: s.name, short: s.short ?? s.name, value, text, why, about: s.about, ...extra };
   };
   const score = (id: StatId & FactorId): Stat => stat(id, f(id), String(Math.round(f(id))), factors[id].lines);
+
+  const ideologies = ideologyMix(nation, data.ideology, f("stability"));
 
   const mix = TERRAINS.map((t, i) => ({ name: t.name, km: land.terrainKm[i] }))
     .filter((m) => m.km > 0)
@@ -651,6 +742,18 @@ export function statSheet(nation: Nation, land: LandFacts, data: StatsData): Sta
     ),
     stability: score("stability"),
     popularity: score("popularity"),
+    development: score("development"),
+    ideology: stat(
+      "ideology",
+      ideologies[0]?.share ?? 1,
+      ideologies[0] ? `${ideologies[0].label} ${Math.round(ideologies[0].share * 100)}%` : (results[data.ideology?.wheel ?? ""]?.label ?? "—"),
+      ideologies.length
+        ? [
+            ...ideologies.map((i) => `${i.label}: ${Math.round(i.share * 100)}%`),
+            `The rolled ideology holds ${Math.round((ideologies[0]?.share ?? 0) * 100)}% (more when stable); the rest follow nearby ideologies on the chart.`,
+          ]
+        : [],
+    ),
     land: stat("land", land.km, `${compactNumber(Math.round(land.km), sfx)} km²`, [
       ...mix.map((m) => `${m.name}: ${kmText(m.km)} km² (${Math.round((m.km / km) * 100)}%)`),
       land.pieces > 1 ? `${land.pieces} pieces; the biggest is ${kmText(land.mainPieceKm)} km²` : "One piece of land",
@@ -672,7 +775,36 @@ export function statSheet(nation: Nation, land: LandFacts, data: StatsData): Sta
     naval: score("naval"),
     cohesion: score("cohesion"),
   };
-  return { stats, factors, land };
+  return { stats, factors, land, ideologies };
+}
+
+/**
+ * The people's ideologies: the rolled one holds the biggest share (more when the nation is
+ * stable), and the rest is split between the ideologies nearest to the nation on the chart's
+ * x-axis, with a little seeded randomness so neighbours don't all look the same.
+ */
+export function ideologyMix(nation: Nation, rules: IdeologyRules | undefined, stability: number): IdeologyShare[] {
+  if (!rules) return [];
+  const rolled = nation.results[rules.wheel];
+  if (!rolled || rolled.none) return [];
+  const [lo, hi] = rules.mainShare;
+  const main = lo + (hi - lo) * clamp(stability / 100, 0, 1);
+  const x = nation.record.chart.x;
+  const rng = createRng((nation.record.seed ^ 0x51ed270b) >>> 0);
+  const spread = Math.max(0.05, rules.spread);
+  const others = rules.options
+    .filter((o) => o.id !== rolled.sliceId)
+    .map((o) => ({ id: o.id, label: o.label, w: Math.exp(-((o.x - x) ** 2) / (2 * spread * spread)) * (0.4 + rng.next()) }));
+  const total = others.reduce((sum, o) => sum + o.w, 0) || 1;
+  const list: IdeologyShare[] = [{ id: rolled.sliceId, label: rolled.label, share: main }];
+  let small = 0;
+  for (const o of others.sort((a, b) => b.w - a.w)) {
+    const share = ((1 - main) * o.w) / total;
+    if (share >= rules.minShare) list.push({ id: o.id, label: o.label, share });
+    else small += share;
+  }
+  if (small > 0) list.push({ id: "others", label: "Others", share: small });
+  return list;
 }
 
 /** A factor's value and breakdown lines. */
