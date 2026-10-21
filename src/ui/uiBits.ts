@@ -14,10 +14,13 @@ export function escapeHtml(text: string): string {
   return text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 }
 
-/** An empty flag frame on a little pole. Real flags come in a later milestone. */
-export function flagPlaceholder(title: string): string {
+/** The flag: for now just the nation's colour on a cloth (a dashed "?" while it has none). */
+export function flagPlaceholder(title: string, color?: string): string {
+  const cloth = color
+    ? `<path d="M4 3h22v13H4z" class="flag-cloth colored" style="fill:${escapeHtml(color)}"/>`
+    : '<path d="M4 3h22v13H4z" class="flag-cloth"/><text x="15" y="12.5">?</text>';
   return `<div class="flag-frame" title="${escapeHtml(title)}" aria-label="${escapeHtml(title)}">
-    <svg viewBox="0 0 30 22" aria-hidden="true"><path d="M2 2v19" class="flag-pole"/><path d="M4 3h22v13H4z" class="flag-cloth"/><text x="15" y="12.5">?</text></svg>
+    <svg viewBox="0 0 30 22" aria-hidden="true"><path d="M2 2v19" class="flag-pole"/>${cloth}</svg>
   </div>`;
 }
 

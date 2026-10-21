@@ -1,0 +1,44 @@
+{
+  "about": "How nations are placed on the map and how their starting land grows. Used by src/game/territory.ts and src/ui/placement.ts.",
+
+  "region": "europe",
+  "regions": {
+    "europe": {
+      "name": "Europe",
+      "about": "Where nations may be placed for the Europe test. A rough outline as [longitude, latitude] points (east and north are positive). It follows the middle of the Mediterranean and the Black Sea, so North Africa and Anatolia stay out.",
+      "outline": [
+        [-25, 72], [45, 72], [45, 42.5], [41.5, 41.4], [35, 42.6], [29.2, 41.2], [26.2, 40.1],
+        [26.6, 34.6], [12.0, 36.4], [11.2, 37.6], [9.0, 38.2], [-1.0, 36.9], [-5.6, 35.98],
+        [-10, 36.2], [-25, 36.2]
+      ]
+    }
+  },
+
+  "fill": {
+    "about": "The 'Fill' testing button rolls and places nations at random until this share of the region's land is owned, or it has made maxNations (it also gives up after maxAttempts tries).",
+    "percent": 90,
+    "maxNations": 150,
+    "maxAttempts": 400
+  },
+
+  "growth": {
+    "about": "Starting land grows out from the chosen spot, always taking the cheapest pixel it can reach next, until it has the rolled area. 'cost' is how hard each terrain is to take (plains = 1). Sea, lakes and ice can't be taken; neither can another nation's land. Rivers can be taken but cost a lot, so they tend to become borders. 'wobble' makes some areas randomly cheaper or dearer (0 = perfect blobs), so borders look natural.",
+    "cost": {
+      "Plains": 1,
+      "Highlands": 2.2,
+      "Mountains": 6,
+      "Snow": 2.6,
+      "River": 14
+    },
+    "wobble": 0.7
+  },
+
+  "colors": {
+    "about": "Each nation's colour (its flag for now), used in this order. Picked to stand out from the terrain and from each other.",
+    "list": [
+      "#e6194b", "#4363d8", "#f58231", "#911eb4", "#ffe119", "#f032e6", "#008080", "#9a6324",
+      "#800000", "#6a3d9a", "#b15928", "#bcf60c", "#fabebe", "#e6beff", "#aaffc3", "#ffd8b1",
+      "#808000", "#3cb44b", "#ff6f91", "#5b2c6f", "#c0392b", "#1abc9c", "#2e4053", "#d35400"
+    ]
+  }
+}

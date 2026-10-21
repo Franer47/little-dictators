@@ -33,6 +33,8 @@ export interface WheelScreenOptions {
   seed?: number;
   /** The screen stays hidden until this resolves, then swoops in (for the intro). */
   showWhen?: Promise<void>;
+  /** The nation's colour ("#rrggbb"), shown as its flag on the card. */
+  color?: string;
 }
 
 /** Shows the wheel screen and resolves with the finished nation when the player continues. */
@@ -173,7 +175,7 @@ class WheelScreen {
         </section>
         <aside class="ws-card">
           <div class="card-head">
-            ${flagPlaceholder(t("flagSoon"))}
+            ${flagPlaceholder(this.text(this.opts.color ? "flagColor" : "flagSoon"), this.opts.color)}
             <div class="card-titles">
               <div class="card-kicker">${t("cardTitle")}</div>
               <div class="card-name-row">

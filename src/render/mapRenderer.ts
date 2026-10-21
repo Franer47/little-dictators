@@ -1,15 +1,31 @@
 import { paintTerrain } from "./terrainColors.ts";
 import type { GameMap } from "../map/gameMap.ts";
 import type { Camera } from "./camera.ts";
+import type { TerritoryLayer } from "./territoryLayer.ts";
+
+/** The "place your nation here" cursor: a circle about the size the nation will grow to. */
+export interface PlacementPreview {
+  /** Radius in map pixels. */
+  radius: number;
+  /** "#rrggbb". */
+  color: string;
+  /** False over water, ice, another nation or outside the region: drawn as a red cross. */
+  valid: boolean;
+}
 
 /**
  * Draws the map. The whole map is painted once into a small offscreen image
  * (one canvas pixel per map pixel), which is then scaled up with the camera's zoom.
+ * Nations' land is a second image of the same size on top (see territoryLayer.ts).
  */
 export class MapRenderer {
   private ctx: CanvasRenderingContext2D;
   private mapImage: OffscreenCanvas;
   hovered: [number, number] | null = null;
+  /** Nations' land, drawn over the terrain. */
+  territory: TerritoryLayer | null = null;
+  /** Shown at the hovered pixel while placing a nation. */
+  preview: PlacementPreview | null = null;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -58,10 +74,17 @@ export class MapRenderer {
     ctx.imageSmoothingEnabled = false;
     const top = Math.round(offsetY);
     const bottom = Math.round(offsetY + height * scale);
-    for (const k of copies) {
-      const left = Math.round(offsetX + k * width * scale);
-      const right = Math.round(offsetX + (k + 1) * width * scale);
-      ctx.drawImage(this.mapImage, left, top, right - left, bottom - top);
+    const layers: CanvasImageSource[] = [this.mapImage];
+    if (this.territory) {
+      this.territory.flush();
+      layers.push(this.territory.image);
+    }
+    for (const layer of layers) {
+      for (const k of copies) {
+        const left = Math.round(offsetX + k * width * scale);
+        const right = Math.round(offsetX + (k + 1) * width * scale);
+        ctx.drawImage(layer, left, top, right - left, bottom - top);
+      }
     }
 
     if (this.hovered) {
@@ -70,6 +93,36 @@ export class MapRenderer {
       ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
       ctx.lineWidth = Math.max(1.5 / scale, 0.08);
       for (const k of copies) ctx.strokeRect(hx + k * width, hy, 1, 1);
+      if (this.preview) this.drawPreview(this.preview, hx, hy, dpr / scale, copies);
+    }
+  }
+
+  /** `px` is one CSS pixel in map pixels, for line widths that stay the same at any zoom. */
+  private drawPreview(preview: PlacementPreview, hx: number, hy: number, px: number, copies: number[]): void {
+    const { ctx } = this;
+    for (const k of copies) {
+      const cx = hx + 0.5 + k * this.map.width;
+      const cy = hy + 0.5;
+      ctx.beginPath();
+      if (preview.valid) {
+        ctx.arc(cx, cy, Math.max(preview.radius, 8 * px), 0, Math.PI * 2);
+        ctx.fillStyle = preview.color + "40";
+        ctx.fill();
+        ctx.setLineDash([6 * px, 4 * px]);
+        ctx.lineWidth = 2 * px;
+        ctx.strokeStyle = preview.color;
+        ctx.stroke();
+        ctx.setLineDash([]);
+      } else {
+        const r = 8 * px;
+        ctx.moveTo(cx - r, cy - r);
+        ctx.lineTo(cx + r, cy + r);
+        ctx.moveTo(cx + r, cy - r);
+        ctx.lineTo(cx - r, cy + r);
+        ctx.lineWidth = 3 * px;
+        ctx.strokeStyle = "#ff4d4d";
+        ctx.stroke();
+      }
     }
   }
 
