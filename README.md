@@ -365,6 +365,15 @@ is added as is, and `"×0"` multiplies the result. A typo (an unknown wheel, sli
 or terrain, or a modifier like `"+30 percent"`) stops the game with a message that says
 exactly where the mistake is.
 
+**The stats spreadsheet.** To tune many numbers at once, use the workbook: every government,
+ideology, history, trait, wealth level and resource is a row, and every number a column
+(green raises it, red lowers it). `python scripts/stats_sheet.py export` writes it to
+`tuning/1500-stats.xlsx` (not kept in git; the JSON file is the real copy), and after you've
+edited and saved it, `python scripts/stats_sheet.py import` puts your numbers back into the
+data file, changing only the lines you changed. It also has tabs for what stability and
+popularity do to everything and for each number's starting value. Needs Python with
+`openpyxl` (`pip install openpyxl`).
+
 In the dev server's console, **`game.checkStats()`** prints the smallest, typical and
 biggest value of every stat over the nations on the map (press Fill the world first) and
 lists anything that looks absurd for 1500; `game.sheet(1)` is the first nation's whole sheet.
@@ -419,6 +428,7 @@ src/
   render/terrainColors.ts the shaded look: colour ramps, hillshade, coasts, sea depth
   input/cameraControls.ts mouse + keyboard camera controls
 scripts/
+  stats_sheet.py          the stats spreadsheet: export the data file to Excel, import it back
   build-earth-map.ts      generates the Earth map from real-world data
   earth-water.json        which lakes and rivers go on the Earth map (editable)
 public/maps/              map files (see below)

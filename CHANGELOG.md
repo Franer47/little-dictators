@@ -8,6 +8,9 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 ### Changed
 - **The map info is folded away.** What's under the mouse (terrain, height, position) and
   the controls now hide behind the ⓘ button in the bottom-left corner; click it to show them.
+- **A spreadsheet of what everything gives:** every government, ideology, history, trait,
+  wealth level and resource, and what it does to each number, in one Excel workbook you
+  can edit; a script puts your changes back into the game.
 - **Every click does something:** click a stat to keep its breakdown open (with a close
   button); buttons and rows dip and light up while pressed. Stat icons now have colours
   that mean something (money gold, people green, military red, sea blue; stability and the
