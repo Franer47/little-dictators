@@ -201,7 +201,17 @@ so land spreads quickly across plains and slowly into the mountains, and nations
 settle open land rather than push straight through mountain ranges. The sea, lakes, ice
 and other nations' land are never taken. Rivers can be crossed but cost a lot (as much as
 40 pixels of plains), so they often end up as borders. (Plains 1, highlands 3.5, snow 4,
-mountains 15, rivers 40.) A little smooth randomness ("wobble") keeps borders from being
+mountains 15, rivers 40.)
+
+**Islands can grow overseas.** Land can cross short stretches of sea (up to 8 sea pixels in
+a row, each costing as much as 25 pixels of plains; the sea itself is never owned). So a
+nation that starts on a small island and runs out of room spreads to the next island or
+the mainland: a 150,000 km² roll on Corsica takes Corsica, Sardinia and a piece of
+Tuscany instead of stopping at 8,000 km². Because the sea is dear, nations only go
+overseas when the land around them is used up or the strait is very short. (Setting:
+`growth.seaCrossing`.)
+
+![A nation that started on Corsica](docs/island-expansion.jpg) A little smooth randomness ("wobble") keeps borders from being
 perfect circles. Afterwards 1-pixel strings are trimmed and tiny holes inside a nation are
 filled. Every pixel counts with its **real area in km²** (pixels further north
 cover less ground), and growth stops when the nation has its rolled size, so a 340,000

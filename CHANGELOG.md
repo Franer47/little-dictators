@@ -63,6 +63,11 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
   forever. A hidden wheel now keeps its size, and the label sizing always stops.
 
 ### Added
+- **Island nations can grow overseas.** A nation that starts on a small island no longer
+  stops at its coast: its land can cross short stretches of sea (up to 8 sea pixels, and
+  dear, so only when it runs out of room or the strait is short) to the next island or the
+  mainland. A 150,000 km² roll on Corsica now takes Corsica, Sardinia and a piece of
+  Tuscany instead of stopping at 8,000 km². The sea itself is never owned.
 - **Placing nations on the map (Europe test).** After the wheel, click a spot in Europe
   (or press **Surprise me**) and the nation's land grows from there in a short
   animation: quickly over plains, slowly into mountains, stopping at the sea and at other
