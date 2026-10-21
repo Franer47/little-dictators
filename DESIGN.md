@@ -188,9 +188,8 @@ The wheel setup is fully configurable, per wheel:
        resources (×3, no repeats) → Ideology → History → Stability → Popularity → Bonus
        spin → Golden spin. **Culture and Religion are switched off** for now (lists kept
        in the data file with `"off": true`).
-     - **Chained numbers:** land 2,000–800,000 km² (max ≈2.25× Germany; raised from
-       535,000 on 2026-10-20 with 3 new slices Immense/Colossal/Titanic; land odds 8/10/13/
-       16/18/15/10/5/3/2%) with a size
+     - **Chained numbers:** land 2,000–800,000 km² (max ≈2.25× Germany; 3 slices above
+       the old 535,000 cap: Immense/Colossal/Titanic; odds see 2e) with a size
        comparison; density 0.5–60/km²; output $900–3,100 per person (Maddison 1500, in
        today's dollars). Population = land × density, GDP = population × output.
      - **Rare pulls:** a thin black slice (1.5%) on Government and Ideology opens a dark
@@ -208,18 +207,34 @@ The wheel setup is fully configurable, per wheel:
        whether Culture/Religion come back, and more rare results.
    - **2c. Later polish:** flags and really advanced generation scripts (names, flags,
      history) come with the polishing phase.
-   - **2d. Placing nations (Europe test):** click a start spot or "Surprise me". Territory
-     grows from there like a natural blob: prefers plains, slow through highlands and
-     mountains, stops at the sea and at other nations; real km² per pixel, so it matches
-     the rolled land size. Each nation gets its own **colour** (its flag for now). Test it
-     by filling **Europe with ~15 nations** one after another. **Only land size matters**
-     here: no stats or bonuses affect it yet. Once it works it becomes the normal start.
-
-   - **2e. Better placement (next):** territory grows as a **compact blob** (no long
-     snakes or peninsulas across the map). Random/auto starts **prefer coasts and
-     riverbanks**, so the inland gaps between nations stay open for new nations later.
-     If it looks good, Fill Europe goes to **100%**. The nation list shows only the
-     **top 3 + your nation**, with an arrow to open the full list.
+   - **2d. Placing nations:** click a start spot or "Surprise me"; land grows by cheapest
+     path (plains 1, highlands 3.5, snow 4, mountains 15, rivers 40), stops at the sea and
+     other nations, real km² per pixel. Each nation has its own **colour** (its flag for
+     now; touching nations never share one). Only land size matters; no stats yet.
+     ✅ Done (PR #11).
+   - **2e. Better placement & filling the world:** ✅ Done (PRs #13, #14).
+     - **No snakes:** fixed by *where* nations start, not shape rules (those made
+       octagons and were dropped). Random starts go on **coasts and riverbanks**, in free
+       pockets ≥ 60,000 km²; the inland gaps fill with later nations. Tidy-up trims
+       1-px strings and fills small holes.
+     - **The whole world** is the default region (Europe stays as an option). **Fill the
+       world** makes ~900 nations in ~3 s, stops new nations at 95% and lets neighbours
+       absorb the rest, so **all land is owned**.
+     - **The land wheel follows the map:** big slices get rarer as the world fills, and
+       sizes that don't fit are left off. Fill never rolls City-state/Tiny (the player can).
+     - **Land odds** (rebalanced): city-state 4, tiny 6, small 14, modest 23, medium 25,
+       large 16, vast 7, immense 2.5, colossal 1.5, titanic 1 (%).
+     - **North–south fairness ("halfway"):** the flat map stretches land away from the
+       equator, so growth aims for rolled × (pixel area / equator pixel area)^0.5. The
+       panel still shows the real km².
+     - **Islands grow overseas:** land can cross up to 8 sea pixels (dear: 25× plains);
+       the sea itself is never owned.
+     - **Nation list:** top 3 by land + your nation; an arrow opens the full list.
+   - **Online:** the repo is **public** for now and the game is published on every push
+     to main at **https://franer47.github.io/little-dictators/** (GitHub Pages; free only
+     while the repo is public). ✅ PR #15.
+   - **Open for later:** deserts as terrain, whether border rivers belong to neither
+     nation, real flags (2c), save/load, the game setup screen (start year, wheel modes).
 3. **Stats matter** — wheel results turn into real numbers: derived values such as army
    strength, growth rate, stability, economy.
 4. **Ticks + basic simulation** — the clock runs; growth and peaceful expansion into empty
