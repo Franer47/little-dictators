@@ -2,12 +2,14 @@
 //   game.checkWeights()      spins every wheel 100,000 times and compares wins with weights
 //   game.checkNumbers(10000) rolls that many nations and prints min / median / max of the numbers
 //   game.sampleNations(5)    rolls a few whole nations and prints them
+//   game.checkStats()        the spread of every stat over the nations on the map, and anything absurd
 
 import { describeOutcome, type Nation } from "./nation.ts";
 import { rollNation } from "./roller.ts";
 import { compactNumber } from "./numbers.ts";
 import { createRng } from "./random.ts";
 import { exactWheel, simulateSpins, type WheelData } from "./wheels.ts";
+import { STAT_IDS, type StatSheet } from "./stats.ts";
 
 export function checkWeights(data: WheelData): Record<string, ReturnType<typeof simulateSpins>> {
   const rng = createRng();
@@ -98,4 +100,50 @@ export function summary(nation: Nation): string {
 /** The last number result in spin order (GDP, in the 1500 set). */
 function lastNumber(nation: Nation) {
   return [...nation.record.spins].reverse().find((r) => r.estimate);
+}
+
+/**
+ * The spread (min / 10% / median / 90% / max) of every stat over the nations on the map, plus
+ * a list of anything that looks absurd for 1500. Fill the world first for a good sample.
+ */
+export function checkStats(nations: readonly { nation: Nation }[], sheets: readonly StatSheet[], ms = 0): { table: Record<string, Spread>; problems: string[] } {
+  const table: Record<string, Spread> = {};
+  const problems: string[] = [];
+  if (!sheets.length) {
+    console.log("No nations on the map yet: place some (or Fill) first.");
+    return { table, problems };
+  }
+  const columns: Record<string, number[]> = {};
+  const add = (name: string, v: number): void => void (columns[name] ??= []).push(v);
+  sheets.forEach((sheet, i) => {
+    const s = sheet.stats;
+    const name = nations[i]?.nation.name ?? `#${i + 1}`;
+    for (const id of STAT_IDS) {
+      const v = s[id].value;
+      if (!Number.isFinite(v)) problems.push(`${name}: ${id} is ${v}`);
+      add(s[id].name, v);
+    }
+    const pop = s.population.value;
+    add("Army, % of population", (s.army.value / Math.max(1, pop)) * 100);
+    add("Income, % of GDP", (s.income.value / Math.max(1, s.gdp.value)) * 100);
+    add("Food used %", (pop / Math.max(1, s.food.value)) * 100);
+    add("Growth %/yr", s.growth.value * 100);
+    add("Pieces", sheet.land.pieces);
+    add("Compactness %", sheet.land.compactness * 100);
+    if (s.army.value > pop * 0.05) problems.push(`${name}: army ${Math.round(s.army.value)} is over 5% of its ${Math.round(pop)} people`);
+    if (s.income.value > s.gdp.value * 0.15) problems.push(`${name}: income is over 15% of GDP`);
+    if (Math.abs(s.growth.value) > 0.02) problems.push(`${name}: growth ${(s.growth.value * 100).toFixed(2)}%/yr`);
+    if (s.food.value <= 0 && pop > 0) problems.push(`${name}: its land feeds nobody`);
+  });
+  const fmt = (x: number): string => (Math.abs(x) < 100 ? (Math.round(x * 100) / 100).toString() : compactNumber(Math.abs(x), ["K", "M", "B", "T"]).replace(/^/, x < 0 ? "-" : ""));
+  for (const [name, values] of Object.entries(columns)) {
+    values.sort((a, b) => a - b);
+    const at = (p: number): number => values[Math.min(values.length - 1, Math.floor(p * values.length))];
+    table[name] = { min: fmt(values[0]), "10%": fmt(at(0.1)), median: fmt(at(0.5)), "90%": fmt(at(0.9)), max: fmt(values[values.length - 1]) };
+  }
+  console.log(`Stats of ${sheets.length.toLocaleString("en-US")} nations${ms ? ` (worked out in ${Math.round(ms)} ms)` : ""}:`);
+  console.table(table);
+  if (problems.length) console.warn(`${problems.length} things look off:\n${problems.slice(0, 30).join("\n")}`);
+  else console.log("Nothing looks absurd.");
+  return { table, problems };
 }

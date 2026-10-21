@@ -1,0 +1,228 @@
+/* The strip across the top: your nation's key numbers in a row. While it's showing (body.has-strip),
+   the other top panels move down under it. */
+
+#nation-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 6;
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  height: 52px;
+  padding: 0 10px;
+  color: var(--ink);
+  background: linear-gradient(180deg, rgba(46, 39, 29, 0.96), rgba(20, 17, 13, 0.94));
+  border-bottom: 1px solid rgba(212, 176, 98, 0.28);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(6px);
+  font-size: 12.5px;
+  animation: nb-in 0.35s ease-out;
+}
+
+#nation-bar[hidden] {
+  display: none;
+}
+
+@keyframes nb-in {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+}
+
+body.has-strip #place-bar {
+  top: 64px;
+}
+
+body.has-strip #nation-list {
+  top: 64px;
+}
+
+.nb-head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  max-width: 240px;
+  padding: 0 14px 0 4px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+}
+
+.nb-flag {
+  flex: none;
+  width: 30px;
+  height: 21px;
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35), 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.nb-title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.nb-you {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.nb-name {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.nb-head:hover .nb-name {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* The numbers scroll sideways if the window is too narrow for all of them. */
+.nb-items {
+  display: flex;
+  flex: 1;
+  align-items: stretch;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.nb-item {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  cursor: help;
+}
+
+.nb-item:hover,
+.nb-item:focus-visible {
+  background: rgba(212, 176, 98, 0.1);
+  outline: none;
+}
+
+.nb-item .icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--gold);
+}
+
+.nb-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.nb-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(241, 232, 212, 0.5);
+}
+
+.nb-value {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.nb-value b {
+  font-size: 13.5px;
+}
+
+.nb-delta {
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.nb-delta.up {
+  color: var(--up);
+}
+
+.nb-delta.down {
+  color: var(--down);
+}
+
+.nb-sub {
+  font-size: 11px;
+  color: rgba(241, 232, 212, 0.5);
+}
+
+.nb-meter {
+  display: inline-block;
+  width: 46px;
+  height: 5px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.nb-meter span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+}
+
+.nb-stack {
+  display: flex;
+  width: 130px;
+  height: 5px;
+  margin-top: 2px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.nb-stack span {
+  height: 100%;
+}
+
+.nb-army {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 7px;
+  margin: 9px 0 9px 6px;
+  padding: 0 14px;
+  font: inherit;
+  font-weight: 700;
+  color: #1a1404;
+  background: var(--gold);
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.nb-army:hover {
+  filter: brightness(1.08);
+}
+
+.nb-count {
+  padding: 1px 6px;
+  font-size: 11px;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+}

@@ -7,13 +7,18 @@
   padding: 9px 12px 8px;
   pointer-events: none;
   font: 13px/1.35 system-ui, sans-serif;
-  color: #eef2f6;
-  background: rgba(14, 10, 30, 0.96);
+  color: var(--ink);
+  background: rgba(24, 20, 15, 0.96);
   border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   white-space: pre-line;
   animation: ui-tip-in 0.12s ease-out;
+}
+
+.ui-tip.wide {
+  max-width: 380px;
+  font-size: 12.5px;
 }
 
 .ui-tip[hidden] {
@@ -29,7 +34,7 @@
 
 .ui-tip-title {
   font-weight: 700;
-  color: #ffd60a;
+  color: var(--gold-bright);
   margin-bottom: 3px;
 }
 
@@ -38,7 +43,7 @@
 }
 
 .ui-tip.golden .ui-tip-title {
-  color: #ffd84a;
+  color: var(--gold-bright);
 }
 
 .ui-tip-text:empty,
@@ -49,5 +54,61 @@
 .ui-tip-small {
   margin-top: 5px;
   font-size: 11.5px;
-  color: rgba(238, 242, 246, 0.55);
+  color: rgba(241, 232, 212, 0.55);
+}
+
+/* A tip clicked open stays, with a close button. */
+.ui-tip-close {
+  display: none;
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.08);
+  border: 0;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.ui-tip-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.ui-tip.pinned {
+  pointer-events: auto;
+  padding-right: 32px;
+  animation: ui-tip-pin 0.18s cubic-bezier(0.2, 1.5, 0.4, 1);
+}
+
+.ui-tip.pinned .ui-tip-close {
+  display: block;
+}
+
+@keyframes ui-tip-pin {
+  from {
+    transform: scale(0.94);
+  }
+}
+
+.ui-tip-hint {
+  margin-top: 5px;
+  font-size: 10.5px;
+  font-style: italic;
+  color: rgba(241, 232, 212, 0.38);
+}
+
+.ui-tip.pinned .ui-tip-hint {
+  display: none;
+}
+
+/* The element whose tip is pinned. */
+.tip-pinned {
+  outline: 1px solid var(--gold) !important;
+  outline-offset: -1px;
+  background: rgba(212, 176, 98, 0.16) !important;
 }

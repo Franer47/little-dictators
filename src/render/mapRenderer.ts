@@ -13,6 +13,28 @@ export interface PlacementPreview {
   valid: boolean;
 }
 
+/** Where the map is on screen, for layers drawn on top of it (names, army flags). */
+export interface MapView {
+  /** Device pixels per map pixel. */
+  scale: number;
+  /** Where map pixel (0, 0) of the real map is, in device pixels. */
+  offsetX: number;
+  offsetY: number;
+  /** Device pixels per CSS pixel. */
+  dpr: number;
+  /** Which copies of the map are on screen (see visibleCopies). */
+  copies: number[];
+  mapWidth: number;
+  /** Size of the screen in device pixels. */
+  screenWidth: number;
+  screenHeight: number;
+}
+
+/** Something drawn over the map in screen space (so text and flags stay sharp at any zoom). */
+export interface MapOverlay {
+  draw(ctx: CanvasRenderingContext2D, view: MapView): void;
+}
+
 /**
  * Draws the map. The whole map is painted once into a small offscreen image
  * (one canvas pixel per map pixel), which is then scaled up with the camera's zoom.
@@ -26,6 +48,8 @@ export class MapRenderer {
   territory: TerritoryLayer | null = null;
   /** Shown at the hovered pixel while placing a nation. */
   preview: PlacementPreview | null = null;
+  /** Drawn over the land, in order (nation names, then army flags). */
+  overlays: MapOverlay[] = [];
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -85,6 +109,12 @@ export class MapRenderer {
         const right = Math.round(offsetX + (k + 1) * width * scale);
         ctx.drawImage(layer, left, top, right - left, bottom - top);
       }
+    }
+
+    if (this.overlays.length) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      const view: MapView = { scale, offsetX, offsetY, dpr, copies, mapWidth: width, screenWidth: this.canvas.width, screenHeight: this.canvas.height };
+      for (const overlay of this.overlays) overlay.draw(ctx, view);
     }
 
     if (this.hovered) {

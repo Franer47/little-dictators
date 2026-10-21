@@ -2,6 +2,19 @@
   box-sizing: border-box;
 }
 
+/* The look of the panels on the map, in the spirit of Victoria 3: dark ink panels with a thin
+   gold frame, cream text, and classical capitals (Cinzel) for names and headings. */
+:root {
+  --ink: #f1e8d4;
+  --gold: #d4b062;
+  --gold-bright: #f0d48a;
+  --gold-soft: #e6cf98;
+  --up: #93d17c;
+  --down: #e8806a;
+  --title-font: "Cinzel", Georgia, "Times New Roman", serif;
+  --frame: 0 8px 26px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 3px rgba(212, 176, 98, 0.1);
+}
+
 html,
 body {
   margin: 0;
@@ -9,7 +22,7 @@ body {
   overflow: hidden;
   background: #1b3354;
   font-family: system-ui, sans-serif;
-  color: #eef2f6;
+  color: var(--ink);
 }
 
 #map {
@@ -24,23 +37,63 @@ body {
   cursor: grabbing;
 }
 
+/* The game's name and the ⓘ button (map info and controls), in the bottom-left corner;
+   the top-left corner is your nation's bar. */
 #hud {
   position: fixed;
-  top: 12px;
+  bottom: 12px;
   left: 12px;
   padding: 10px 14px;
-  background: rgba(14, 22, 34, 0.82);
+  background: rgba(26, 22, 17, 0.82);
   border-radius: 8px;
   font-size: 13px;
   line-height: 1.5;
   pointer-events: none;
-  min-width: 220px;
 }
 
 #hud .title {
   font-weight: 700;
   font-size: 15px;
   margin-bottom: 4px;
+}
+
+/* The map info (what's under the mouse) and the controls fold away behind the ⓘ button. */
+#hud .hud-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+#hud .hud-head .title {
+  margin-bottom: 0;
+}
+
+#hud .hud-toggle {
+  pointer-events: auto;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+#hud .hud-toggle:hover,
+#hud .hud-toggle[aria-expanded="true"] {
+  background: rgba(212, 176, 98, 0.3);
+}
+
+#hud-more {
+  margin-top: 4px;
+}
+
+#hud-more[hidden] {
+  display: none;
 }
 
 #hud .help {
@@ -66,7 +119,7 @@ body {
 #start-menu .panel {
   width: min(360px, calc(100vw - 32px));
   padding: 28px 28px 24px;
-  background: rgba(14, 22, 34, 0.88);
+  background: rgba(26, 22, 17, 0.88);
   border-radius: 12px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
   text-align: center;
@@ -118,14 +171,14 @@ body {
 }
 
 .map-option:has(input:checked) {
-  border-color: #7fb4e6;
-  background: rgba(127, 180, 230, 0.12);
+  border-color: var(--gold);
+  background: rgba(212, 176, 98, 0.12);
 }
 
 .map-option input {
   grid-row: span 2;
   margin: 0;
-  accent-color: #7fb4e6;
+  accent-color: var(--gold);
 }
 
 .map-option .name {
@@ -151,14 +204,14 @@ body {
   font-size: 16px;
   font-weight: 600;
   color: #10203a;
-  background: #7fb4e6;
+  background: var(--gold);
   border: none;
   border-radius: 8px;
   cursor: pointer;
 }
 
 #start-menu .start:hover:not(:disabled) {
-  background: #9cc6ee;
+  background: var(--gold-soft);
 }
 
 #start-menu .start:disabled {
@@ -214,7 +267,7 @@ body {
   font-size: 13px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: rgba(238, 242, 246, 0.6);
+  color: rgba(241, 232, 212, 0.6);
   opacity: 0;
   pointer-events: none;
 }
@@ -239,4 +292,142 @@ body {
   #start-menu.leaving .panel {
     transform: none;
   }
+}
+
+/* ---- the shared panel look (see :root) */
+
+.np-summary,
+.np-stats,
+.np-record,
+#army-panel,
+#nation-list,
+#hud,
+.ui-tip,
+#place-bar .pb-main {
+  border: 1px solid rgba(212, 176, 98, 0.55) !important;
+  box-shadow: var(--frame) !important;
+}
+
+#nation-bar {
+  border-bottom: 1px solid rgba(212, 176, 98, 0.6);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.6), 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+
+/* Names and headings in classical capitals. */
+.np-name,
+.np-record h2,
+.np-record-name,
+.np-stats-toggle,
+.np-stat-group h3,
+.nb-name,
+.nb-you,
+.ap-name,
+.ap-kicker,
+#hud .title,
+.nl-title,
+.ui-tip-title {
+  font-family: var(--title-font) !important;
+}
+
+.np-name,
+.nb-name,
+.ap-name,
+.np-record-name {
+  letter-spacing: 0.03em;
+}
+
+/* Gold buttons, like the ornate ones in Paradox games. */
+.nb-army,
+.ap-btn.primary {
+  color: #22190a !important;
+  background: linear-gradient(180deg, #ecd08a, #c49a4a 55%, #a87f36) !important;
+  border: 1px solid #6b5020 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 245, 210, 0.6), 0 2px 6px rgba(0, 0, 0, 0.45) !important;
+  font-family: var(--title-font) !important;
+}
+
+/* ---- stat icons: a tinted badge in the stat's colour (see src/ui/icons.ts) */
+
+.ic {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  color: var(--ic);
+  background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--ic) 34%, transparent), color-mix(in srgb, var(--ic) 12%, transparent));
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ic) 45%, transparent), 0 0 8px color-mix(in srgb, var(--ic) 18%, transparent);
+  transition: transform 0.18s cubic-bezier(0.2, 1.6, 0.4, 1), box-shadow 0.18s;
+}
+
+.ic svg {
+  width: 14px !important;
+  height: 14px !important;
+  color: inherit !important;
+  opacity: 1 !important;
+  filter: drop-shadow(0 0 2px color-mix(in srgb, var(--ic) 55%, transparent));
+}
+
+/* Small ones in the stat sheet and its headings. */
+.np-stat .ic,
+.np-stat-group h3 .ic {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+}
+
+.np-stat .ic svg,
+.np-stat-group h3 .ic svg {
+  width: 12px !important;
+  height: 12px !important;
+}
+
+/* Alive: the icon hops when you point at its stat, and warnings pulse. */
+:hover > .ic,
+:focus-visible > .ic,
+.tip-pinned > .ic {
+  transform: scale(1.18) rotate(-8deg);
+  box-shadow: inset 0 0 0 1px var(--ic), 0 0 12px color-mix(in srgb, var(--ic) 45%, transparent);
+}
+
+.ic.alarm {
+  animation: ic-alarm 1.6s ease-in-out infinite;
+}
+
+@keyframes ic-alarm {
+  50% {
+    box-shadow: inset 0 0 0 1px var(--ic), 0 0 14px color-mix(in srgb, var(--ic) 70%, transparent);
+    transform: scale(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ic,
+  .ic.alarm {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* ---- every press shows: buttons and clickable rows dip and brighten while pressed */
+
+button:not(:disabled),
+[data-stat],
+.nl-rows li,
+.ap-div {
+  transition: transform 0.08s ease-out, filter 0.08s, background 0.15s, border-color 0.15s;
+}
+
+button:not(:disabled):active,
+[data-stat]:active,
+.nl-rows li:active,
+.ap-div:active {
+  transform: translateY(1px) scale(0.97);
+  filter: brightness(1.25);
+}
+
+[data-stat] {
+  cursor: pointer !important;
 }

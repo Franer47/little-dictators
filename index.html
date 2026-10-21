@@ -19,9 +19,14 @@
       <div class="loading-note">Loading map…</div>
     </div>
     <div id="hud" hidden>
-      <div class="title">Little Dictators</div>
-      <div id="tile-info">Hover the map</div>
-      <div class="help">Drag / WASD: move · Wheel / Q E: zoom · F: fit map</div>
+      <div class="hud-head">
+        <div class="title">Little Dictators</div>
+        <button type="button" class="hud-toggle" aria-expanded="false" aria-controls="hud-more" title="Show map info and controls">ⓘ</button>
+      </div>
+      <div id="hud-more" hidden>
+        <div id="tile-info">Hover the map</div>
+        <div class="help">Drag / WASD: move · Wheel / Q E: zoom · F: fit map</div>
+      </div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

@@ -1,11 +1,16 @@
 // The nation panel in the bottom-right corner of the map: flag placeholder, name and a few
 // key results. Click it to open the creation record (everything rolled for the nation).
 // One nation at a time: showing another replaces it (click a nation on the map).
+// Above it, once the nation has land, its stat sheet (src/game/stats.ts): point at a stat
+// (or tab to it) to see where the number comes from.
 
 import "./nationPanel.css";
 import { describeOutcome, type Nation } from "../game/nation.ts";
 import { resultGroups, type WheelData } from "../game/wheels.ts";
-import { escapeHtml, flagPlaceholder, formatText, hoverTips, nationChart, oddsText, outcomeTip } from "./uiBits.ts";
+import type { StatSheet, StatsData } from "../game/stats.ts";
+import { escapeHtml, flagPlaceholder, formatText, hideTips, hoverTips, nationChart, oddsText, outcomeTip } from "./uiBits.ts";
+import { loadPref, savePref } from "./prefs.ts";
+import { badge, ideologyColor, scoreColor, statIcon } from "./icons.ts";
 
 export interface PanelExtras {
   /** The nation's colour, shown as its flag. */
@@ -15,6 +20,8 @@ export interface PanelExtras {
    * evened out for the latitude) and what it actually got (km²; none until it's placed).
    */
   land?: { rolled: number; target?: number; actual?: number };
+  /** Its stat sheet (none until it's placed). */
+  stats?: { sheet: StatSheet; data: StatsData };
 }
 
 /** Removes the panel's window listeners when the panel is replaced. */
@@ -77,6 +84,7 @@ export function showNationPanel(nation: Nation, data: WheelData, extras: PanelEx
         </dl>
       </div>
     </section>
+    ${extras.stats ? statsBox(extras.stats.sheet, extras.stats.data) : ""}
     <button type="button" class="np-summary" title="${text("panelHint")}" aria-expanded="false">
       ${flagPlaceholder((extras.color ? data.text.flagColor : data.text.flagSoon) ?? "", extras.color)}
       <span class="np-text">
@@ -90,8 +98,11 @@ export function showNationPanel(nation: Nation, data: WheelData, extras: PanelEx
 
   const record = panel.querySelector<HTMLElement>(".np-record")!;
   const summary = panel.querySelector<HTMLButtonElement>(".np-summary")!;
+  const statsEl = panel.querySelector<HTMLElement>(".np-stats");
   const setOpen = (open: boolean): void => {
     record.hidden = !open;
+    // The record and the stats don't both fit: the record takes the stats' place while it's open.
+    if (statsEl) statsEl.hidden = open;
     summary.setAttribute("aria-expanded", String(open));
     panel.classList.toggle("open", open);
   };
@@ -109,6 +120,19 @@ export function showNationPanel(nation: Nation, data: WheelData, extras: PanelEx
     const outcome = nation.results[row.dataset.wheel ?? ""];
     return outcome ? outcomeTip(outcome, data.text.tipOdds ?? "Odds: {chance}") : null;
   });
+  if (statsEl && extras.stats) {
+    const { sheet } = extras.stats;
+    const toggle = statsEl.querySelector<HTMLButtonElement>(".np-stats-toggle")!;
+    toggle.addEventListener("click", () => {
+      const open = statsEl.classList.toggle("collapsed") === false;
+      toggle.setAttribute("aria-expanded", String(open));
+      savePref("statsOpen", open);
+    });
+    hoverTips(statsEl, "[data-stat]", (el) => {
+      const stat = sheet.stats[el.dataset.stat as keyof StatSheet["stats"]];
+      return stat ? { title: `${stat.name} · ${stat.text}`, text: stat.why.join("\n"), small: stat.about, kind: "wide" } : null;
+    });
+  }
   // Keep presses on the panel from reaching the map behind it.
   panel.addEventListener("pointerdown", (e) => e.stopPropagation());
   panel.addEventListener("wheel", (e) => e.stopPropagation());
@@ -116,6 +140,7 @@ export function showNationPanel(nation: Nation, data: WheelData, extras: PanelEx
 
 /** Removes the panel (if one is showing). */
 export function closeNationPanel(): void {
+  hideTips();
   lastPanel?.abort();
   lastPanel = null;
   document.getElementById("nation-panel")?.remove();
@@ -128,4 +153,49 @@ export function landText(land: { rolled: number; target?: number; actual?: numbe
   // Within half a percent counts as the full size (land comes in whole pixels).
   const full = land.actual >= (land.target ?? land.rolled) * 0.995;
   return formatText(data.text[full ? "landFull" : "landShort"] ?? "{actual} km²", { actual: km(land.actual), rolled: km(land.rolled) });
+}
+
+/** The stat sheet box: the stats in their groups, each with its breakdown on hover. */
+function statsBox(sheet: StatSheet, data: StatsData): string {
+  const open = loadPref<boolean>("statsOpen", true);
+  // Scores (0–100) get a coloured meter; the ideology mix gets a stacked bar.
+  const scores = new Set(Object.entries(data.factors).filter(([, f]) => f.format === "score").map(([id]) => id));
+  const options = data.ideology?.options ?? [];
+  const mixBar = sheet.ideologies.length
+    ? `<span class="np-mix">${sheet.ideologies
+        .map((m) => {
+          const i = options.findIndex((o) => o.id === m.id);
+          return `<span style="width:${(m.share * 100).toFixed(1)}%;background:${ideologyColor(i >= 0 ? i : m.id.length, m.id)}"></span>`;
+        })
+        .join("")}</span>`
+    : "";
+  const groupIcons: Record<string, string> = { military: "swords", economy: "coin", people: "people", land: "mountain" };
+  const groupColors: Record<string, string> = { military: "#e0604f", economy: "#f0c84e", people: "#86cf72", land: "#c4a06a" };
+  const groups = data.groups
+    .map((g) => {
+      const rows = g.stats
+        .map((id) => sheet.stats[id])
+        .map((s) => {
+          const isScore = scores.has(s.id);
+          const val = isScore ? `<b style="color:${scoreColor(s.value)}">${escapeHtml(s.text)}</b>` : escapeHtml(s.text);
+          const under = isScore
+            ? `<span class="np-meter"><span style="width:${Math.max(2, Math.min(100, s.value))}%;background:${scoreColor(s.value)}"></span></span>`
+            : s.id === "ideology"
+              ? mixBar
+              : s.detail
+                ? `<span class="np-stat-detail">${escapeHtml(s.detail)}</span>`
+                : "";
+          return `<div class="np-stat${s.warn ? " warn" : ""}" data-stat="${s.id}" tabindex="0">
+            ${statIcon(s)}<span class="np-stat-name">${escapeHtml(s.short)}</span>
+            <span class="np-stat-val">${val}</span>${under}
+          </div>`;
+        })
+        .join("");
+      return `<section class="np-stat-group"><h3>${badge(groupIcons[g.id], groupColors[g.id] ?? "#d4b062")}${escapeHtml(g.name)}</h3>${rows}</section>`;
+    })
+    .join("");
+  return `<div class="np-stats${open ? "" : " collapsed"}">
+    <button type="button" class="np-stats-toggle" aria-expanded="${open}" title="Show or hide the stat sheet">Stats <span aria-hidden="true">▾</span></button>
+    <div class="np-stats-body">${groups}</div>
+  </div>`;
 }

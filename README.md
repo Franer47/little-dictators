@@ -257,6 +257,131 @@ the biggest hole that gets filled (`holeSize`), how far nations spread into the 
 per round (`fill.absorbSteps`), how many nations Fill places per look at the map
 (`fill.batchArea`, for speed), and the colour list.
 
+## Stats: every nation's numbers
+
+Once a nation has land, the corner panel shows its **stat sheet** above its name: the
+numbers the simulation will run on (they don't change over time yet; the clock comes
+next). Every nation has one, yours and all of Fill's; click any nation on the map or in the
+nation list to see its stats. **Point at a stat** (or Tab to it) to see where the number
+comes from, e.g. "Manpower 80K = Population 2.93M × recruit rate 2.7%: Base 2% · Knightly
+Order +20% · Fanatical +15% · Highlands (30% of land) +1.5%". The ▾ next to "Stats" folds
+the sheet away (remembered).
+
+**Your own nation's key numbers** run along a **strip across the top**: treasury (and how
+much it gains or loses a year), population and growth, stability, popularity, army,
+development and the ideology mix, plus the **Army** button. Point at any of them for the
+breakdown, or click the name to open your nation. (The game's name and the ⓘ button for map
+info are in the bottom-left corner.) Every nation's name is written across its land, tilted
+along it and as big as it fits, like on a Paradox map.
+
+![The top strip, nation names and the stat sheet](docs/stats-panel.jpg)
+
+**Click** any stat (in the strip, the stat sheet or the creation record) to keep its
+breakdown open; click it again, press Esc or click anywhere else to close it. Every stat has
+its own coloured icon (money gold, people green, military red, sea blue…); stability,
+popularity, development, cohesion, growth and net income are coloured by how good they are,
+and an icon pulses when something's wrong (starving, losing money, about to collapse).
+
+![A pinned breakdown](docs/stats-breakdown.jpg)
+
+The stats come from the wheel results **and the land the nation actually got**: a nation
+boxed in by its neighbours has fewer people than it rolled, and mountains, coasts and
+rivers change food, defence, trade and ships. Money is in today's US dollars.
+
+| Group | Stat | In plain words | Main inputs |
+|---|---|---|---|
+| Military | **Manpower** | How many men could be called up | Population × recruit rate (government, ideology, traits like Mandatory enlistment, stability, popularity, highlands/mountains) |
+| | **Army** | Soldiers under arms in peacetime | Manpower × share kept under arms, but never more than army budget × income ÷ cost per soldier ("pay-capped") |
+| | **Quality** | How good each soldier is (0–100, 50 = ordinary) | Government, ideology, history (veterans, long peace), wealth, iron and horses |
+| | **Aggression** | How likely it is to start wars (0–100) | The nation chart's left–right position, ideology, history, traits like Seeks revenge or Has insane conquering ambitions |
+| Economy | **GDP** | Everything its people make in a year | Population × wealth per person |
+| | **Income** | Taxes the state collects each year | GDP × tax rate (about 5%; government, stability, popularity, wealth) |
+| | **Upkeep** | What it spends each year | Army × cost per soldier, plus the court and officials (a share of income) |
+| | **Net** | What's left each year | Income − upkeep |
+| | **Treasury** | Money in the vaults at the start | Income × years of savings (gold, silver, golden age, trade boom; war and fire empty it) |
+| People | **Population** | People on its land | Rolled density × the land it got |
+| | **Growth** | % per year | Birth rate (about 0.5%/yr) × the room left on the land; negative when over its food. Stability, history, traits |
+| | **Food** | How many people the land can feed, and how much is used | Plains 45 people/km², highlands 18, mountains 6, snow 3; +50% on rivers, +20% on coasts; grain, rice, fish, cattle |
+| | **Stability** | How solid the state is (0–100) | The Stability wheel (Collapsing 5 … Rock solid 95), plus government and traits |
+| | **Popularity** | How the people feel about the ruler (0–100) | The Popularity wheel (Hated 5 … Revered 95), plus traits; it nudges stability, taxes and recruits |
+| | **Ideology** | What the people believe, in shares | The rolled ideology is the biggest group (35% when collapsing, 75% when rock solid); the rest follow the ideologies near the nation on the chart |
+| | **Development** | How advanced it is (0–100) | Wealth, trade, cohesion, learning (Scholarly, Humanist, golden age; Burns books lowers it) and stability |
+| Land & power | **Land** | km² it got, and what kind | Plains / highlands / mountains / snow, number of pieces, how compact |
+| | **Coast** | Coastline and riverbanks | Land pixels touching sea or lake, and rivers |
+| | **Defence** | How hard it is to invade (0–100) | Mountains (+60 if all mountains), highlands, rivers, water borders (an island +25), traits |
+| | **Trade** | How much it trades (0–100) | Coast, rivers, valuable resources (spices, silk…), Trade-minded, Seafaring, Merchant Republic |
+| | **Navy** | How far its ships reach (0–100) | Coast, Seafaring, timber, fish; a landlocked nation has none |
+| | **Cohesion** | How well the land holds together (0–100) | Land outside its main piece, number of islands/exclaves, how spread out it is; government and history |
+
+**Stability changes almost everything.** It isn't just a number on the sheet: the further
+it is from 50, the more it pushes taxes, recruits, growth, farming, savings, army quality,
+trade, cohesion and development up (stable) or down (unstable), and an unstable nation is
+a bit more aggressive. Every breakdown shows its share, e.g. "Stability 80 +3". The amounts
+are in `scoreEffects` in the data file (popularity has a few too).
+
+The four extra stats (defence, trade, naval reach, cohesion) are there because the coming
+simulation needs them: defence for wars and front lines, trade for income and contact
+between nations, naval reach for overseas invasions, and cohesion for revolts and
+breakaways.
+
+## Armies: divisions on the map
+
+Every nation's army is split into **divisions** of 400 troops, each a little flag in the
+nation's colour along its borders: its future front line (wars come in milestone 5). An
+island nation with only a small land border guards its coasts too. The flags only show when
+you **zoom in close**, so the map stays readable; there, a nation's flags that would overlap
+merge into one with their total, and zooming in further shows every division.
+
+Click a flag (or **Army** in the top strip) to open that nation's **Army section**: its
+troops, divisions, manpower, yearly cost and quality, and a list of its divisions. While it's
+open, that nation's flags show from further out too. For **your own** nation you can ask for:
+
+- **New division** (+400 troops), or
+- **Bigger** (+400 troops to the division you picked, up to 4,000).
+
+You only ask; your nation decides at once and says why. It refuses if it's too unstable
+(stability under 25), hasn't got the men (more than its manpower) or can't pay (its net
+income would go below zero). If it agrees, the new troops are added to its army and upkeep,
+and the flag is striped while they're **in training** (they'll take time once the clock
+exists). Other nations' armies you can look at but not change. The numbers are in
+`"divisions"` in `public/data/eras/1500-stats.json`.
+
+![Divisions along the borders and the Army section](docs/army.jpg)
+
+### Tuning the stats
+
+Everything is in **`public/data/eras/1500-stats.json`** (no code changes needed; reload the
+page). Each "factor" (recruit rate, tax rate, defence…) has a `base`, a `min` and a `max`.
+Modifiers are written as text and come from wheel results (`results`, by wheel id and slice
+id), the land (`terrain`, scaled by that terrain's share of the land; `access`, scaled by
+how much coast or river it has) and the nation chart (`chart`):
+
+```json
+"militarist": { "recruitRate": "+30%", "armyQuality": "+10", "aggression": "+20" }
+```
+
+`"+30%"` is a percentage (all the percentages are added up, then multiply the base), `"+20"`
+is added as is, and `"×0"` multiplies the result. A typo (an unknown wheel, slice, factor
+or terrain, or a modifier like `"+30 percent"`) stops the game with a message that says
+exactly where the mistake is.
+
+**The stats spreadsheet.** To tune many things at once: `python scripts/stats_sheet.py export`
+writes `tuning/1500-stats-list.xlsx` (not kept in git; the JSON file is the real copy), one
+row for everything that gives stats (every government, ideology, history, trait, wealth
+level, resource, land type, coast, the chart, and what stability and popularity do), with
+what it gives now in plain words ("+30% recruit rate, +20 aggression"). Write the new list in
+the yellow column, save, and `python scripts/stats_sheet.py import` puts it into the data
+file, changing only those lines (and says exactly what changed, or which row it couldn't
+read). `export-grid` makes the same as a grid, one column per number, with the starting
+values too. The same list also lives on a private Claude page (the "Stat Ledger") where you
+can type your changes in the browser; `page-items` makes its list, and `import <answers>.json`
+reads its saved answers (`{"w": {row id: text}}`) back in the same way. Needs Python with
+`openpyxl` (`pip install openpyxl`).
+
+In the dev server's console, **`game.checkStats()`** prints the smallest, typical and
+biggest value of every stat over the nations on the map (press Fill the world first) and
+lists anything that looks absurd for 1500; `game.sheet(1)` is the first nation's whole sheet.
+
 ## Controls
 
 | Action | Input |
@@ -264,6 +389,7 @@ per round (`fill.absorbSteps`), how many nations Fill places per look at the map
 | Move camera | Drag with the mouse, or WASD / arrow keys (hold Shift for faster) |
 | Zoom | Mouse wheel, or Q / E |
 | Zoom all the way out | F |
+| Map info (what's under the mouse) and the controls | the ⓘ button, bottom left |
 
 ## Map edges
 
@@ -280,13 +406,21 @@ src/
   main.ts                 starts the game
   ui/startMenu.ts         the start screen: pick a map
   ui/wheel/               the wheel screen: flow, the two wheel looks, sounds, confetti
-  ui/nationPanel.ts       the nation panel in the corner and its creation record
+  ui/nationPanel.ts       the nation panel in the corner: stat sheet, creation record
+  ui/nationBar.ts         the strip across the top: your nation's key numbers and the Army button
+  ui/armyPanel.ts         the Army section: divisions, and requests for new or bigger ones
+  game/army.ts            divisions: how many, where their flags stand, whether a nation agrees to a request
+  game/labels.ts          where each nation's name goes on the map
+  render/divisionLayer.ts draws the army flags (merged when zoomed out)
+  render/labelLayer.ts    draws the nation names
+  ui/icons.ts             the small stat icons and meter colours
   ui/placement.ts         placing nations: the hint bar, nation list, Surprise me, Fill, Clear
   game/wheels.ts          loads the wheel data, spins (weighted random picks)
   game/nation.ts          a nation and its creation record; chained numbers; name generator
   game/roller.ts          the spin-by-spin rules (rare pulls, exact numbers, picks, golden spin)
   game/chart.ts           the nation chart: the dot, chart-sized slices, the golden chance
-  game/devChecks.ts       console checks: game.checkWeights(), checkNumbers(), sampleNations()
+  game/stats.ts           the stat sheet: one look over the map for everyone's land, then each nation's numbers
+  game/devChecks.ts       console checks: game.checkWeights(), checkNumbers(), sampleNations(), checkStats()
   game/random.ts          seeded random numbers for game logic
   game/territory.ts       who owns each pixel; how a nation's land grows; the Europe region
   map/terrain.ts          terrain types and their (data) colours
@@ -298,6 +432,7 @@ src/
   render/terrainColors.ts the shaded look: colour ramps, hillshade, coasts, sea depth
   input/cameraControls.ts mouse + keyboard camera controls
 scripts/
+  stats_sheet.py          the stats spreadsheet: export the data file to Excel, import it back
   build-earth-map.ts      generates the Earth map from real-world data
   earth-water.json        which lakes and rivers go on the Earth map (editable)
 public/maps/              map files (see below)

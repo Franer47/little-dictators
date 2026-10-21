@@ -19,9 +19,16 @@ import { rollNation } from "../game/roller.ts";
 import { createRng, randomSeed, type Rng } from "../game/random.ts";
 import { Region, Territory, type Holding, type PlacementData, type Survey } from "../game/territory.ts";
 import type { WheelData } from "../game/wheels.ts";
+import { statSheet, surveyLand, type StatSheet, type StatsData } from "../game/stats.ts";
 import type { LandRoom } from "../game/room.ts";
 import { runWheelScreen } from "./wheel/wheelScreen.ts";
 import { closeNationPanel, landText, showNationPanel } from "./nationPanel.ts";
+import { initNationBar, setNationBarHidden, showNationBar } from "./nationBar.ts";
+import { showArmyPanel } from "./armyPanel.ts";
+import { decideRequest, emptyOrders, orderedTroops, ordinal, placeDivisions, type ArmyOrders, type Division } from "../game/army.ts";
+import { labelSpots, mapName } from "../game/labels.ts";
+import { DivisionLayer } from "../render/divisionLayer.ts";
+import { LabelLayer } from "../render/labelLayer.ts";
 import { escapeHtml } from "./uiBits.ts";
 import { loadPref, savePref } from "./prefs.ts";
 
@@ -45,6 +52,8 @@ export interface PlacementOptions {
   requestRender: () => void;
   wheels: WheelData;
   data: PlacementData;
+  /** The stat sheet rules (public/data/eras/<era>-stats.json). */
+  stats: StatsData;
   /** Fixed seed from the address (?seed=123): the same seed and clicks give the same map. */
   seed?: number;
   /** ?wheel=skip: roll each nation instantly instead of showing the wheel. */
@@ -58,6 +67,18 @@ export class Placement {
   readonly territory: Territory;
   readonly region: Region;
   readonly nations: PlacedNation[] = [];
+  /** Every placed nation's stat sheet (by id - 1), worked out again whenever land changes. */
+  sheets: StatSheet[] = [];
+  /** How long the last stats update took (ms), for the dev checks. */
+  statsMs = 0;
+  /** Every nation's divisions on the map (worked out again with the stats). */
+  divisions: Division[] = [];
+  /** What the player asked their nation for (by nation id). */
+  readonly orders = new Map<number, ArmyOrders>();
+  private divisionLayer = new DivisionLayer();
+  private labelLayer = new LabelLayer();
+  /** The nation whose Army section is open (0 = closed), its selected division and its last answer. */
+  private army: { nation: number; selected: number | null; message: { ok: boolean; text: string } | null } = { nation: 0, selected: null, message: null };
   private layer: TerritoryLayer;
   private state: State = "wheel";
   /** The nation waiting to be placed. */
@@ -84,8 +105,21 @@ export class Placement {
     this.region = new Region(map, data.regions[data.region], (t) => this.territory.claimableTerrain(t) && t !== Terrain.River);
     this.layer = new TerritoryLayer(map, this.territory);
     opts.renderer.territory = this.layer;
+    opts.renderer.overlays.push(this.labelLayer, this.divisionLayer);
+    this.divisionLayer.colorOf = (id) => this.nations[id - 1]?.color ?? "#888";
     this.rng = createRng(opts.seed ?? randomSeed());
     this.build();
+    const mine = (): PlacedNation | undefined => this.nations.find((n) => n.mine);
+    initNationBar({
+      open: () => {
+        const m = mine();
+        if (m && (this.state === "idle" || this.state === "growing")) this.showNation(m.holding.id);
+      },
+      army: () => {
+        const m = mine();
+        if (m) this.openArmy(this.army.nation === m.holding.id ? 0 : m.holding.id);
+      },
+    });
   }
 
   /** The first colour not in use yet (the first nation's colour is picked before the map exists). */
@@ -112,8 +146,8 @@ export class Placement {
     this.update();
   }
 
-  /** The map was clicked on pixel (x, y). */
-  click(x: number, y: number): void {
+  /** The map was clicked on pixel (x, y), at (sx, sy) on screen (CSS pixels). */
+  click(x: number, y: number, sx = -1, sy = -1): void {
     if (this.state === "placing") {
       const why = this.whyNot(x, y);
       if (why) {
@@ -123,6 +157,13 @@ export class Placement {
       return;
     }
     if (this.state === "idle" || this.state === "growing") {
+      // An army flag first: it opens that nation's Army section with the division picked.
+      const flag = this.divisionLayer.hit(sx, sy);
+      if (flag) {
+        this.showNation(flag.nation);
+        this.openArmy(flag.nation, flag.indices[0]);
+        return;
+      }
       const id = this.territory.ownerAt(x, y);
       if (id) this.showNation(id);
     }
@@ -189,6 +230,7 @@ export class Placement {
       this.layer.reveal(holding.pixels);
       return placed;
     }
+    this.refreshStats();
     if (how === "animate" && !this.opts.reducedMotion) {
       this.state = "growing";
       // Longer for bigger nations, but never more than about two seconds.
@@ -352,6 +394,9 @@ export class Placement {
       const share = Math.round(this.territory.ownedShare(this.region) * 100);
       console.log(`Fill: ${this.nations.length} nations, ${share}% of ${this.regionName}, in ${Math.round(performance.now() - started)} ms`);
     }
+    const filled = performance.now();
+    this.refreshStats();
+    if (import.meta.env.DEV) console.log(`Stats for ${this.nations.length} nations: ${Math.round(this.statsMs)} ms (fill itself ${Math.round(filled - started)} ms)`);
     this.pending = null;
     this.state = "idle";
     this.note = "";
@@ -366,6 +411,13 @@ export class Placement {
     this.territory.clear();
     this.layer.clear();
     this.nations.length = 0;
+    this.sheets = [];
+    this.divisions = [];
+    this.orders.clear();
+    this.divisionLayer.divisions = [];
+    this.labelLayer.set([]);
+    this.openArmy(0);
+    showNationBar(null);
     this.shownId = 0;
     this.note = "";
     if (this.pending) {
@@ -380,6 +432,104 @@ export class Placement {
   }
 
   // ---------------------------------------------------------------- helpers
+
+  /**
+   * Works out every nation's stat sheet again: one look over the whole map for everyone's land
+   * (terrain, coasts, rivers, pieces), then each nation's numbers. Run whenever land changes.
+   */
+  refreshStats(): void {
+    const t0 = performance.now();
+    const { owner, areas } = this.territory;
+    const land = surveyLand(this.opts.map, owner, areas, this.nations.length);
+    this.sheets = this.nations.map((n, i) => statSheet(n.nation, land[i], this.opts.stats, orderedTroops(this.orders.get(i + 1))));
+    this.statsMs = performance.now() - t0;
+    this.refreshMap();
+    this.updateNationBar();
+  }
+
+  /** The army flags and the names on the map, after the land or the armies changed. */
+  private refreshMap(): void {
+    const { map, stats } = this.opts;
+    const t0 = performance.now();
+    this.divisions = placeDivisions(map, this.territory.owner, this.sheets, stats.divisions, this.orders);
+    this.divisionLayer.divisions = this.divisions;
+    const spots = labelSpots(map, this.territory.owner, this.nations.length);
+    this.labelLayer.set(this.nations.map((n, i) => ({ text: mapName(n.nation.name), spot: spots[i] })));
+    if (import.meta.env.DEV && this.nations.length > 50) console.log(`Flags (${this.divisions.length} divisions) and names: ${Math.round(performance.now() - t0)} ms`);
+    if (this.army.nation) this.renderArmy();
+    this.opts.requestRender();
+  }
+
+  // ---------------------------------------------------------------- the army section
+
+  /** Opens nation `id`'s Army section (0 closes it), optionally with a division picked. */
+  private openArmy(id: number, select: number | null = null): void {
+    this.army = { nation: id, selected: select, message: null };
+    this.divisionLayer.focus = id;
+    this.divisionLayer.selected = id && select !== null ? { nation: id, index: select } : null;
+    this.renderArmy();
+    this.opts.requestRender();
+  }
+
+  private renderArmy(): void {
+    const id = this.army.nation;
+    const placed = this.nations[id - 1];
+    const sheet = this.sheets[id - 1];
+    if (!id || !placed || !sheet) {
+      showArmyPanel(null);
+      return;
+    }
+    const rules = this.opts.stats.divisions;
+    const ask = (troops: number, apply: (o: ArmyOrders) => void): void => {
+      const answer = decideRequest(sheet, troops, rules, this.opts.stats.numberSuffixes);
+      if (answer.ok) {
+        const orders = this.orders.get(id) ?? emptyOrders();
+        apply(orders);
+        this.orders.set(id, orders);
+        this.refreshStats();
+      }
+      this.army.message = { ok: answer.ok, text: answer.reason };
+      this.renderArmy();
+    };
+    showArmyPanel({
+      name: placed.nation.name,
+      color: placed.color,
+      mine: !!placed.mine,
+      divisions: this.divisions.filter((d) => d.nation === id),
+      sheet,
+      rules,
+      selected: this.army.selected,
+      message: this.army.message,
+      suffixes: this.opts.stats.numberSuffixes,
+      onSelect: (index) => {
+        this.army.selected = index;
+        this.army.message = null;
+        this.divisionLayer.selected = { nation: id, index };
+        this.renderArmy();
+        this.opts.requestRender();
+      },
+      onNew: () =>
+        ask(rules.size, (o) => {
+          o.added.push(rules.size);
+        }),
+      onBigger: (index) => {
+        const d = this.divisions.find((x) => x.nation === id && x.index === index);
+        if (!d) return;
+        ask(rules.growBy, (o) => o.grown.set(index, (o.grown.get(index) ?? 0) + rules.growBy));
+        if (this.army.message?.ok) this.army.message.text = this.army.message.text.replace("more soldiers", `more soldiers for the ${ordinal(index + 1)} Division`);
+        this.renderArmy();
+      },
+      onClose: () => this.openArmy(0),
+    });
+  }
+
+  /** The top-left bar shows your own nation's numbers (once it's on the map). */
+  private updateNationBar(): void {
+    const mine = this.nations.find((n) => n.mine);
+    const sheet = mine ? this.sheets[mine.holding.id - 1] : undefined;
+    const divisions = mine ? this.divisions.filter((d) => d.nation === mine.holding.id).length : 0;
+    showNationBar(mine && sheet ? { name: mine.nation.name, color: mine.color, sheet, data: this.opts.stats, divisions } : null);
+  }
 
   /** The room left in the region now, for the land wheel. */
   private room(): LandRoom {
@@ -458,8 +608,10 @@ export class Placement {
   /** Shows a placed nation in the corner panel, or (null) the one waiting to be placed. */
   private showPanel(placed: PlacedNation | null): void {
     if (placed) {
+      const sheet = this.sheets[placed.holding.id - 1];
       showNationPanel(placed.nation, this.opts.wheels, {
         color: placed.color,
+        stats: sheet ? { sheet, data: this.opts.stats } : undefined,
         land: { rolled: placed.holding.rolledArea, target: placed.holding.targetArea, actual: placed.holding.area },
       });
     } else if (this.pending) {
@@ -472,6 +624,9 @@ export class Placement {
   private setUiHidden(hidden: boolean): void {
     this.bar.hidden = hidden;
     this.list.hidden = hidden;
+    setNationBarHidden(hidden);
+    if (hidden) showArmyPanel(null);
+    else if (this.army.nation) this.renderArmy();
     if (hidden) closeNationPanel();
   }
 

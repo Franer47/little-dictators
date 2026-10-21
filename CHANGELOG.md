@@ -6,6 +6,27 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 ## Unreleased
 
 ### Changed
+- **The map info is folded away.** What's under the mouse (terrain, height, position) and
+  the controls now hide behind the ⓘ button in the bottom-left corner; click it to show them.
+- **First round of stat tuning:** every government, ideology, history, trait, wealth level,
+  resource, land type and the stability/popularity effects got at least one change, from the
+  owner's notes (e.g. Elected Monarchy +10 stability and popularity, Feudal Monarchy +20%
+  recruits, Monastic State +25 stability, Peace-loving +25 defence, Satanism much better at war)
+  plus small additions in the same spirit. Nothing was taken away. Nations are a bit more
+  stable and developed on average.
+- **A spreadsheet of what everything gives:** every government, ideology, history, trait,
+  wealth level and resource, and what it does to each number, in one Excel workbook you
+  can edit; a script puts your changes back into the game.
+- **Every click does something:** click a stat to keep its breakdown open (with a close
+  button); buttons and rows dip and light up while pressed. Stat icons now have colours
+  that mean something (money gold, people green, military red, sea blue; stability and the
+  like from red to green by how good they are), hop when you point at them, and pulse when
+  something's wrong.
+- **A look in the spirit of Victoria 3:** dark ink panels with thin gold frames, cream text,
+  gold buttons and classical capitals (the Cinzel font) for names and headings, on the map
+  too; small icons for every stat, coloured meters for the 0–100 scores, green and red for
+  going up and down. The stats and the nation's card in the bottom-right corner are now the
+  same width.
 - **Fairer nation sizes north and south.** The biggest-looking nations were all in Europe
   and the far north because the flat map stretches land away from the equator (a pixel in
   Europe covers about half the km² of one in Africa). A nation's land is now scaled
@@ -63,6 +84,30 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
   forever. A hidden wheel now keeps its size, and the label sizing always stops.
 
 ### Added
+- **A stat sheet for every nation.** Click any nation (yours or one of Fill's) and the
+  corner panel shows its numbers: manpower, army, army quality and aggression; GDP,
+  income, upkeep, net income and treasury; population, growth, food, stability and
+  popularity; land, coast, defence, trade, naval reach and cohesion. They come from the
+  wheel results *and* the land it actually got: mountains make it hard to invade but feed
+  few people, coasts and rivers help food, trade and ships, islands scattered over the sea
+  are hard to hold together. Point at any stat to see where the number comes from. All the
+  numbers are in `public/data/eras/1500-stats.json`, so they're easy to tune. They don't
+  change over time yet (that comes with the clock).
+- **Your nation's numbers in a strip across the top:** treasury and yearly gain or loss,
+  population and growth, stability, popularity, army, development and what the people
+  believe. Click the name to open your nation.
+- **Armies on the map.** Every nation's army is split into divisions of 400 troops, each a
+  little flag along its borders. Zoom in close to see them (nearby flags merge into one with
+  the total, and dragging the map doesn't change how they're merged). Click a flag or the **Army** button to see a nation's divisions; for your own
+  nation you can ask for a new division or a bigger one, and it agrees or refuses (not
+  enough money, men or stability) and tells you why.
+- **Nation names on the map**, written across each nation's land, tilted along it and sized
+  to fit.
+- **Ideology mix and development.** The people are now split between several ideologies
+  (the rolled one is the biggest, more so in a stable nation), and every nation has a
+  development level from 0 to 100.
+- **Stability changes almost everything:** taxes, recruits, growth, farming, trade,
+  cohesion, development and more go up when a nation is stable and down when it isn't.
 - **Play it online.** The game is published to GitHub Pages at
   https://franer47.github.io/little-dictators/ and updates itself whenever something is
   merged into main, so friends can try it without installing anything.

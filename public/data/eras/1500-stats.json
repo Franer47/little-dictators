@@ -1,0 +1,325 @@
+{
+  "about": "The stat sheet every nation gets (milestone 3a), worked out from its wheel results and the land it actually got on the map. Used by src/game/stats.ts. Nothing here changes over time yet (that comes with the clock, milestone 4). How a stat is worked out: a 'factor' starts at its 'base', every percentage that applies is added up and multiplies it (base × (1 + all the %)), every plain number is added on top, any '×' multiplies at the end, and then it's kept between 'min' and 'max'. Modifiers are written as text: \"+30%\" or \"-15%\" (a percentage of the base), \"+20\" or \"-5\" (added as is, in the factor's own units: points for scores, a fraction for rates, e.g. \"+0.01\" = one percentage point), or \"×0\" / \"×0.5\" (multiplies the result). Modifiers come from wheel results ('results', by wheel id and slice id), from the land ('terrain', scaled by that terrain's share of the land; 'access', scaled by how much coast or river the nation has) and from the nation chart ('chart', scaled by the dot's position, -1 to 1). Money is in today's US dollars. Reload the page to see changes.",
+
+  "inputs": {
+    "about": "Which wheels give the numbers everything starts from: the land wheel (km²), the population wheel (people per km² × land) and the wealth wheel (GDP per person × people). Population is the rolled density × the land the nation actually got, so a nation boxed in by its neighbours has fewer people than it rolled.",
+    "land": "land",
+    "people": "density",
+    "wealth": "wealth",
+    "resources": "resource"
+  },
+
+  "groups": [
+    { "id": "military", "name": "Military", "stats": ["manpower", "army", "armyQuality", "aggression"] },
+    { "id": "economy", "name": "Economy", "stats": ["gdp", "income", "upkeep", "net", "treasury"] },
+    { "id": "people", "name": "People", "stats": ["population", "growth", "food", "stability", "popularity", "ideology", "development"] },
+    { "id": "land", "name": "Land & power", "stats": ["land", "access", "defence", "trade", "naval", "cohesion"] }
+  ],
+
+  "stats": {
+    "about": "The numbers on the stat sheet: their names and a line in plain words shown under the breakdown. 'short' is the label in the panel if it's shorter than the name.",
+    "manpower": { "name": "Manpower", "about": "How many men could be called up: population × recruit rate." },
+    "army": { "name": "Standing army", "short": "Army", "about": "Soldiers under arms in peacetime: a share of the manpower, but never more than the treasury can pay for." },
+    "armyQuality": { "name": "Army quality", "short": "Quality", "about": "How good each soldier is, 0 to 100 (50 = an ordinary army of the age)." },
+    "aggression": { "name": "Aggression", "about": "How likely it is to start wars, 0 (never) to 100 (always looking for one). Later the AI will use this." },
+    "gdp": { "name": "Economy (GDP)", "short": "GDP", "about": "Everything the people make in a year: population × wealth per person." },
+    "income": { "name": "Yearly income", "short": "Income", "about": "Taxes the state actually collects: GDP × tax rate. States in 1500 collected only a few % of GDP." },
+    "upkeep": { "name": "Yearly upkeep", "short": "Upkeep", "about": "What the state spends every year: paying the army, plus the court and officials." },
+    "net": { "name": "Net income", "short": "Net", "about": "Income minus upkeep: what's left over (or missing) each year." },
+    "treasury": { "name": "Treasury", "about": "Money in the vaults at the start: some years of income." },
+    "population": { "name": "Population", "about": "People living on the land the nation actually got: rolled density × land." },
+    "growth": { "name": "Population growth", "short": "Growth", "about": "How fast the population grows each year. It slows as the land fills up, and turns negative when there are more people than the land can feed." },
+    "food": { "name": "Food", "about": "How many people the land can feed, and how much of that is used. Plains feed most, highlands less, mountains and snow little; land on rivers and coasts feeds more." },
+    "stability": { "name": "Stability", "about": "How solid the state is, 0 (falling apart) to 100 (rock solid). It changes almost everything: taxes, recruits, growth, farming, trade, cohesion and development are all better when it's high and worse when it's low (see 'scoreEffects')." },
+    "popularity": { "name": "Popularity", "about": "How the people feel about the ruler, 0 (hated) to 100 (revered)." },
+    "ideology": { "name": "Ideology mix", "short": "Ideology", "about": "What the people believe: the rolled ideology is the biggest group, and a stable nation is more united. Later, events, revolts and coups will shift it." },
+    "development": { "name": "Development", "about": "How advanced the nation is, 0 to 100: wealth, trade, how well it holds together, learning and stability. Research will build on it later." },
+    "land": { "name": "Land", "about": "The land it actually got, and what kind of land it is." },
+    "access": { "name": "Coast & rivers", "short": "Coast", "about": "Coastline (sea and lake shores) and riverbanks. Coasts and rivers help food, trade and ships." },
+    "defence": { "name": "Defence", "about": "How hard the land is to invade, 0 to 100: mountains, highlands, rivers and sea borders help." },
+    "trade": { "name": "Trade", "about": "How much it trades, 0 to 100: coasts, rivers, valuable resources and a trading spirit." },
+    "naval": { "name": "Naval reach", "short": "Navy", "about": "How far its ships can reach, 0 to 100. A nation with no coast has no navy." },
+    "cohesion": { "name": "Cohesion", "about": "How well the land holds together, 0 to 100: one compact piece is easy to rule; land spread over many islands or far-off corners is not. Low cohesion will mean revolts and breakaways later." }
+  },
+
+  "factors": {
+    "about": "The numbers stats are built from. 'base' is where each starts, 'min' and 'max' keep it sensible. 'format': percent (0.02 = 2%), money, score (0–100), times (×1.2) or years.",
+    "recruitRate": { "name": "Recruit rate", "base": 0.02, "min": 0.003, "max": 0.12, "format": "percent", "about": "Share of the people who can be called up as soldiers." },
+    "armyShare": { "name": "Kept under arms", "base": 0.15, "min": 0.02, "max": 0.6, "format": "percent", "about": "Share of the manpower kept as a standing army in peacetime." },
+    "soldierCost": { "name": "Cost per soldier", "base": 6000, "min": 1500, "max": 40000, "format": "money", "about": "Pay, food and gear for one soldier for a year." },
+    "armyBudget": { "name": "Army budget", "base": 0.4, "min": 0.1, "max": 0.9, "format": "percent", "about": "The most of its income it will spend on the army." },
+    "armyQuality": { "name": "Army quality", "base": 50, "min": 0, "max": 100, "format": "score" },
+    "taxRate": { "name": "Tax rate", "base": 0.05, "min": 0.01, "max": 0.15, "format": "percent", "about": "Share of GDP the state manages to collect." },
+    "adminCost": { "name": "Court & officials", "base": 0.3, "min": 0.05, "max": 0.7, "format": "percent", "about": "Share of income spent on the court, officials and buildings." },
+    "treasuryYears": { "name": "Savings", "base": 0.5, "min": 0, "max": 5, "format": "years", "about": "Years of income in the vaults at the start." },
+    "food": { "name": "Farming", "base": 1, "min": 0.3, "max": 2, "format": "times", "about": "How well the land is farmed (×1 = normal)." },
+    "growthRate": { "name": "Birth rate", "base": 0.005, "min": 0, "max": 0.012, "format": "percent", "about": "Growth per year when the land has plenty of room. Real growth is this × the room left." },
+    "stability": { "name": "Stability", "base": 50, "min": 0, "max": 100, "format": "score" },
+    "popularity": { "name": "Popularity", "base": 50, "min": 0, "max": 100, "format": "score" },
+    "aggression": { "name": "Aggression", "base": 35, "min": 0, "max": 100, "format": "score" },
+    "defence": { "name": "Defence", "base": 20, "min": 0, "max": 100, "format": "score" },
+    "trade": { "name": "Trade", "base": 10, "min": 0, "max": 100, "format": "score" },
+    "naval": { "name": "Naval reach", "base": 0, "min": 0, "max": 100, "format": "score" },
+    "cohesion": { "name": "Cohesion", "base": 100, "min": 0, "max": 100, "format": "score" },
+    "development": { "name": "Development", "base": 5, "min": 0, "max": 100, "format": "score" }
+  },
+
+  "scoreEffects": {
+    "about": "Stability and popularity change the other factors, scaled by how far they are from 50: at 50 nothing, at 0 the first value, at 100 the second (at 25, half the first). E.g. stability \"taxRate\": [\"-50%\", \"+20%\"] means a collapsing state (stability 0) collects half the taxes, a rock-solid one (100) 20% more. Popularity is worked out first, so it can change stability (not both ways).",
+    "stability": {
+      "taxRate": ["-50%", "+20%"],
+      "recruitRate": ["-30%", "+10%"],
+      "growthRate": ["-60%", "+15%"],
+      "treasuryYears": ["-60%", "+20%"],
+      "food": ["-15%", "+5%"],
+      "armyQuality": ["-10", "+5"],
+      "trade": ["-15", "+5"],
+      "cohesion": ["-20", "+10"],
+      "development": ["-15", "+10"],
+      "aggression": ["+10", "+0"],
+      "defence": ["-10", "+5"]
+    },
+    "popularity": {
+      "stability": ["-10", "+10"],
+      "taxRate": ["-20%", "+5%"],
+      "recruitRate": ["-25%", "+20%"],
+      "cohesion": ["-10", "+5"]
+    }
+  },
+
+  "development": {
+    "about": "Development points for each point of trade and of cohesion (on top of 'base' and the results' modifiers, e.g. wealth and Scholarly).",
+    "trade": 0.25,
+    "cohesion": 0.15
+  },
+
+  "ideology": {
+    "about": "The ideology mix: the rolled ideology holds 'mainShare' of the people (the first number at stability 0, the second at 100). The rest is split between the other ideologies on the 'ideology' wheel, mostly the ones near the nation on the chart's left-right axis ('spread': how far that reaches). Groups under 'minShare' are put together as Others.",
+    "wheel": "ideology",
+    "mainShare": [0.35, 0.75],
+    "spread": 0.3,
+    "minShare": 0.03
+  },
+
+  "food": {
+    "about": "How many people one km² can feed in 1500, by terrain (by its name in src/map/terrain.ts). Land next to a river (and the river itself) feeds 'riverBank' more, land on a coast or lake shore 'coast' more (fishing). Then × the 'food' factor (resources like grain and rice). A nation with more people than this is over capacity: it stops growing and starts to shrink.",
+    "perKm2": { "Plains": 45, "Highlands": 18, "Mountains": 6, "Snow": 3, "River": 45 },
+    "riverBank": "+50%",
+    "coast": "+20%"
+  },
+
+  "army": {
+    "about": "The standing army is manpower × 'kept under arms', but never more than army budget × income ÷ cost per soldier (it has to be paid)."
+  },
+
+  "divisions": {
+    "about": "The army on the map: it's split into divisions of 'size' troops, each a little flag along the nation's borders. In your nation's Army section you can ask for a new division ('size' troops) or a bigger one ('growBy' more, up to 'maxSize'). The nation says no if its stability is under 'minStability', if it hasn't got the men (manpower) or if it can't pay for them (net income would go below zero).",
+    "size": 400,
+    "growBy": 400,
+    "maxSize": 4000,
+    "minStability": 25
+  },
+
+  "growth": {
+    "about": "Growth per year = birth rate × (1 − food used). At 60% of the food used it grows at 40% of the birth rate; over 100% it shrinks. Kept between 'min' and 'max'.",
+    "min": -0.02,
+    "max": 0.012
+  },
+
+  "cohesion": {
+    "about": "Points off cohesion for the shape of the land. 'outsideMain': for the share of land (km²) not in its biggest piece. 'perPiece': for each extra piece (island or exclave), at most 'maxPieces' points. 'spread': for how spread out the land is (0 = a round blob, 1 = a long thin snake), measured by how far its land is from its middle.",
+    "outsideMain": -60,
+    "perPiece": -1,
+    "maxPieces": -20,
+    "spread": -40
+  },
+
+  "terrain": {
+    "about": "Modifiers from the kind of land, scaled by its share of the nation's land: \"+60\" on defence for Mountains means a nation that is all mountains gets +60, one with a quarter mountains +15. 'River' is river pixels the nation owns.",
+    "Highlands": { "defence": "+25", "recruitRate": "+5%", "armyQuality": "+3" },
+    "Mountains": { "defence": "+60", "recruitRate": "+10%", "trade": "-10", "cohesion": "-15", "armyQuality": "+5" },
+    "Snow": { "defence": "+20", "growthRate": "-40%", "trade": "-10", "development": "-5" },
+    "Plains": { "trade": "+5" },
+    "River": { "trade": "+10" }
+  },
+
+  "access": {
+    "about": "Modifiers from coasts and rivers, scaled from 0 to 1. coast: how much of the land touches the sea or a lake (1 = all round, like an island; 0.5 = about one side). river: the same for riverbanks. waterBorder: the share of its border that is water instead of land (an island = 1). landlocked: 1 if it has no coast at all. overseas: 1 if its land is in more than one piece.",
+    "coast": { "trade": "+30", "naval": "+50", "development": "+5" },
+    "river": { "trade": "+15", "defence": "+8", "development": "+5" },
+    "waterBorder": { "defence": "+25", "stability": "+5" },
+    "landlocked": { "naval": "×0", "trade": "-5" },
+    "overseas": { "naval": "+10", "trade": "+5" }
+  },
+
+  "chart": {
+    "about": "Modifiers from the nation's dot on the chart, scaled by its position from -1 to 1. x: liberal and peaceful (-1) to nationalist and tyrannical (1). y: miserable (-1) to a good life (1).",
+    "x": { "aggression": "+25", "cohesion": "+5" },
+    "y": { "growthRate": "+20%", "popularity": "+5", "stability": "+5" }
+  },
+
+  "results": {
+    "about": "Modifiers from wheel results: by wheel id, then the slice id (see the era file, eras/1500.json; rare results use their own ids, e.g. 'stratocracy'). The bonus resources use the 'resource' wheel. Every id must exist on that wheel, and wheels switched off in the era file (culture, religion) can't be listed.",
+    "government": {
+      "feudal-monarchy": { "recruitRate": "+20%", "armyShare": "-10%", "taxRate": "-10%", "cohesion": "-5" },
+      "elective-monarchy": { "taxRate": "-10%", "cohesion": "-5", "aggression": "-5", "stability": "+10", "popularity": "+10" },
+      "sultanate": { "taxRate": "+10%", "armyShare": "+10%", "aggression": "+5", "stability": "+5" },
+      "khanate": { "recruitRate": "+60%", "soldierCost": "-50%", "taxRate": "-30%", "armyQuality": "+5", "aggression": "+10", "cohesion": "-10", "development": "-5" },
+      "imperial-bureaucracy": { "development": "+5", "taxRate": "+40%", "adminCost": "+20%", "armyShare": "+10%", "cohesion": "+10", "stability": "+5" },
+      "merchant-republic": { "development": "+5", "taxRate": "+20%", "recruitRate": "-40%", "soldierCost": "+20%", "treasuryYears": "+50%", "trade": "+20", "naval": "+15", "aggression": "-10", "popularity": "+5" },
+      "noble-republic": { "taxRate": "-25%", "recruitRate": "+10%", "cohesion": "-10", "aggression": "-5", "development": "+5" },
+      "city-state": { "taxRate": "+15%", "recruitRate": "-20%", "trade": "+10", "defence": "+5", "cohesion": "+10", "development": "+5" },
+      "theocracy": { "taxRate": "+10%", "stability": "+5", "popularity": "+5", "aggression": "+5", "development": "-5" },
+      "military-order": { "recruitRate": "+20%", "armyShare": "+80%", "armyBudget": "+40%", "armyQuality": "+20", "defence": "+10", "aggression": "+15", "growthRate": "-10%", "popularity": "-5" },
+      "tribal-confederation": { "development": "-5", "taxRate": "-40%", "recruitRate": "+30%", "armyShare": "-30%", "soldierCost": "-50%", "cohesion": "-15", "growthRate": "+10%" },
+      "chiefdom": { "development": "-5", "taxRate": "-30%", "recruitRate": "+20%", "soldierCost": "-40%", "adminCost": "-30%", "growthRate": "+20%" },
+      "despotate": { "taxRate": "+15%", "adminCost": "-10%", "popularity": "-5", "aggression": "+10", "stability": "-5" },
+      "warlord-rule": { "recruitRate": "+40%", "armyShare": "+50%", "armyBudget": "+30%", "taxRate": "-10%", "armyQuality": "+5", "stability": "-10", "aggression": "+15", "growthRate": "-20%", "development": "-5" },
+      "regency": { "taxRate": "-5%", "stability": "-5", "aggression": "-10", "cohesion": "-5" },
+      "eternal-republic": { "stability": "+50", "cohesion": "+15", "aggression": "+5", "development": "+5" },
+      "absolute-monarchy": { "taxRate": "+25%", "armyShare": "+20%", "cohesion": "+5", "aggression": "+10", "stability": "+5" },
+      "stratocracy": { "recruitRate": "+60%", "armyShare": "+100%", "armyBudget": "+50%", "taxRate": "+10%", "armyQuality": "+15", "aggression": "+25", "growthRate": "-20%", "popularity": "-10" },
+      "necrocracy": { "stability": "-10", "popularity": "-10", "growthRate": "-30%", "aggression": "+20", "defence": "+10" },
+      "syndicalist-federation": { "development": "+15", "taxRate": "+30%", "popularity": "+40", "cohesion": "-5", "aggression": "-5" },
+      "oligarchic-republic": { "taxRate": "+70%", "trade": "+10", "popularity": "-5" },
+      "monastic-state": { "treasuryYears": "+50%", "armyQuality": "-5", "popularity": "+5", "aggression": "-10", "stability": "+25" }
+    },
+    "wealth": {
+      "destitute": { "development": "-5", "taxRate": "-20%", "armyQuality": "-10", "trade": "-5", "growthRate": "+10%" },
+      "poor": { "taxRate": "-10%", "armyQuality": "-5", "growthRate": "+5%" },
+      "comfortable": { "development": "+5", "armyQuality": "+3", "popularity": "+5" },
+      "prosperous": { "development": "+15", "taxRate": "+10%", "armyQuality": "+5", "trade": "+5" },
+      "opulent": { "development": "+20", "taxRate": "+15%", "treasuryYears": "+25%", "armyQuality": "+8", "trade": "+8" },
+      "modest": { "development": "+3" }
+    },
+    "resource": {
+      "grain": { "food": "+10%", "growthRate": "+5%" },
+      "rice": { "food": "+15%", "growthRate": "+5%" },
+      "timber": { "naval": "+8", "trade": "+5" },
+      "iron": { "armyQuality": "+6", "defence": "+5" },
+      "copper": { "armyQuality": "+3", "trade": "+3", "development": "+3" },
+      "gold": { "treasuryYears": "+60%", "trade": "+5", "taxRate": "+5%" },
+      "silver": { "treasuryYears": "+40%", "trade": "+5", "taxRate": "+5%" },
+      "salt": { "trade": "+5", "food": "+8%" },
+      "spices": { "trade": "+12", "treasuryYears": "+10%" },
+      "silk": { "trade": "+10", "popularity": "+5" },
+      "cotton": { "trade": "+5", "taxRate": "+5%" },
+      "wool": { "trade": "+9" },
+      "furs": { "trade": "+4", "treasuryYears": "+5%" },
+      "fish": { "food": "+8%", "naval": "+5", "trade": "+5" },
+      "horses": { "armyQuality": "+6", "recruitRate": "+10%" },
+      "cattle": { "food": "+5%", "growthRate": "+5%" },
+      "wine": { "trade": "+4", "popularity": "+3", "stability": "+5" },
+      "sugar": { "trade": "+6", "popularity": "+5" },
+      "ivory": { "trade": "+5", "treasuryYears": "+5%" },
+      "amber": { "trade": "+4", "treasuryYears": "+5%" },
+      "incense": { "trade": "+6", "stability": "+5" },
+      "porcelain": { "trade": "+8", "development": "+5" }
+    },
+    "ideology": {
+      "traditionalist": { "stability": "+5", "development": "-5" },
+      "expansionist": { "armyShare": "+15%", "aggression": "+20", "armyQuality": "+5" },
+      "mercantile": { "taxRate": "+10%", "trade": "+20", "naval": "+10", "aggression": "-10", "development": "+5" },
+      "zealous": { "recruitRate": "+15%", "armyQuality": "+5", "stability": "+3", "aggression": "+15", "development": "-5" },
+      "humanist": { "development": "+8", "growthRate": "+5%", "popularity": "+5", "aggression": "-10", "trade": "+5" },
+      "isolationist": { "trade": "-25", "naval": "-20", "defence": "+5", "aggression": "-15", "stability": "+5" },
+      "militarist": { "recruitRate": "+30%", "armyShare": "+30%", "armyBudget": "+20%", "armyQuality": "+10", "aggression": "+20", "defence": "+5" },
+      "reformist": { "development": "+9", "taxRate": "+5%", "stability": "-5", "popularity": "+5" },
+      "chivalric": { "armyQuality": "+5", "aggression": "+5", "popularity": "+5" },
+      "tolerant": { "growthRate": "+5%", "popularity": "+5", "trade": "+5", "aggression": "-10", "stability": "+5" },
+      "seafaring": { "naval": "+30", "trade": "+15" },
+      "scholarly": { "development": "+15", "taxRate": "+5%", "adminCost": "-10%", "armyQuality": "+2" },
+      "pragmatic": { "taxRate": "+5%", "stability": "+5" },
+      "eternalism": { "stability": "+30", "aggression": "+5" },
+      "ultranationalism": { "recruitRate": "+25%", "cohesion": "+10", "aggression": "+25", "armyQuality": "+5" },
+      "satanism": { "stability": "-10", "popularity": "-10", "aggression": "+20", "armyQuality": "+20", "recruitRate": "+10%" },
+      "syndicalism": { "taxRate": "+5%", "popularity": "+40", "aggression": "-5" },
+      "sacred-nation": { "recruitRate": "+15%", "cohesion": "+10", "aggression": "+15", "stability": "+5" },
+      "divine-imperialism": { "armyShare": "+25%", "aggression": "+30", "recruitRate": "+10%" },
+      "apocalypticism": { "growthRate": "-30%", "treasuryYears": "-50%", "stability": "-10", "aggression": "+25", "armyQuality": "+10" }
+    },
+    "history": {
+      "civil-war": { "growthRate": "-20%", "treasuryYears": "-40%", "armyQuality": "+5", "stability": "-5", "cohesion": "-10", "popularity": "-5" },
+      "former-empire": { "treasuryYears": "+20%", "armyQuality": "+3", "aggression": "+10", "development": "+5" },
+      "survived-plague": { "growthRate": "+20%", "food": "+10%" },
+      "golden-age": { "development": "+13", "treasuryYears": "+50%", "armyQuality": "+3", "popularity": "+5" },
+      "conquered-freed": { "defence": "+5", "cohesion": "+5", "aggression": "+5", "popularity": "+5" },
+      "founded-by-exiles": { "cohesion": "+10", "stability": "+5" },
+      "succession-crisis": { "stability": "-5", "aggression": "+5", "cohesion": "-5" },
+      "peasant-revolt": { "taxRate": "-15%", "popularity": "-5", "food": "+20%", "growthRate": "+20%" },
+      "holy-war": { "treasuryYears": "-30%", "armyQuality": "+10", "aggression": "+10", "stability": "+10" },
+      "great-famine": { "development": "-5", "growthRate": "-40%", "food": "-5%", "popularity": "-5" },
+      "new-dynasty": { "aggression": "+5", "popularity": "+5" },
+      "rising-power": { "growthRate": "+10%", "aggression": "+5", "development": "+5" },
+      "tributary": { "taxRate": "-15%", "aggression": "-5", "popularity": "-5" },
+      "ancient-bloodline": { "stability": "+5", "popularity": "+3", "cohesion": "+5" },
+      "capital-burned": { "development": "-5", "treasuryYears": "-50%", "defence": "-5", "cohesion": "+5" },
+      "schism": { "stability": "-10", "cohesion": "-5" },
+      "trade-boom": { "treasuryYears": "+30%", "trade": "+15", "development": "+5" },
+      "long-peace": { "growthRate": "+10%", "armyQuality": "-10", "defence": "-5", "aggression": "-10", "development": "+5" },
+      "border-wars": { "armyShare": "+15%", "armyQuality": "+5", "defence": "+10", "aggression": "+10" },
+      "united-by-marriage": { "cohesion": "-5", "aggression": "-5", "stability": "+5" }
+    },
+    "stability": {
+      "collapsing": { "stability": "-45", "popularity": "-10" },
+      "crumbling": { "stability": "-30", "popularity": "-5" },
+      "shaky": { "stability": "-15", "popularity": "-3" },
+      "steady": { "stability": "+15", "popularity": "+3" },
+      "solid": { "stability": "+30", "popularity": "+5" },
+      "rock-solid": { "stability": "+45", "popularity": "+10" },
+      "uneasy": { "cohesion": "+2" }
+    },
+    "acceptance": {
+      "hated": { "popularity": "-45", "aggression": "+10" },
+      "resented": { "popularity": "-30", "aggression": "+5" },
+      "tolerated": { "popularity": "-15", "development": "-3" },
+      "respected": { "popularity": "+15", "development": "+3" },
+      "loved": { "popularity": "+30", "cohesion": "+5" },
+      "revered": { "popularity": "+45", "cohesion": "+10" },
+      "accepted": { "stability": "+2" }
+    },
+    "bonus": {
+      "seeks-revenge": { "aggression": "+20", "armyQuality": "+5" },
+      "wipe-out-all": { "armyShare": "+20%", "aggression": "+40", "armyQuality": "+5" },
+      "mandatory-enlistment": { "recruitRate": "+50%", "armyShare": "+30%", "growthRate": "-10%", "popularity": "-5", "development": "-5" },
+      "secret-police": { "stability": "+5", "popularity": "-10", "cohesion": "+5", "development": "-5" },
+      "burns-books": { "development": "-10", "growthRate": "-5%", "popularity": "-5", "aggression": "+5", "stability": "+5" },
+      "grand-parades": { "soldierCost": "+10%", "armyQuality": "+3", "aggression": "+5", "popularity": "+5" },
+      "ruler-cult": { "stability": "+5", "popularity": "+10", "cohesion": "+5" },
+      "bullies-neighbours": { "aggression": "+15", "taxRate": "+10%" },
+      "spy-network": { "defence": "+5", "armyQuality": "+2", "stability": "+5" },
+      "open-borders": { "growthRate": "+10%", "trade": "+10", "aggression": "-5", "development": "+5" },
+      "patron-of-arts": { "development": "+11", "treasuryYears": "-20%", "popularity": "+5" },
+      "free-trade": { "trade": "+15", "taxRate": "+5%" },
+      "peace-loving": { "armyShare": "-20%", "aggression": "-25", "defence": "+25" },
+      "brave-underdogs": { "defence": "+10", "armyQuality": "+5", "cohesion": "+5" },
+      "mass-emigration": { "growthRate": "-50%", "stability": "+5" },
+      "asks-for-help": { "treasuryYears": "-50%", "aggression": "-10", "food": "+10%" },
+      "folk-heroes": { "stability": "-3", "popularity": "-5", "recruitRate": "+10%" },
+      "quiet-neighbour": { "aggression": "-15", "development": "+5", "stability": "+5" },
+      "fence-sitter": { "aggression": "-10", "stability": "+5" },
+      "nothing-special": { "cohesion": "+5" }
+    },
+    "golden": {
+      "wants-to-be-rich": { "taxRate": "+15%", "treasuryYears": "+50%", "trade": "+10", "development": "+5" },
+      "world-police": { "armyShare": "+20%", "armyQuality": "+5", "aggression": "+10", "defence": "+5" },
+      "beacon-of-freedom": { "growthRate": "+30%", "popularity": "+10", "aggression": "-10", "development": "+5" },
+      "friend-to-all": { "trade": "+5", "aggression": "-25", "stability": "+5" },
+      "ruthless": { "popularity": "-5", "aggression": "+20", "armyQuality": "+10" },
+      "insane-conquest": { "recruitRate": "+20%", "armyShare": "+40%", "armyBudget": "+30%", "aggression": "+40", "armyQuality": "+5" },
+      "buys-enemies": { "treasuryYears": "+100%", "aggression": "-15", "trade": "+5" },
+      "iron-discipline": { "armyQuality": "+15", "stability": "+10", "cohesion": "+5", "taxRate": "+10%" },
+      "never-gives-up": { "defence": "+15", "stability": "+5", "cohesion": "+10" },
+      "rebuilds-from-ashes": { "growthRate": "+20%", "stability": "+5", "development": "+5" },
+      "help-from-abroad": { "treasuryYears": "+80%", "food": "+5%", "popularity": "+5" },
+      "shelter-for-hunted": { "growthRate": "+15%", "popularity": "+5", "development": "+5" },
+      "nothing-to-lose": { "recruitRate": "+20%", "armyQuality": "+5", "aggression": "+20", "defence": "+10" },
+      "raids-everyone": { "armyQuality": "+5", "trade": "-10", "aggression": "+25", "treasuryYears": "+20%" },
+      "fanatical-army": { "recruitRate": "+20%", "armyQuality": "+15", "aggression": "+10", "defence": "+10" },
+      "wants-world-to-suffer": { "popularity": "-10", "aggression": "+30", "stability": "-10" },
+      "double-land": { "food": "+10%" },
+      "double-people": { "recruitRate": "+10%" },
+      "double-wealth": { "development": "+5" }
+    }
+  }
+}
