@@ -237,6 +237,19 @@ The wheel setup is fully configurable, per wheel:
      nation, real flags (2c), save/load, the game setup screen (start year, wheel modes).
 3. **Stats matter** — wheel results turn into real numbers: derived values such as army
    strength, growth rate, stability, economy.
+   - **3a. Stat sheet (next):** every nation (yours and all AI nations) gets a stat sheet,
+     computed from its wheel results **and the land it actually got**:
+     - **Army & manpower** (recruits from population × recruit rate; army quality),
+     - **Economy & treasury** (yearly income from GDP and taxes; starting treasury),
+     - **Growth & food** (growth rate; how many people the land can feed),
+     - **Stability, popularity & aggression** (aggression from the chart and traits),
+     - plus a few more the build session proposes (e.g. defence, trade, naval reach).
+     - **Terrain & access count:** share of plains/highlands/mountains/snow, coastline and
+       rivers change food, defence and trade.
+     - Shown as **real numbers with a "why" breakdown** on hover (e.g. "Militarist +30%,
+       Mountains +10%, Unstable −15%"). **Everyone's stats are visible** (you're an
+       observer). All modifiers live in data files, so they're easy to tune.
+     - Stats don't change over time yet; that's milestone 4.
 4. **Ticks + basic simulation** — the clock runs; growth and peaceful expansion into empty
    land. Kept simple, upgraded later.
 5. **Conquest** — wars and pixel-by-pixel front lines. Two modes: push on all borders, or
