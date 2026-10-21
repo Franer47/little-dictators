@@ -25,7 +25,9 @@ import { runWheelScreen } from "./wheel/wheelScreen.ts";
 import { closeNationPanel, landText, showNationPanel, updateNationPanelStats } from "./nationPanel.ts";
 import { initNationBar, setNationBarHidden, showNationBar } from "./nationBar.ts";
 import { showArmyPanel } from "./armyPanel.ts";
-import { findBorders, ordinal, spreadDivisions, type Borders, type Division } from "../game/army.ts";
+import { findBorders, ordinal, sortAround, spreadDivisions, type Borders, type Division } from "../game/army.ts";
+import { findFronts } from "../sim/fronts.ts";
+import { WorldLayer } from "../render/worldLayer.ts";
 import { World, type TickResult } from "../sim/world.ts";
 import type { SimData } from "../sim/simData.ts";
 import { saveGame, type GameSave } from "../sim/save.ts";
@@ -85,6 +87,9 @@ export class Placement {
   private divisionLayer = new DivisionLayer();
   private labelLayer = new LabelLayer();
   private paintLayer: PaintLayer;
+  /** Buildings on the map (under the flags) and war swords (over them). */
+  private worldLayer: WorldLayer;
+  private warLayer: WorldLayer;
   private worldSeed: number;
   /** Where flags can stand (worked out again only when the land or the Defend paint changes). */
   private borders: Borders | null = null;
@@ -123,7 +128,9 @@ export class Placement {
     this.worldSeed = opts.seed ?? randomSeed();
     this.world = this.newWorld();
     this.paintLayer = new PaintLayer(map, this.world.paint);
-    opts.renderer.overlays.push(this.paintLayer, this.labelLayer, this.divisionLayer);
+    this.worldLayer = new WorldLayer(opts.requestRender, "buildings");
+    this.warLayer = new WorldLayer(opts.requestRender, "wars");
+    opts.renderer.overlays.push(this.paintLayer, this.labelLayer, this.worldLayer, this.divisionLayer, this.warLayer);
     this.build();
     const mine = (): PlacedNation | undefined => this.nations.find((n) => n.mine);
     initNationBar({
@@ -524,9 +531,29 @@ export class Placement {
     const w = this.world;
     if (bordersChanged || !this.borders || this.borders.lines.length !== this.nations.length)
       this.borders = findBorders(this.opts.map, this.territory.owner, this.nations.length, w.paint);
-    this.divisions = spreadDivisions(this.opts.map, this.borders, (id) =>
-      w.live[id - 1]?.alive ? w.live[id - 1].divisions.map((d) => ({ troops: d.troops, training: d.training > 0 })) : [],
+    // Nations at war stand on their front with the enemy; the map marks each war there.
+    const fronts = findFronts(this.opts.map, this.territory, w);
+    const override = new Map<number, Int32Array>();
+    for (const [id, px] of fronts.byNation) override.set(id, sortAround(Int32Array.from(px), this.opts.map.width, this.opts.map.wraps));
+    this.divisions = spreadDivisions(
+      this.opts.map,
+      this.borders,
+      (id) => (w.live[id - 1]?.alive ? w.live[id - 1].divisions.map((d) => ({ troops: d.troops, training: d.training > 0 })) : []),
+      override,
     );
+    this.warLayer.wars = fronts.wars;
+    // Buildings where they stand (finished, and being built).
+    const width = this.opts.map.width;
+    const mine = w.mineId;
+    const marks: WorldLayer["buildings"] = [];
+    w.live.forEach((l, i) => {
+      if (!l.alive) return;
+      const id = i + 1;
+      const iconOf = (b: string): string => w.buildingSpec(b)?.icon ?? "columns";
+      for (const site of l.sites) if (this.territory.owner[site.at] === id) marks.push({ x: site.at % width, y: (site.at / width) | 0, icon: iconOf(site.id), building: false, mine: id === mine });
+      for (const b of l.building) marks.push({ x: b.at % width, y: (b.at / width) | 0, icon: iconOf(b.id), building: true, mine: id === mine });
+    });
+    this.worldLayer.buildings = marks;
     this.divisionLayer.divisions = this.divisions;
     if (this.army.nation) this.renderArmy();
   }

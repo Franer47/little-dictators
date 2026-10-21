@@ -123,11 +123,14 @@ export function spreadDivisions(
   borders: Borders,
   /** Each nation's divisions (by id): troops, and whether it's still training. */
   troopsOf: (id: number) => readonly { troops: number; training: boolean }[],
+  /** Lines to use instead for some nations (by id), e.g. the front of a war (sorted with sortAround). */
+  override?: ReadonlyMap<number, Int32Array>,
 ): Division[] {
   const { width } = map;
   const out: Division[] = [];
-  borders.lines.forEach((line, k) => {
+  borders.lines.forEach((border, k) => {
     const id = k + 1;
+    const line = override?.get(id) ?? border;
     const divs = troopsOf(id);
     if (!divs.length || !line.length) return;
     divs.forEach((d, index) => {
@@ -152,7 +155,7 @@ export function placeDivisions(
 const SIDES: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
 /** A border's pixels sorted by angle around its middle, which walks round it. */
-function sortAround(border: Int32Array, width: number, wraps: boolean): Int32Array {
+export function sortAround(border: Int32Array, width: number, wraps: boolean): Int32Array {
   const ref = border[0] % width;
   const half = width / 2;
   const dx = (i: number): number => {

@@ -696,3 +696,52 @@
   border-left: 1px solid rgba(255, 255, 255, 0.08);
   cursor: help;
 }
+
+/* Letters about your nation (war, peace) and the How to play card. */
+.gd-box.letter {
+  text-align: left;
+  background:
+    linear-gradient(180deg, rgba(60, 48, 30, 0.98), rgba(28, 22, 15, 0.98));
+}
+
+.gd-box.letter.war {
+  border-color: #e0604f;
+}
+
+.gd-box.letter.war h2 {
+  color: #ffb4a4;
+}
+
+.gd-box.letter .gd-actions {
+  justify-content: flex-start;
+}
+
+.gd-date {
+  font: 600 11px/1.2 var(--title-font);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.gd-more,
+.gd-small {
+  font-size: 12px;
+  color: rgba(241, 232, 212, 0.55) !important;
+}
+
+.gd-box.howto {
+  width: min(520px, calc(100vw - 32px));
+  text-align: left;
+}
+
+.gd-box.howto ol {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 20px;
+  line-height: 1.45;
+}
+
+.gd-box.howto .gd-actions {
+  justify-content: flex-end;
+}

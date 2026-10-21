@@ -10,6 +10,7 @@ import type { BrushId, BuildingSpec } from "../sim/simData.ts";
 import { money, type Decision, type GameEvent, type TickResult, type War, type World } from "../sim/world.ts";
 import { badge, icon, scoreColor } from "./icons.ts";
 import { escapeHtml } from "./uiBits.ts";
+import { loadPref, savePref } from "./prefs.ts";
 
 export interface GameHost {
   world(): World;
@@ -55,6 +56,10 @@ export class GameUi {
   private message: Decision | null = null;
   private eventFilter: "near" | "all" = "near";
   private pickingNation = false;
+  /** Big news about your nation waiting to be shown (one letter at a time; the game pauses). */
+  private letters: GameEvent[] = [];
+  /** The speed to go back to when the letters are read. */
+  private resumeSpeed = 0;
 
   private menu = document.createElement("aside");
   private box = document.createElement("section");
@@ -84,10 +89,12 @@ export class GameUi {
       <button type="button" data-open="build" title="Buildings: push your nation to build">${badge("columns", "#e6c25a")}<span>Build</span></button>
       <button type="button" data-open="army" title="Your divisions">${badge("swords", "#e0604f")}<span>Army</span></button>
       <button type="button" data-open="wars" title="Wars, allies and neighbours">${badge("flag", "#b494ec")}<span>Wars</span></button>
-      <button type="button" data-open="brush" title="Paint the map with influence">${badge("trend", "#62b0e6")}<span>Brushes</span></button>`;
+      <button type="button" data-open="brush" title="Paint the map with influence">${badge("trend", "#62b0e6")}<span>Brushes</span></button>
+      <button type="button" data-open="help" title="How to play">${badge("book", "#d4b062")}<span>How to</span></button>`;
     this.menu.hidden = true;
     this.menu.addEventListener("click", (e) => {
       const which = (e.target as HTMLElement).closest<HTMLElement>("[data-open]")?.dataset.open;
+      if (which === "help") return this.showHowTo();
       if (which === "army") {
         this.setPanel(null);
         this.host.openArmy(this.host.world().mineId);
@@ -111,6 +118,10 @@ export class GameUi {
 
   /** Shows or hides the game's screens (hidden while the wheel is up). */
   setVisible(on: boolean): void {
+    if (on && this.menu.hidden && !loadPref<boolean>("howToSeen", false)) {
+      savePref("howToSeen", true);
+      window.setTimeout(() => this.showHowTo(), 400);
+    }
     this.menu.hidden = !on;
     this.feed.hidden = !on;
     if (!on) {
@@ -170,6 +181,15 @@ export class GameUi {
 
   private onTick(r: TickResult): void {
     if (r.events.length) this.renderFeed();
+    // Big news about your nation comes as a letter, and the game waits for you.
+    const mine = this.host.world().mineId;
+    const big = r.events.filter((e) => e.nations.includes(mine) && (e.kind === "war" || e.kind === "peace" || (e.kind === "diplomacy" && e.text.includes("no longer"))));
+    if (big.length && !r.playerFell) {
+      if (!this.letters.length && this.dialog.hidden) this.resumeSpeed = this.speed;
+      this.letters.push(...big);
+      this.setSpeed(0);
+      if (this.dialog.hidden) this.showLetter();
+    }
     if (this.panel && r.newYear) this.renderPanel();
     else if (this.panel === "wars" || this.panel === "build") this.renderPanel();
     const w = this.host.world();
@@ -461,10 +481,54 @@ export class GameUi {
     this.dialog.hidden = false;
   }
 
+  /** The next letter about your nation (war declared, peace signed…). */
+  private showLetter(): void {
+    const e = this.letters.shift();
+    if (!e) return;
+    const w = this.host.world();
+    const mine = w.mineId;
+    const titles: Record<string, string> = { war: "War!", peace: "Peace", diplomacy: "An alliance ends" };
+    let title = titles[e.kind] ?? "News";
+    if (e.kind === "war") title = e.text.startsWith(w.name(mine)) ? "We go to war" : "War is declared on us!";
+    const more = this.letters.length ? `<p class="gd-more">${this.letters.length} more…</p>` : "";
+    this.dialog.innerHTML = `<div class="gd-box letter ${e.kind}"><span class="gd-date">${escapeHtml(w.dateText())}</span><h2>${escapeHtml(title)}</h2>
+      <p>${escapeHtml(e.text)}</p>${more}
+      <div class="gd-actions"><button type="button" class="gp-btn primary" data-dlg="letter">${this.letters.length ? "Next" : "Carry on"}</button>${e.kind === "war" ? '<button type="button" class="gp-btn" data-dlg="wars">See your wars</button>' : ""}</div></div>`;
+    this.dialog.hidden = false;
+  }
+
+  /** The short guide (first time, and from the How to button). */
+  private showHowTo(): void {
+    const w = this.host.world();
+    const c = w.sim.influence.costs;
+    this.dialog.innerHTML = `<div class="gd-box howto"><h2>How to play</h2>
+      <ol>
+        <li><b>Start the clock</b> with ▶ in the top strip (or <b>Space</b>); keys <b>1 2 3</b> set the speed. A month passes every few seconds.</li>
+        <li><b>Your nation runs itself</b>, like every other nation: it builds, recruits, makes friends and enemies. You <b>guide</b> it with <b>influence ✦</b>, which you earn every month.</li>
+        <li><b>Build</b>, <b>Army</b> and <b>Wars</b> on the left let you push it: a building (✦${c.build}), a division (✦${c.recruit}), better or worse relations, an alliance, war (✦${c.declareWar}) or peace. It can say no, and tells you why.</li>
+        <li><b>Right-click</b> any nation for diplomacy. <b>Brushes</b> paint land you want (War goal), land to guard (Defend) and land to grow (Develop).</li>
+        <li>Wars are won by the stronger side over months; the winner takes <b>border land</b> or <b>tribute</b>. Watch <b>World news</b> in the corner, and point at any number to see where it comes from.</li>
+      </ol>
+      <p class="gd-small">The game saves itself every year; the start screen shows Continue.</p>
+      <div class="gd-actions"><button type="button" class="gp-btn primary" data-dlg="close">Got it</button></div></div>`;
+    this.dialog.hidden = false;
+  }
+
   private onDialogClick(e: MouseEvent): void {
     const act = (e.target as HTMLElement).closest<HTMLElement>("[data-dlg]")?.dataset.dlg;
     if (!act) return;
     this.dialog.hidden = true;
+    if (act === "letter" || act === "wars") {
+      if (act === "wars") {
+        this.letters.length = 0;
+        this.setPanel("wars");
+        return;
+      }
+      if (this.letters.length) return this.showLetter();
+      if (this.resumeSpeed) this.setSpeed(this.resumeSpeed);
+      return;
+    }
+    if (act === "close") return;
     if (act === "pick") {
       this.pickingNation = true;
       this.toast("Click any nation on the map to guide it.", true);

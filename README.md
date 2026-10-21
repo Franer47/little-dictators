@@ -426,8 +426,17 @@ it's a white peace. You can offer peace yourself from the Wars panel. Allies joi
 other's defensive wars. A nation that loses all its land has **fallen**; if it's yours you
 can keep watching or pick another nation to guide.
 
+**On the map**, every war has crossed swords at the middle of its front (big and red when
+it's yours), and while at war a nation's divisions stand on its front with the enemy instead
+of along its whole border. Buildings show as small icons where they stand when you zoom in
+(faded while they're being built).
+
+![A war front: divisions face each other, swords mark the war](docs/war-front.jpg)
+
 **World news** in the bottom-left corner lists wars, treaties and falls near you (or
-everything); click one to fly there.
+everything); click one to fly there. Big news about your own nation (a war declared on you, a
+peace signed) comes as a **letter** and pauses the game until you've read it. The **How to**
+button on the left shows a short guide (it also opens by itself the first time).
 
 The game **saves itself** in your browser every year and when you close the page; the start
 screen then shows **Continue**.

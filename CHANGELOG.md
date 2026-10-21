@@ -20,6 +20,10 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 - **Development** now rises slowly over time, faster with schools.
 - **Saving:** the game saves itself every year; the start screen offers Continue.
 - If your nation falls, keep watching or pick another nation to guide.
+- **Wars on the map:** crossed swords mark every war front, and armies at war stand on the
+  border with their enemy. Buildings appear on the map where they were built.
+- **Letters:** a war declared on you or a peace you sign pops up and pauses the game.
+- **How to play:** a short guide the first time you play (and from the How to button).
 
 ### Changed
 - **The map info is folded away.** What's under the mouse (terrain, height, position) and
