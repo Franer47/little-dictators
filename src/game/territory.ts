@@ -30,7 +30,7 @@ export interface GrowthRules {
 export interface PlacementData {
   region: string;
   regions: Record<string, RegionData>;
-  fillCount: number;
+  fill: { percent: number; maxNations: number; maxAttempts: number };
   growth: GrowthRules;
   colors: { list: string[] };
 }
@@ -175,6 +175,38 @@ export class Territory {
 
   holding(id: number): Holding | undefined {
     return this.holdings[id - 1];
+  }
+
+  /** How much of the region's land is owned by someone (0..1), by real area. */
+  ownedShare(region: Region): number {
+    const { width } = this.map;
+    let total = 0;
+    let owned = 0;
+    for (const i of region.land) {
+      const a = this.areas[(i / width) | 0];
+      total += a;
+      if (this.owner[i] !== 0) owned += a;
+    }
+    return total > 0 ? owned / total : 0;
+  }
+
+  /** The ids of the nations whose land touches this one's (side by side, across the map's seam too). */
+  neighbours(id: number): Set<number> {
+    const found = new Set<number>();
+    const h = this.holding(id);
+    if (!h) return found;
+    const { width } = this.map;
+    for (const i of h.pixels) {
+      const x = i % width;
+      const y = (i - x) / width;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const p = this.map.normalize(x + dx, y + dy);
+        if (!p) continue;
+        const other = this.owner[p[1] * width + p[0]];
+        if (other !== 0 && other !== id) found.add(other);
+      }
+    }
+    return found;
   }
 
   /**

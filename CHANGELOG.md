@@ -21,10 +21,12 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
   ("101,254 km² (rolled 240,000)"). **Next nation** makes another one.
 - **Each nation has its own colour**, used as its flag for now (on the card and the
   corner panel) and drawn over its land with a darker border line.
-- **A list of nations** in the top-right corner. Click a row or a nation on the map to see
-  it in the corner panel; hovering the map shows who owns the land.
-- **Fill Europe** (testing shortcut) rolls and places nations at random until there are
-  15; **Clear** starts over. The region, growth costs and colours are in
+- **A list of nations** in the top-right corner, with how much of Europe is owned
+  ("64 nations · 91% of Europe"); it scrolls when there are many. Click a row or a nation
+  on the map to see it in the corner panel; hovering the map shows who owns the land.
+- **Fill Europe** (testing shortcut) rolls and places nations at random until 90% of
+  Europe's land is owned (usually 50–80 nations, late ones squeezed into the gaps), with
+  colours chosen so touching nations never match; **Clear** starts over. The region, growth costs and colours are in
   `public/data/placement.json`.
 - **The wheels are now set in 1500.** 11 spins: Government, Land size, Population
   density, Wealth, Bonus resources, Ideology, History, Stability, Popularity, a Bonus

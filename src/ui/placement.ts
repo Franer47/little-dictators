@@ -1,7 +1,7 @@
 // Putting nations on the map (milestone 2d, the Europe test): after the wheel, click a spot
 // in Europe (or "Surprise me") and the nation's land grows from there. Then "Next nation"
 // goes back to the wheel. "Fill Europe" (for testing) rolls and places nations instantly
-// until there are about 15; "Clear" empties the map.
+// until about 90% of Europe's land is taken; "Clear" empties the map.
 //
 // The rules for how land grows are in src/game/territory.ts; this file is the screens and
 // buttons around them.
@@ -108,7 +108,7 @@ export class Placement {
       if (why) {
         this.note = why;
         this.update();
-      } else this.place(x, y, true);
+      } else this.place(x, y, "animate");
       return;
     }
     if (this.state === "idle" || this.state === "growing") {
@@ -155,21 +155,30 @@ export class Placement {
       this.update();
       return;
     }
-    this.place(spot[0], spot[1], true);
+    this.place(spot[0], spot[1], "animate");
   }
 
-  /** Places the waiting nation at (x, y) and grows its land (animated, or all at once). */
-  private place(x: number, y: number, animate: boolean): PlacedNation | null {
+  /**
+   * Places the waiting nation at (x, y) and grows its land: "animate" plays the growth,
+   * "instant" shows it at once, "fill" is for Fill (no screen updates; a nation without a
+   * colour gets one that stands out from its actual neighbours).
+   */
+  private place(x: number, y: number, how: "animate" | "instant" | "fill"): PlacedNation | null {
     const pending = this.pending;
     if (!pending) return null;
     const holding = this.territory.place(x, y, rolledArea(pending.nation), growthSeed(pending.nation, this.nations.length + 1));
     const placed: PlacedNation = { ...pending, holding };
+    if (!placed.color) placed.color = this.colorFor(holding.id);
     this.nations.push(placed);
     this.pending = null;
-    this.layer.setColor(holding.id, pending.color);
+    this.layer.setColor(holding.id, placed.color);
     this.note = "";
     this.opts.renderer.preview = null;
-    if (animate && !this.opts.reducedMotion) {
+    if (how === "fill") {
+      this.layer.reveal(holding.pixels);
+      return placed;
+    }
+    if (how === "animate" && !this.opts.reducedMotion) {
       this.state = "growing";
       // Longer for bigger nations, but never more than about two seconds.
       const ms = Math.min(2000, 700 + holding.pixels.length * 0.8);
@@ -230,36 +239,43 @@ export class Placement {
     this.begin(nation, color);
   }
 
-  /** Testing shortcut: rolls and places nations at random until there are `fillCount`, or no room is left. */
+  /**
+   * Testing shortcut: rolls and places nations at random spots until `fill.percent` of the
+   * region's land is owned. Late nations land in the gaps and end up smaller than rolled.
+   */
   private fill(): void {
     if (this.state === "wheel") return;
     this.finishGrowth();
-    const target = this.opts.data.fillCount;
+    const { percent, maxNations, maxAttempts } = this.opts.data.fill;
+    const started = performance.now();
     let full = false;
     let lastId = 0;
-    const started = performance.now();
-    // The nation waiting to be placed goes first.
-    if (this.pending) {
-      const spot = this.territory.freeSpot(this.region, this.rng, rolledArea(this.pending.nation));
-      if (spot) lastId = this.place(spot[0], spot[1], false)!.holding.id;
-      else full = true;
-    }
-    while (!full && this.nations.length < target) {
-      const nation = rollNation(this.opts.wheels, this.opts.mapName, createRng(this.nextSeed()));
+    const placeAnywhere = (nation: Nation, color: string): void => {
       const spot = this.territory.freeSpot(this.region, this.rng, rolledArea(nation));
       if (!spot) {
         full = true;
-        break;
+        return;
       }
-      this.pending = { nation, color: this.pickColor(spot) };
-      lastId = this.place(spot[0], spot[1], false)!.holding.id;
+      this.pending = { nation, color };
+      lastId = this.place(spot[0], spot[1], "fill")!.holding.id;
+    };
+    // The nation waiting to be placed goes first (it keeps the colour on its card).
+    if (this.pending) placeAnywhere(this.pending.nation, this.pending.color);
+    // Every placement takes at least one free pixel, so this always ends; the caps keep it short.
+    for (let tries = 0; !full && tries < maxAttempts && this.nations.length < maxNations; tries++) {
+      if (this.territory.ownedShare(this.region) * 100 >= percent) break;
+      placeAnywhere(rollNation(this.opts.wheels, this.opts.mapName, createRng(this.nextSeed())), "");
     }
-    if (import.meta.env.DEV) console.log(`Fill: ${this.nations.length} nations in ${Math.round(performance.now() - started)} ms`);
+    if (import.meta.env.DEV) {
+      const share = Math.round(this.territory.ownedShare(this.region) * 100);
+      console.log(`Fill: ${this.nations.length} nations, ${share}% of ${this.regionName}, in ${Math.round(performance.now() - started)} ms`);
+    }
     this.pending = null;
     this.state = "idle";
     this.note = full ? `No free land left in ${this.regionName}.` : "";
     if (lastId) this.showNation(lastId);
     this.update();
+    this.opts.requestRender();
   }
 
   private clear(): void {
@@ -288,36 +304,43 @@ export class Placement {
     return this.opts.seed !== undefined ? (this.opts.seed + n * 7919) >>> 0 : undefined;
   }
 
+  /** For a new nation before it's placed (its card shows it): the least-used colour. */
+  private pickColor(): string {
+    return this.bestColor(new Set());
+  }
+
+  /** For a nation placed by Fill: a colour unlike the nations its land actually touches. */
+  private colorFor(id: number): string {
+    const touching = new Set<string>();
+    for (const n of this.territory.neighbours(id)) {
+      const c = this.nations[n - 1]?.color;
+      if (c) touching.add(c);
+    }
+    return this.bestColor(touching);
+  }
+
   /**
-   * A colour no nation is using yet. If a spot is given, the one most unlike the colours of
-   * the nations nearby, so neighbours don't look alike.
+   * The colour that looks most different from `avoid` (neighbours' colours), preferring
+   * colours few nations use yet. With 60+ nations colours repeat, but not next to each other.
    */
-  private pickColor(spot?: [number, number]): string {
+  private bestColor(avoid: Set<string>): string {
     const list = this.opts.data.colors.list;
-    const used = new Set([...this.nations.map((n) => n.color), ...(this.pending ? [this.pending.color] : [])]);
-    const free = list.filter((c) => !used.has(c));
-    const choices = free.length ? free : list;
-    if (!spot) return free.length ? free[0] : list[this.nations.length % list.length];
-    const near = this.nations.filter((n) => this.distance(n.holding.start, spot) < 160).map((n) => hexToRgb(n.color));
-    if (!near.length) return choices[0];
-    let best = choices[0];
-    let bestScore = -1;
-    for (const c of choices) {
+    const uses = new Map<string, number>();
+    for (const n of [...this.nations, ...(this.pending ? [this.pending] : [])]) uses.set(n.color, (uses.get(n.color) ?? 0) + 1);
+    const avoidRgb = [...avoid].map(hexToRgb);
+    let best = list[0];
+    let bestScore = -Infinity;
+    for (const c of list) {
       const rgb = hexToRgb(c);
-      const score = Math.min(...near.map((o) => colorDistance(rgb, o)));
+      // How unlike the nearest neighbour colour it is (capped: past "clearly different" it doesn't matter).
+      const unlike = avoidRgb.length ? Math.min(250, ...avoidRgb.map((o) => colorDistance(rgb, o))) : 250;
+      const score = unlike - 40 * (uses.get(c) ?? 0);
       if (score > bestScore) {
         best = c;
         bestScore = score;
       }
     }
     return best;
-  }
-
-  private distance(a: [number, number], b: [number, number]): number {
-    const w = this.opts.map.width;
-    let dx = Math.abs(a[0] - b[0]);
-    if (this.opts.map.wraps) dx = Math.min(dx, w - dx);
-    return Math.hypot(dx, a[1] - b[1]);
   }
 
   private focusRegion(): void {
@@ -376,7 +399,7 @@ export class Placement {
       <header><span class="nl-title">Nations</span><span class="nl-count"></span></header>
       <ol class="nl-rows"></ol>
       <footer>
-        <button type="button" class="nl-fill" title="Testing shortcut: roll and place nations at random until there are ${this.opts.data.fillCount}">Fill ${escapeHtml(this.regionName)}</button>
+        <button type="button" class="nl-fill" title="Testing shortcut: roll and place nations at random until ${this.opts.data.fill.percent}% of ${escapeHtml(this.regionName)}'s land is taken">Fill ${escapeHtml(this.regionName)}</button>
         <button type="button" class="nl-clear" title="Remove every nation from the map">Clear</button>
       </footer>`;
     document.body.append(this.bar, this.list);
@@ -420,7 +443,9 @@ export class Placement {
   }
 
   private updateList(): void {
-    this.list.querySelector(".nl-count")!.textContent = String(this.nations.length);
+    const share = Math.round(this.territory.ownedShare(this.region) * 100);
+    this.list.querySelector(".nl-title")!.textContent = `${this.nations.length} ${this.nations.length === 1 ? "nation" : "nations"}`;
+    this.list.querySelector(".nl-count")!.textContent = `· ${share}% of ${this.regionName}`;
     const km = (v: number): string => Math.round(v).toLocaleString("en-US");
     this.list.querySelector(".nl-rows")!.innerHTML = this.nations
       .map((n) => {
@@ -434,6 +459,7 @@ export class Placement {
       })
       .join("");
     (this.list.querySelector(".nl-fill") as HTMLButtonElement).disabled = this.state === "wheel";
+    this.list.querySelector(".nl-rows li.selected")?.scrollIntoView({ block: "nearest" });
   }
 }
 

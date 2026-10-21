@@ -14,7 +14,12 @@
     }
   },
 
-  "fillCount": 15,
+  "fill": {
+    "about": "The 'Fill' testing button rolls and places nations at random until this share of the region's land is owned, or it has made maxNations (it also gives up after maxAttempts tries).",
+    "percent": 90,
+    "maxNations": 150,
+    "maxAttempts": 400
+  },
 
   "growth": {
     "about": "Starting land grows out from the chosen spot, always taking the cheapest pixel it can reach next, until it has the rolled area. 'cost' is how hard each terrain is to take (plains = 1). Sea, lakes and ice can't be taken; neither can another nation's land. Rivers can be taken but cost a lot, so they tend to become borders. 'wobble' makes some areas randomly cheaper or dearer (0 = perfect blobs), so borders look natural.",

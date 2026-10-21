@@ -155,7 +155,7 @@ server only):
 
 ## Placing nations (Europe test)
 
-![Europe filled with 15 nations](docs/europe-filled.jpg)
+![Europe filled with 64 nations (91% of its land)](docs/europe-filled.jpg)
 
 After **Continue to map** the camera flies to Europe and asks where the nation goes. The
 nation card and the corner panel show its **colour**, which is its flag for now.
@@ -168,9 +168,15 @@ nation card and the corner panel show its **colour**, which is its flag for now.
   matters for now (a golden "Double land" simply means more land).
 - **Next nation** goes back to the wheel for another one. The list in the top-right corner
   has every nation made so far; click a row, or a nation on the map, to see it in the
-  corner panel. Hovering the map shows who owns the land.
+  corner panel (with 60+ nations the list scrolls). Its header shows how many nations
+  there are and how much of Europe's land they own, e.g. "64 nations · 91% of Europe".
+  Hovering the map shows who owns the land.
 - **Fill Europe** (a testing shortcut) rolls and places nations at random spots until
-  there are 15 (or no room is left). **Clear** removes them all.
+  **90% of Europe's land** is owned: usually 50–80 nations, a patchwork like the real
+  1500, in a fraction of a second. Each new nation goes into the biggest gap left, so the
+  late ones are squeezed in and end up smaller than they rolled. Fill picks colours so
+  that nations that touch never share one (with 60+ nations, colours repeat elsewhere).
+  **Clear** removes them all.
 
 **How land grows:** from the start spot the nation keeps taking the "cheapest" pixel it
 can reach next. Plains are cheap, highlands cost more, snow more again, mountains a lot,
@@ -185,7 +191,7 @@ fills Iceland gets ~101,000 km²; the real Iceland is 103,000 km².) The same se
 same clicks always give the same map.
 
 Tune it in **`public/data/placement.json`**: the region's outline (longitude/latitude
-points), how many nations **Fill** makes, the cost of each terrain, the wobble, and the
+points), how much of the land **Fill** covers (`fill.percent`, plus caps on nations and tries), the cost of each terrain, the wobble, and the
 colour list.
 
 ## Controls
