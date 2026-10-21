@@ -257,7 +257,8 @@ interface EraFile {
   notes?: unknown;
 }
 
-const DATA_DIR = "/data/";
+// BASE_URL is "/" on the dev server and "/little-dictators/" on GitHub Pages (see vite.config.ts).
+const DATA_DIR = `${import.meta.env.BASE_URL}data/`;
 
 /**
  * Loads and checks the wheel data: public/data/wheels.json, then the active era's file

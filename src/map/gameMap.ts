@@ -66,7 +66,7 @@ export class GameMap {
 /** Loads an image from public/maps/ and returns its RGBA pixels. */
 async function loadPixels(file: string, width: number, height: number): Promise<Uint8ClampedArray> {
   const img = new Image();
-  img.src = `/maps/${file}`;
+  img.src = `${import.meta.env.BASE_URL}maps/${file}`;
   await img.decode();
   const canvas = new OffscreenCanvas(width, height);
   const ctx = canvas.getContext("2d")!;
@@ -76,7 +76,7 @@ async function loadPixels(file: string, width: number, height: number): Promise<
 
 /** Loads a map from public/maps/<name>.json, its terrain PNG and (if it has one) its heightmap. */
 export async function loadMap(name: string): Promise<GameMap> {
-  const meta: MapMeta = await (await fetch(`/maps/${name}.json`)).json();
+  const meta: MapMeta = await (await fetch(`${import.meta.env.BASE_URL}maps/${name}.json`)).json();
   const size = meta.width * meta.height;
 
   const data = await loadPixels(meta.image, meta.width, meta.height);
