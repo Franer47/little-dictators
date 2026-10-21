@@ -5,10 +5,10 @@
   "notes": {
     "about": "Where the numbers come from. Not shown in the game; for whoever tunes the ranges.",
     "odds": "Placeholder weights for now: every normal slice is 1. Rare pulls: Government and Ideology each have one dark \"rare\" slice with \"chance\": 0.015 (1.5% of the wheel). Landing on it spins its own wheel of 7 rare results. A nation gets at most \"rareLimit\" rare pulls (1): after one, the other wheel's rare slice is left off. So about 3% of nations get one. Culture and Religion are switched off (\"off\": true) but kept for later.",
-    "land": "Area in km². Hard max 535,000 km² (1.5 × Germany's 357,600 km²); bigger is never rolled. The smallest real states c. 1500 (Ragusa, Lucca, the Italian and German city-states) held a few hundred to a few thousand km², so the wheel starts at 2,000.",
+    "land": "Area in km². Hard max 800,000 km² (≈ 2.25 × Germany's 357,600 km²); bigger is never rolled (only a golden Double land can go past it). Weights add up to 100, so they read as percentages; the three biggest tiers (Immense, Colossal, Titanic: 535,000–800,000) are 10% together. The smallest real states c. 1500 (Ragusa, Lucca, the Italian and German city-states) held a few hundred to a few thousand km², so the wheel starts at 2,000.",
     "density": "People per km² c. 1500, after Colin McEvedy & Richard Jones, Atlas of World Population History (1978), and Angus Maddison's population tables: steppe, taiga and desert well under 1–2; Muscovy ~2–3; Poland-Lithuania ~5; Iberia ~13; England ~19; France ~27; the German lands ~30; Italy ~35; Japan ~40; the Low Countries, Lombardy and the Ganges valley ~40–60. Population = land × density, so a small land can never hold a huge population.",
     "wealth": "Output (GDP) per person c. 1500 from Angus Maddison's estimates, The World Economy: Historical Statistics (2003), in 1990 international dollars: bare subsistence ~400, Africa and the Americas ~415, Eastern Europe ~500, Japan 500, India 550, China 600, Portugal 606, Spain 661, Germany 688, England 714, France 727, the Netherlands 761, Belgium 875, Italy 1,100. Converted to today's money ×2.4 (US consumer prices 1990 → 2024) and rounded. GDP = population × output per person.",
-    "check": "Sanity check: a vast (≈535,000 km²), dense (25–40/km²), comfortable-to-prosperous nation comes out at ~13–21M people and ~$25–45B, in line with France c. 1500 (~15M people, Maddison GDP 10.9B 1990$ ≈ $26B today) and Italy (~10.5M, ≈ $28B). A city-state that's empty and destitute is a few thousand people and a few million dollars. Run game.checkNumbers() in the browser console to see the spread."
+    "check": "Sanity check: a vast (≈500,000 km²), dense (25–40/km²), comfortable-to-prosperous nation comes out at ~13–21M people and ~$25–45B, in line with France c. 1500 (~15M people, Maddison GDP 10.9B 1990$ ≈ $26B today) and Italy (~10.5M, ≈ $28B). A city-state that's empty and destitute is a few thousand people and a few million dollars. Run game.checkNumbers() in the browser console to see the spread."
   },
 
   "chart": {
@@ -139,7 +139,7 @@
       "resultName": "Land",
       "question": "How much land?",
       "number": {
-        "max": 535000,
+        "max": 800000,
         "shows": "range",
         "range": "{low}–{high} km²",
         "value": "{value} km²",
@@ -159,18 +159,22 @@
             ["Scotland", 77910], ["Austria", 83879], ["Portugal", 92212], ["Iceland", 103000], ["Cuba", 109884],
             ["England", 130279], ["Nepal", 147181], ["Tunisia", 163610], ["Cambodia", 181035], ["Great Britain", 209331],
             ["Romania", 238397], ["Italy", 301340], ["Germany", 357588], ["Iraq", 438317], ["Sweden", 450295],
-            ["Spain", 505990], ["France", 551695]
+            ["Spain", 505990], ["France", 551695],
+            ["Ukraine", 603550], ["Myanmar", 676578], ["Texas", 695662], ["Turkey", 783562]
           ]
         }
       },
       "slices": [
-        { "id": "city-state", "label": "City-state", "weight": 1, "range": [2000, 8000], "blurb": "One proud city and the fields around it." },
-        { "id": "tiny", "label": "Tiny", "weight": 1, "range": [8000, 25000], "blurb": "A day's ride from end to end." },
-        { "id": "small", "label": "Small", "weight": 1, "range": [25000, 60000], "blurb": "A few towns and a castle on every hill." },
-        { "id": "modest", "label": "Modest", "weight": 1, "range": [60000, 120000], "blurb": "A proper realm, if not a big one." },
-        { "id": "medium", "label": "Medium", "weight": 1, "range": [120000, 220000], "blurb": "Room for a dozen dukes to quarrel." },
-        { "id": "large", "label": "Large", "weight": 1, "range": [220000, 360000], "blurb": "A week's march from border to border." },
-        { "id": "vast", "label": "Vast", "weight": 1, "range": [360000, 535000], "blurb": "As big as a realm gets in this age." }
+        { "id": "city-state", "label": "City-state", "short": "2K–8K", "weight": 8, "range": [2000, 8000], "blurb": "One proud city and the fields around it." },
+        { "id": "tiny", "label": "Tiny", "short": "8K–25K", "weight": 10, "range": [8000, 25000], "blurb": "A day's ride from end to end." },
+        { "id": "small", "label": "Small", "short": "25K–60K", "weight": 13, "range": [25000, 60000], "blurb": "A few towns and a castle on every hill." },
+        { "id": "modest", "label": "Modest", "short": "60K–120K", "weight": 16, "range": [60000, 120000], "blurb": "A proper realm, if not a big one." },
+        { "id": "medium", "label": "Medium", "short": "120K–220K", "weight": 18, "range": [120000, 220000], "blurb": "Room for a dozen dukes to quarrel." },
+        { "id": "large", "label": "Large", "short": "220K–360K", "weight": 15, "range": [220000, 360000], "blurb": "A week's march from border to border." },
+        { "id": "vast", "label": "Vast", "short": "360K–535K", "weight": 10, "range": [360000, 535000], "blurb": "A great kingdom, the envy of its neighbours." },
+        { "id": "immense", "label": "Immense", "short": "535K–620K", "weight": 5, "range": [535000, 620000], "blurb": "Bigger than France. The tax collectors need a year to get round." },
+        { "id": "colossal", "label": "Colossal", "short": "620K–710K", "weight": 3, "range": [620000, 710000], "blurb": "News from the far border is a month old when it arrives." },
+        { "id": "titanic", "label": "Titanic", "short": "710K–800K", "weight": 2, "range": [710000, 800000], "blurb": "As big as a realm gets in this age, and then some." }
       ]
     },
     {
