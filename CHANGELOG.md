@@ -11,10 +11,12 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
   shape instead of snaking out in every direction. The inland gaps left between them are
   filled by later nations. After growing, 1-pixel strings are trimmed and tiny holes
   inside a nation are filled. (Clicking by hand can still start a nation anywhere.)
-- **Fill Europe now fills Europe** (about 98–99% of its land, 65–100 nations) instead of
-  stopping at 90%: it keeps going until no gap is left with room for another nation.
+- **Fill Europe now fills all of Europe** (65–100 nations) instead of stopping at 90%: it
+  keeps going until no gap is left with room for another nation, then the leftover bits
+  (small islands, slivers between borders) go to the nearest nations, which spread up to
+  10 pixels at a time into them. Every piece of land in Europe is owned when it's done.
 - **The nation list is short by default**: the top 3 nations by land plus yours (marked
-  "You"), under "66 nations · 98% of Europe". The arrow opens the full list (biggest
+  "You"), under "89 nations · 100% of Europe". The arrow opens the full list (biggest
   first) and closes it again; it remembers which you chose.
 
 ### Fixed

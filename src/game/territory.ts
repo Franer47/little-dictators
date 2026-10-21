@@ -48,6 +48,8 @@ export interface FillRules {
   /** …or after this many nations or tries. */
   maxNations: number;
   maxAttempts: number;
+  /** At the end of a 100% fill, nations spread up to this many pixels into the leftover land and islands. */
+  absorbSteps: number;
 }
 
 export interface PlacementData {
@@ -263,6 +265,74 @@ export class Territory {
     return holding;
   }
 
+  /**
+   * Gives the region's leftover free land (small islands, slivers between borders) to the
+   * nearest nation: every nation spreads out at most `maxSteps` pixels into free land, and
+   * across water to islands, one ring at a time, so the closest nation gets each pixel.
+   * Returns the pixels each nation gained (by id). Repeatable: no randomness.
+   */
+  absorbLeftovers(region: Region, maxSteps: number): Map<number, number[]> {
+    const gained = new Map<number, number[]>();
+    if (!this.holdings.length || maxSteps <= 0) return gained;
+    const { width, height, terrain } = this.map;
+    // Work in the region's box plus a margin, so nations just outside it can reach in too.
+    const x0 = Math.max(0, region.box.x0 - maxSteps);
+    const y0 = Math.max(0, region.box.y0 - maxSteps);
+    const x1 = Math.min(width - 1, region.box.x1 + maxSteps);
+    const y1 = Math.min(height - 1, region.box.y1 + maxSteps);
+    const bw = x1 - x0 + 1;
+    const bh = y1 - y0 + 1;
+    const steps = new Int16Array(bw * bh).fill(-1);
+    const from = new Uint16Array(bw * bh);
+    const queue = new Int32Array(bw * bh);
+    let head = 0;
+    let tail = 0;
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        const id = this.owner[y * width + x];
+        if (id === 0) continue;
+        const b = (y - y0) * bw + (x - x0);
+        steps[b] = 0;
+        from[b] = id;
+        queue[tail++] = b;
+      }
+    }
+    while (head < tail) {
+      const b = queue[head++];
+      if (steps[b] >= maxSteps) continue;
+      const bx = b % bw;
+      const by = (b - bx) / bw;
+      for (const [dx, dy] of SIDES) {
+        const nx = bx + dx;
+        const ny = by + dy;
+        if (nx < 0 || ny < 0 || nx >= bw || ny >= bh) continue;
+        const c = ny * bw + nx;
+        if (steps[c] >= 0) continue;
+        const i = (ny + y0) * width + (nx + x0);
+        if (this.owner[i] !== 0) continue;
+        // Free land and water are both crossed (water to reach islands); only free land in the region is taken.
+        steps[c] = steps[b] + 1;
+        from[c] = from[b];
+        queue[tail++] = c;
+        if (region.inside[i] && this.cost[terrain[i]] < Infinity) {
+          this.owner[i] = from[b];
+          const list = gained.get(from[b]) ?? [];
+          list.push(i);
+          gained.set(from[b], list);
+        }
+      }
+    }
+    for (const [id, list] of gained) {
+      const h = this.holding(id)!;
+      const pixels = new Int32Array(h.pixels.length + list.length);
+      pixels.set(h.pixels);
+      pixels.set(list, h.pixels.length);
+      h.pixels = pixels;
+      for (const i of list) h.area += this.areas[(i / width) | 0];
+    }
+    return gained;
+  }
+
   /** Removes every nation. */
   clear(): void {
     this.owner.fill(0);
@@ -419,7 +489,9 @@ export class Territory {
       }
     }
     const extra = this.tidy(id, sx, sy, taken, targetArea);
-    const pixels = taken.filter((i) => owner[i] === id).concat(extra);
+    // A trimmed pixel can come back as part of a filled hole, so leave those out of `taken`.
+    const refilled = new Set(extra);
+    const pixels = taken.filter((i) => owner[i] === id && !refilled.has(i)).concat(extra);
     let total = 0;
     for (const i of pixels) total += areas[(i / width) | 0];
     return { pixels: Int32Array.from(pixels), area: total };

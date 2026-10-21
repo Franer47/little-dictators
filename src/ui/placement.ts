@@ -254,7 +254,7 @@ export class Placement {
   private fill(): void {
     if (this.state === "wheel") return;
     this.finishGrowth();
-    const { percent, minArea, maxNations, maxAttempts } = this.opts.data.fill;
+    const { percent, minArea, maxNations, maxAttempts, absorbSteps } = this.opts.data.fill;
     const { coastPreference } = this.opts.data.start;
     const started = performance.now();
     let full = false;
@@ -274,6 +274,17 @@ export class Placement {
     for (let tries = 0; !full && tries < maxAttempts && this.nations.length < maxNations; tries++) {
       if (this.territory.ownedShare(this.region) * 100 >= percent) break;
       placeAnywhere({ nation: rollNation(this.opts.wheels, this.opts.mapName, createRng(this.nextSeed())), color: "" });
+    }
+    // A full fill ends with the leftovers (small islands, slivers between borders) going to the
+    // nearest nations, so the whole region is owned when the game starts.
+    // Rounds of `absorbSteps` pixels each while that still takes land, then one last pass with
+    // no limit for far-off islands (e.g. Jan Mayen), which go to the nearest nation.
+    if (percent >= 100) {
+      for (let round = 0; round <= 10; round++) {
+        const gained = this.territory.absorbLeftovers(this.region, round < 10 ? absorbSteps : 30000);
+        for (const [, pixels] of gained) this.layer.reveal(pixels);
+        if (!gained.size && round < 10) round = 9; // nothing more nearby: go to the last pass
+      }
     }
     if (import.meta.env.DEV) {
       const share = Math.round(this.territory.ownedShare(this.region) * 100);

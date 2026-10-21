@@ -155,7 +155,7 @@ server only):
 
 ## Placing nations (Europe test)
 
-![Europe filled with 66 nations (98% of its land)](docs/europe-filled.jpg)
+![Europe filled with 89 nations (all of its land)](docs/europe-filled.jpg)
 
 After **Continue to map** the camera flies to Europe and asks where the nation goes. The
 nation card and the corner panel show its **colour**, which is its flag for now.
@@ -170,14 +170,17 @@ nation card and the corner panel show its **colour**, which is its flag for now.
 - The land then **grows out from that spot** in a second or two. Only the rolled land size
   matters for now (a golden "Double land" simply means more land).
 - **Next nation** goes back to the wheel for another one. The list in the top-right corner
-  shows the **top 3 nations by land plus yours** (marked "You"), under e.g. "66 nations ·
-  98% of Europe". The arrow opens the full list (biggest first, it scrolls) and closes it
+  shows the **top 3 nations by land plus yours** (marked "You"), under e.g. "89 nations ·
+  100% of Europe". The arrow opens the full list (biggest first, it scrolls) and closes it
   again; it remembers your choice. Click a row, or a nation on the map, to see it in the
   corner panel. Hovering the map shows who owns the land.
 - **Fill Europe** (a testing shortcut) rolls and places nations until **no gap is left with
-  room for another nation** (98–99% of the land, usually 65–100 nations, a patchwork like
-  the real 1500, in under half a second). Coasts and riverbanks fill first, then the
-  inland gaps; the late nations are squeezed in and end up smaller than they rolled. Fill picks colours so
+  room for another nation** (usually 65–100 nations, a patchwork like the real 1500, in
+  about half a second). Coasts and riverbanks fill first, then the inland gaps; the late
+  nations are squeezed in and end up smaller than they rolled. Then the **leftover bits**
+  (small islands, slivers between borders) go to the nearest nations, which spread up to
+  10 pixels at a time into them (across water to reach islands), so **all of Europe is
+  owned** when the game starts. Fill picks colours so
   that nations that touch never share one (with 60+ nations, colours repeat elsewhere).
   **Clear** removes them all.
 
@@ -198,7 +201,8 @@ Tune it in **`public/data/placement.json`**: the region's outline (longitude/lat
 points), how often random starts pick a coast or riverbank (`start.coastPreference`), how
 much of the land **Fill** covers (`fill.percent`; 100 = until no gap has room for
 `fill.minArea` km², plus caps on nations and tries), the cost of each terrain, the wobble,
-the biggest hole that gets filled (`holeSize`), and the colour list.
+the biggest hole that gets filled (`holeSize`), how far nations spread into the leftovers
+per round (`fill.absorbSteps`), and the colour list.
 
 ## Controls
 

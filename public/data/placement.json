@@ -20,11 +20,12 @@
   },
 
   "fill": {
-    "about": "The 'Fill' testing button rolls and places nations until 'percent' of the region's land is owned (100 = until no gap is left with room for a nation of at least 'minArea' km²). It also stops after maxNations nations or maxAttempts tries.",
+    "about": "The 'Fill' testing button rolls and places nations until 'percent' of the region's land is owned (100 = until no gap is left with room for a nation of at least 'minArea' km²). It also stops after maxNations nations or maxAttempts tries. At the end of a 100% fill, the leftover land (small islands, slivers between borders) goes to the nearest nations: each spreads 'absorbSteps' pixels into it at a time (across water too, to reach islands), repeated while that still takes land; far-off islands then go to the nearest nation.",
     "percent": 100,
     "minArea": 2000,
     "maxNations": 250,
-    "maxAttempts": 600
+    "maxAttempts": 600,
+    "absorbSteps": 10
   },
 
   "growth": {
