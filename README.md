@@ -28,8 +28,8 @@ question, **11 spins** in this order:
    Bureaucracy, Merchant Republic, Noble Republic, City-State, Theocracy, Knightly Order,
    Tribal Confederation, Chiefdom, Despot Rule, Warlord Rule, Regency, and a **rare pull**
    (below).
-2. **Land size**: a range, then the exact area in km² (never more than 535,000 km², which is
-   1.5× Germany), with a comparison such as "≈ the size of Portugal".
+2. **Land size**: a range, then the exact area in km² (never more than 800,000 km², about
+   2.25× Germany; the biggest sizes are rare), with a comparison such as "≈ the size of Portugal".
 3. **Population density**: Empty … Crowded, then the exact people per km². **Population =
    land × density**, so a tiny land can never hold millions of people.
 4. **Wealth**: Very poor … Very rich, then the exact output per person.

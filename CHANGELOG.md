@@ -110,6 +110,13 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 - This changelog.
 
 ### Changed
+- **Bigger nations are possible.** Land size now goes up to 800,000 km² (about 2.25×
+  Germany), with 3 new rare slices: Immense (535,000–620,000 km²), Colossal (–710,000) and
+  Titanic (–800,000). Land odds are no longer equal: City-state 8%, Tiny 10%, Small 13%,
+  Modest 16%, Medium 18%, Large 15%, Vast 10%, Immense 5%, Colossal 3%, Titanic 2%. The
+  size comparison now also knows Ukraine, Myanmar, Texas and Turkey. On the wheel the land
+  slices show a shorter label ("710K–800K"), so the thin rare slices stay readable; the full
+  range with km² still shows when it lands.
 - **Retro wheel slice labels are much easier to read.** They are now drawn sharp at full
   screen resolution in Pixelify Sans Bold (a pixel font made for legibility), white with
   a dark pixel outline, on top of the chunky pixel wheel. All labels on a wheel share one
