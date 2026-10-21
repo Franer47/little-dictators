@@ -13,12 +13,14 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
   near the equator instead of 1.3–2.3×. The panel still shows the real km² it got.
 - **Nations go anywhere in the world now, not just Europe.** Place your own nation
   anywhere on Earth (except Antarctica), then keep making nations yourself or press
-  **Fill the world**: about 800–1,000 nations in about 3 seconds, and you can watch the
+  **Fill the world**: about 900–1,000 nations in about 3 seconds, and you can watch the
   map fill up. Every piece of land ends up owned. Fill picks each nation's spot first
   and then rolls a land size that fits the free land there, so islands get small nations
   and the middle of a continent, settled late, still gets big ones. New nations stop at
   95% of the land and in gaps under 60,000 km²; the neighbours take the rest, so the
-  gaps don't fill up with clusters of tiny nations. (The Europe test is still in
+  gaps don't fill up with clusters of tiny nations, and Fill leaves City-state and Tiny
+  off its nations' land wheel (yours keeps them): dot-sized nations went from 60–80 per
+  world to 4–17. (The Europe test is still in
   `public/data/placement.json`.)
 - **Mountains, highlands and rivers are much harder to cross** (mountains 15× plains
   instead of 6×, highlands 3.5×, snow 4×, rivers 40×), so nations settle open land

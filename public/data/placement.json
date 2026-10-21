@@ -27,13 +27,14 @@
   },
 
   "fill": {
-    "about": "The 'Fill' button rolls and places new nations until 'percent' of the region's land is owned, or no gap is left with room for a nation of at least 'minArea' km² (or after maxNations nations or maxAttempts tries). Then the leftover land (small islands, slivers between borders) goes to the nearest nations: each spreads 'absorbSteps' pixels into it at a time (across water too, to reach islands), repeated while that still takes land; far-off islands then go to the nearest nation. For speed, Fill looks over the free land once per batch of nations: about one nation per 'batchArea' km² of free land (up to 40 at a time on an empty world, one at a time near the end). Fill picks each nation's spot first and then rolls its land size for the free patch of land around it: sizes bigger than that patch shrink or go (like the land wheel's 'room' rule, but local), so an island gets an island-sized nation while the middle of a continent, settled late, still gets big ones.",
+    "about": "The 'Fill' button rolls and places new nations until 'percent' of the region's land is owned, or no gap is left with room for a nation of at least 'minArea' km² (or after maxNations nations or maxAttempts tries). Then the leftover land (small islands, slivers between borders) goes to the nearest nations: each spreads 'absorbSteps' pixels into it at a time (across water too, to reach islands), repeated while that still takes land; far-off islands then go to the nearest nation. For speed, Fill looks over the free land once per batch of nations: about one nation per 'batchArea' km² of free land (up to 40 at a time on an empty world, one at a time near the end). Fill picks each nation's spot first and then rolls its land size for the free patch of land around it: sizes bigger than that patch shrink or go (like the land wheel's 'room' rule, but local), so an island gets an island-sized nation while the middle of a continent, settled late, still gets big ones. Fill also leaves land sizes under 'smallestRoll' km² (City-state, Tiny) off its nations' wheel, so it doesn't make dot-sized nations; your own wheel still has them.",
     "percent": 95,
     "minArea": 2000,
     "maxNations": 3000,
     "maxAttempts": 6000,
     "absorbSteps": 10,
-    "batchArea": 1000000
+    "batchArea": 1000000,
+    "smallestRoll": 25000
   },
 
   "growth": {

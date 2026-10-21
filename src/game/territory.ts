@@ -66,6 +66,8 @@ export interface FillRules {
   /** …or after this many nations or tries. */
   maxNations: number;
   maxAttempts: number;
+  /** Fill leaves land sizes below this (km²) off its nations' wheel (no dot-sized nations). */
+  smallestRoll?: number;
   /** Fill places about one nation per this many km² of free land per look at the map (speed). */
   batchArea: number;
   /** At the end of a fill, nations spread up to this many pixels at a time into the leftover land and islands. */

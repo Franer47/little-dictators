@@ -157,7 +157,7 @@ server only):
 
 ## Placing nations (the whole world)
 
-![The world filled with 790 nations](docs/world-filled.jpg)
+![The world filled with 925 nations](docs/world-filled.jpg)
 
 After **Continue to map** you choose where your nation goes, **anywhere on Earth** (except
 Antarctica). Then either keep making nations yourself (**Next nation**), or press **Fill the
@@ -177,15 +177,17 @@ show each nation's **colour**, which is its flag for now.
 - The land then **grows out from that spot** in a second or two. Only the rolled land size
   matters for now (a golden "Double land" simply means more land).
 - **Next nation** goes back to the wheel for another one. The list in the top-right corner
-  shows the **top 3 nations by land plus yours** (marked "You"), under e.g. "790 nations ·
+  shows the **top 3 nations by land plus yours** (marked "You"), under e.g. "925 nations ·
   100% of the world". The arrow opens the full list (biggest first, it scrolls) and closes it
   again; it remembers your choice. Click a row, or a nation on the map, to see it in the
   corner panel. Hovering the map shows who owns the land.
 - **Fill the world** rolls and places nations until **95% of the land is taken** (or no gap
-  of 60,000 km² is left): usually 800–1,000 nations, in about 3 seconds, and you can watch the map fill
+  of 60,000 km² is left): usually 900–1,000 nations, in about 3 seconds, and you can watch the map fill
   up ("Filling the world… 241 nations · 28%"). Coasts and riverbanks fill first, then the
   inland gaps. Fill picks each nation's spot first and then rolls its land size for the
-  free patch around it: sizes that wouldn't fit there are left off the wheel, so an island
+  free patch around it: sizes that wouldn't fit there are left off the wheel (and so are
+  the two smallest, City-state and Tiny, so Fill doesn't make dot-sized nations; your own
+  wheel still has them), so an island
   gets an island-sized nation while the middle of Africa, settled late, still gets big
   ones. Then the **last 5% and the leftover bits** (small gaps, islands, slivers between
   borders) go to the nearest nations instead of to lots of tiny new ones, which spread up to 10 pixels at a time into them (across water to

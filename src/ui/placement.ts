@@ -260,7 +260,7 @@ export class Placement {
     this.state = "filling";
     this.opts.renderer.preview = null;
     this.update();
-    const { percent, minArea, maxNations, maxAttempts, absorbSteps, batchArea } = this.opts.data.fill;
+    const { percent, minArea, maxNations, maxAttempts, absorbSteps, batchArea, smallestRoll } = this.opts.data.fill;
     const spotRules = { ...this.opts.data.start, minArea };
     const started = performance.now();
     let full = false;
@@ -321,7 +321,9 @@ export class Placement {
         continue;
       }
       const pocket = this.territory.pocketAt(start);
-      const room = { region: this.regionName, left: pocket, taken: 0, biggestGap: pocket };
+      // Fill leaves out the smallest land sizes (city-states, tiny lands): on a full world they
+      // only make dot-sized nations. Your own wheel still has them.
+      const room = { region: this.regionName, left: pocket, taken: 0, biggestGap: pocket, smallest: smallestRoll };
       const pending: Pending = { nation: rollNation(this.opts.wheels, this.opts.mapName, createRng(this.nextSeed()), room), color: "" };
       const target = rolledArea(pending.nation);
       const x = start % this.opts.map.width;

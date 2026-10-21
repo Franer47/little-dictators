@@ -14,6 +14,8 @@ export interface LandRoom {
   taken: number;
   /** The biggest single free patch of land, km². */
   biggestGap: number;
+  /** Leave out slices whose sizes are all below this (km²), e.g. no city-states when Fill makes nations. */
+  smallest?: number;
 }
 
 /** A land wheel's "room" settings (in the era file). */
@@ -33,7 +35,7 @@ export interface RoomRule {
  * slice always stays, so there is always something to land on.
  */
 export function roomWeighted(wheel: Wheel, room: LandRoom, rule: RoomRule): Wheel {
-  if (room.taken <= 0 && !Number.isFinite(room.biggestGap)) return wheel;
+  if (room.taken <= 0 && !Number.isFinite(room.biggestGap) && !room.smallest) return wheel;
   const free = Math.max(0, 1 - room.taken);
   const slices: Slice[] = [];
   for (const slice of wheel.slices) {
@@ -44,6 +46,7 @@ export function roomWeighted(wheel: Wheel, room: LandRoom, rule: RoomRule): Whee
     }
     const typical = Math.sqrt(low * high);
     let weight = room.taken > 0 ? slice.weight * free ** (typical / rule.fullness) : slice.weight;
+    if (room.smallest && high <= room.smallest) weight = 0;
     if (low >= room.biggestGap) weight = 0;
     else if (high > room.biggestGap) weight *= (room.biggestGap - low) / (high - low);
     if (weight > 0) slices.push({ ...slice, weight });
