@@ -48,6 +48,8 @@ export class MapRenderer {
   territory: TerritoryLayer | null = null;
   /** Shown at the hovered pixel while placing a nation. */
   preview: PlacementPreview | null = null;
+  /** The brush outline at the hovered pixel while painting (same look as the placement preview). */
+  cursor: PlacementPreview | null = null;
   /** Drawn over the land, in order (nation names, then army flags). */
   overlays: MapOverlay[] = [];
 
@@ -124,6 +126,7 @@ export class MapRenderer {
       ctx.lineWidth = Math.max(1.5 / scale, 0.08);
       for (const k of copies) ctx.strokeRect(hx + k * width, hy, 1, 1);
       if (this.preview) this.drawPreview(this.preview, hx, hy, dpr / scale, copies);
+      else if (this.cursor) this.drawPreview(this.cursor, hx, hy, dpr / scale, copies);
     }
   }
 

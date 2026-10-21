@@ -1,6 +1,7 @@
 // The strip across the top of the screen: your own nation's key numbers at a glance (money,
-// people, stability, popularity, army, development and the ideology mix) and the Army button.
-// Point at a number to see where it comes from; click the name to open your nation.
+// people, stability, popularity, army, development and the ideology mix), and at its right end
+// the date with the speed buttons and your influence points. Point at a number to see where it
+// comes from; click the name to open your nation.
 
 import "./nationBar.css";
 import type { StatSheet, StatsData } from "../game/stats.ts";
@@ -12,8 +13,8 @@ export interface NationBarInfo {
   color: string;
   sheet: StatSheet;
   data: StatsData;
-  /** How many divisions its army has on the map. */
-  divisions: number;
+  /** The running clock: date, speed (0 = paused), the speed choices, and your influence. */
+  clock?: { date: string; speed: number; speeds: number[]; influence: number; perMonth: number };
 }
 
 const bar = document.createElement("header");
@@ -21,13 +22,14 @@ bar.id = "nation-bar";
 bar.hidden = true;
 let current: NationBarInfo | null = null;
 
-/** Sets up the strip (once): `open` runs when the player clicks their nation's name, `army` on the Army button. */
-export function initNationBar(handlers: { open: () => void; army: () => void }): void {
+/** Sets up the strip (once): `open` runs when the player clicks their nation's name, `speed` on a speed button. */
+export function initNationBar(handlers: { open: () => void; speed: (i: number) => void }): void {
   document.body.append(bar);
   bar.addEventListener("click", (e) => {
     const el = e.target as HTMLElement;
     if (el.closest(".nb-head")) handlers.open();
-    else if (el.closest(".nb-army")) handlers.army();
+    const sp = el.closest<HTMLElement>("[data-speed]");
+    if (sp) handlers.speed(Number(sp.dataset.speed));
   });
   hoverTips(bar, "[data-stat]", (el) => {
     const stat = current?.sheet.stats[el.dataset.stat as keyof StatSheet["stats"]];
@@ -84,7 +86,7 @@ export function showNationBar(info: NationBarInfo | null): void {
           : ""
       }
     </div>
-    <button type="button" class="nb-army" title="Your divisions; ask for new or bigger ones">${icon("swords")}Army <span class="nb-count">${info.divisions}</span></button>`;
+    ${info.clock ? clockHtml(info.clock) : ""}`;
   bar.querySelector(".nb-name")!.textContent = info.name;
   bar.hidden = false;
   document.body.classList.add("has-strip");
@@ -94,4 +96,12 @@ export function showNationBar(info: NationBarInfo | null): void {
 export function setNationBarHidden(hidden: boolean): void {
   bar.hidden = hidden || !current;
   document.body.classList.toggle("has-strip", !bar.hidden);
+}
+
+function clockHtml(c: NonNullable<NationBarInfo["clock"]>): string {
+  const speeds = [`<button type="button" data-speed="0" class="paused${c.speed === 0 ? " on" : ""}" title="Pause (Space)">❚❚</button>`]
+    .concat(c.speeds.map((x, i) => `<button type="button" data-speed="${i + 1}" class="${c.speed === i + 1 ? "on" : ""}" title="Speed ×${x} (key ${i + 1})">${"▶".repeat(Math.min(3, i + 1))}</button>`))
+    .join("");
+  return `<div class="nb-influence" title="Influence: what you spend to push your nation (build, recruit, war, peace, relations, brushes). You get about ${c.perMonth.toFixed(1)} a month, more when it's stable and likes its ruler.">${icon("star")}${Math.floor(c.influence)}</div>
+    <div class="nb-clock"><span class="nb-date">${escapeHtml(c.date)}</span><div class="nb-speeds">${speeds}</div></div>`;
 }

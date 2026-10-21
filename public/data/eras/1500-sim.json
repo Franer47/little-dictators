@@ -1,0 +1,107 @@
+{
+  "about": "How the world runs once the clock starts (milestone 4): time, influence, buildings, what computer-run nations do, wars and peace. Used by src/sim/. Money is in today's US dollars. Building effects use the same modifiers as the stats file (1500-stats.json): \"+8%\" changes a number by a share, \"+5\" adds points. Reload the page to see changes.",
+
+  "clock": {
+    "about": "One tick is one month. 'msPerMonth' is how long a month lasts at normal speed (3500 ms ≈ 42 s a year ≈ 6 hours from 1500 to the 2000s). 'speeds' are the speed buttons (× normal).",
+    "startYear": 1500,
+    "msPerMonth": 3500,
+    "speeds": [1, 3, 10]
+  },
+
+  "influence": {
+    "about": "Your influence points: what you spend to push your nation. You start with 'start' and get 'perMonth' plus 'perStability' × stability and 'perPopularity' × popularity every month (about 2–5), up to 'max'. 'costs' are what each push costs.",
+    "start": 30,
+    "perMonth": 1,
+    "perStability": 0.025,
+    "perPopularity": 0.025,
+    "max": 300,
+    "costs": {
+      "build": 6,
+      "recruit": 4,
+      "improveRelations": 8,
+      "worsenRelations": 6,
+      "alliance": 12,
+      "declareWar": 20,
+      "offerPeace": 6
+    }
+  },
+
+  "brushes": {
+    "about": "Painting the map costs influence per pixel. War goal: land of other nations you want; your nation goes after it (more likely to war with its owner, and asks for it first in a peace). Defend: your land to guard; divisions stand there and forts go there first. Develop: your land where new buildings go first. Erase gives back 'eraseRefund' of what the paint cost. 'size' are the brush sizes (pixel radius).",
+    "cost": { "warGoal": 0.08, "defend": 0.04, "develop": 0.04 },
+    "eraseRefund": 0.5,
+    "sizes": [1, 3, 6]
+  },
+
+  "buildings": {
+    "about": "Each building has levels 1..maxLevel. A level costs 'costYears' × the nation's yearly income, × (1 + 'costGrowth' × levels it already has), so level 1 costs a year's income and level 5 five years', and takes 'months' to build. 'effects' are per level. 'needs': 'coast' = only nations with a coast can build it.",
+    "farm": { "name": "Farm", "icon": "wheat", "about": "Fields, mills and granaries.", "costYears": 1, "costGrowth": 1, "months": 8, "maxLevel": 5, "effects": { "food": "+8%", "growthRate": "+3%" } },
+    "market": { "name": "Market", "icon": "scales", "about": "Market squares, fairs and toll roads.", "costYears": 1, "costGrowth": 1, "months": 9, "maxLevel": 5, "effects": { "trade": "+6", "taxRate": "+4%" } },
+    "workshop": { "name": "Workshop", "icon": "coin", "about": "Smithies, looms and mills: the factories of 1500.", "costYears": 1, "costGrowth": 1, "months": 12, "maxLevel": 5, "effects": { "taxRate": "+6%", "development": "+2", "trade": "+2" } },
+    "fort": { "name": "Fort", "icon": "shield", "about": "Walls, towers and garrisons.", "costYears": 1, "costGrowth": 1, "months": 12, "maxLevel": 5, "effects": { "defence": "+8", "stability": "+1" } },
+    "barracks": { "name": "Barracks", "icon": "swords", "about": "Drill yards and armouries.", "costYears": 1, "costGrowth": 1, "months": 9, "maxLevel": 5, "effects": { "recruitRate": "+10%", "armyQuality": "+3" } },
+    "port": { "name": "Port", "icon": "anchor", "about": "Harbours, docks and shipyards.", "costYears": 1, "costGrowth": 1, "months": 12, "maxLevel": 5, "needs": "coast", "effects": { "naval": "+8", "trade": "+5" } },
+    "school": { "name": "School", "icon": "book", "about": "Church schools, academies and printing shops.", "costYears": 1, "costGrowth": 1, "months": 12, "maxLevel": 5, "effects": { "development": "+3" } },
+    "temple": { "name": "Temple", "icon": "columns", "about": "Churches, mosques and shrines.", "costYears": 1, "costGrowth": 1, "months": 10, "maxLevel": 5, "effects": { "stability": "+4", "popularity": "+3" } }
+  },
+
+  "growth": {
+    "about": "Development moves toward what the nation's stats aim for by 'developmentPerYear' points a year, plus 'perSchool' for each school level. A nation in debt (treasury below zero) gets 'debt' modifiers.",
+    "developmentPerYear": 1,
+    "perSchool": 0.4,
+    "debt": { "stability": "-10", "popularity": "-5" }
+  },
+
+  "army": {
+    "about": "New divisions train for 'trainingMonths' months before they count. A division under 'disband' troops is broken up.",
+    "trainingMonths": 6,
+    "disband": 60
+  },
+
+  "ai": {
+    "about": "What computer-run nations do. Each nation thinks once a year (each in its own month). 'buildReserve': it keeps this many months of upkeep in the treasury before building (so it doesn't build every year). 'warChance': yearly chance of starting a war at aggression 100 (it scales with aggression²). 'warOdds': it only attacks when its side is this many times stronger. 'allianceAt': relation needed to ally; 'maxAllies'.",
+    "buildReserve": 12,
+    "warChance": 0.3,
+    "warOdds": 1.3,
+    "allianceAt": 20,
+    "breakAllianceAt": 0,
+    "maxAllies": 2,
+    "allyJoinsAttack": 0.5
+  },
+
+  "relations": {
+    "about": "How much two neighbours like each other, -100..100. They start at 'base', minus 'aggression' × the two aggressions, plus 'sameIdeology' when they share one, plus up to ± 'random'. Each month they drift 'drift' of the way back to their start. A war costs 'war' a month; a peace leaves 'afterPeace'. Your pushes move them by 'push'.",
+    "base": 0,
+    "aggression": 0.25,
+    "sameIdeology": 20,
+    "random": 20,
+    "drift": 0.02,
+    "war": -2,
+    "afterPeace": -40,
+    "push": 15
+  },
+
+  "war": {
+    "about": "Simple wars: every month each side's strength is its troops × army quality ÷ 50 (defenders × (1 + defence ÷ 100)), with its allies. The war score (−100..100, + = attackers winning) moves by up to 'scorePerMonth' toward the stronger side. Each side loses about 'losses' of its troops a month (more against a stronger enemy).",
+    "scorePerMonth": 8,
+    "losses": 0.02,
+    "maxLosses": 0.06
+  },
+
+  "peace": {
+    "about": "When a war ends. Computer nations make peace when the war score reaches 'winAt' (after 'minMonths'), or after 'maxMonths' whatever it is. Terms by score: at 'landAt' or more the winner takes border land: up to 'landShare' of the loser's land at score 100. At 'tributeAt' or more the loser pays 'tributeShare' of its income every year for 'tributeYears' years. Below that, white peace.",
+    "winAt": 50,
+    "minMonths": 6,
+    "maxMonths": 48,
+    "landAt": 40,
+    "landShare": 0.3,
+    "tributeAt": 20,
+    "tributeShare": 0.1,
+    "tributeYears": 10
+  },
+
+  "save": {
+    "about": "The game saves in your browser every 'everyYears' years (and when you leave the page); the start screen then offers Continue.",
+    "everyYears": 1
+  }
+}

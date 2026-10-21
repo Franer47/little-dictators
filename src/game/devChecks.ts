@@ -116,6 +116,7 @@ export function checkStats(nations: readonly { nation: Nation }[], sheets: reado
   const columns: Record<string, number[]> = {};
   const add = (name: string, v: number): void => void (columns[name] ??= []).push(v);
   sheets.forEach((sheet, i) => {
+    if (!sheet.land.pixels) return; // a fallen nation
     const s = sheet.stats;
     const name = nations[i]?.nation.name ?? `#${i + 1}`;
     for (const id of STAT_IDS) {

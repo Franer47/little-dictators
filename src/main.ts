@@ -11,6 +11,8 @@ import { chooseMap } from "./ui/startMenu.ts";
 import { loadWheelData, type WheelData } from "./game/wheels.ts";
 import { checkNumbers, checkStats, checkWeights, sampleNations } from "./game/devChecks.ts";
 import { loadStatsData, type StatsData } from "./game/stats.ts";
+import { loadSimData, type SimData } from "./sim/simData.ts";
+import { loadGame } from "./sim/save.ts";
 import { rollNation } from "./game/roller.ts";
 import { createRng } from "./game/random.ts";
 import { runWheelScreen } from "./ui/wheel/wheelScreen.ts";
@@ -44,9 +46,12 @@ async function main(): Promise<void> {
   const seedParam = params.get("seed");
   const seed = seedParam && /^\d+$/.test(seedParam) ? Number(seedParam) : undefined;
 
+  // A saved game, if there is one: the start screen offers Continue.
+  const saved = requested ? null : await loadGame();
   // Which map to load: picked on the start screen, unless the address names one.
-  const choice = requested && /^[\w-]+$/.test(requested) ? { name: requested, done: () => {} } : await chooseMap();
+  const choice = requested && /^[\w-]+$/.test(requested) ? { name: requested, continue: false, done: () => {} } : await chooseMap(saved ?? undefined);
   const mapName = choice.name;
+  const resume = choice.continue ? saved : null;
   const wheelsLoading = Promise.all([loadWheelData(), loadPlacementData()]);
   // The map loads in the background while the player spins the wheels.
   const startTime = performance.now();
@@ -54,9 +59,10 @@ async function main(): Promise<void> {
   let wheels: WheelData;
   let placementData: PlacementData;
   let statsData: StatsData;
+  let simData: SimData;
   try {
     [wheels, placementData] = await wheelsLoading;
-    statsData = await loadStatsData(wheels);
+    [statsData, simData] = await Promise.all([loadStatsData(wheels), loadSimData(wheels.era)]);
   } catch (e) {
     showFatalError((e as Error).message);
     return;
@@ -76,7 +82,9 @@ async function main(): Promise<void> {
   const skipWheel = params.get("wheel") === "skip";
   // The first nation's colour, shown on its card as its flag.
   const firstColor = Placement.firstColor(placementData);
-  const nationReady = skipWheel
+  const nationReady = resume
+    ? Promise.resolve(null)
+    : skipWheel
     ? Promise.resolve(rollNation(wheels, mapName, createRng(seed)))
     : runWheelScreen({ data: wheels, mapName, mapReady: mapLoading, seed, showWhen: wheelCue, color: firstColor });
 
@@ -159,6 +167,7 @@ async function main(): Promise<void> {
       else console.log("Clicked", describe(...p));
       updateHover();
     },
+    onRightClick: (sx, sy) => placement?.rightClick(sx, sy),
     onFit: () => {
       camera.fitToMap();
       updateHover();
@@ -194,7 +203,7 @@ async function main(): Promise<void> {
   window.clearTimeout(slowMapTimer);
   choice.done();
   const fit = { x: camera.x, y: camera.y, zoom: camera.zoom };
-  if (skipWheel || reducedMotion) {
+  if (skipWheel || reducedMotion || resume) {
     if (!wheelShown) bringInWheel();
   } else {
     // Zoom in toward the centre; the wheel arrives partway through.
@@ -214,15 +223,19 @@ async function main(): Promise<void> {
     wheels,
     data: placementData,
     stats: statsData,
+    sim: simData,
     seed,
     skipWheel,
     reducedMotion,
   });
-  placement.begin(nation, firstColor);
+  if (resume) placement.restore(resume);
+  else if (nation) placement.begin(nation, firstColor);
   Object.assign(debug, {
     nation,
     placement,
     checkStats: () => checkStats(placement!.nations, placement!.sheets, placement!.statsMs),
+    /** The running world (src/sim/world.ts): game.world().tick() runs a month. */
+    world: () => placement!.world,
     /** The stat sheet of nation `id` (1 = the first placed). */
     sheet: (id: number) => placement!.sheets[id - 1],
   });

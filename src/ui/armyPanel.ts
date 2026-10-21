@@ -13,6 +13,8 @@ export interface ArmyPanelInfo {
   name: string;
   color: string;
   mine: boolean;
+  /** Influence points a request costs. */
+  influenceCost?: number;
   divisions: Division[];
   sheet: StatSheet;
   rules: DivisionRules;
@@ -81,10 +83,10 @@ export function showArmyPanel(next: ArmyPanelInfo | null): void {
   const canGrow = sel && sel.troops + rules.growBy <= rules.maxSize;
   const requests = next.mine
     ? `<div class="ap-actions">
-        <button type="button" class="ap-btn primary" data-act="new">${icon("swords")}New division <small>+${n(rules.size)}</small></button>
-        <button type="button" class="ap-btn" data-act="bigger" ${canGrow ? "" : "disabled"} title="${sel ? (canGrow ? `Add ${n(rules.growBy)} troops to the ${ordinal(sel.index + 1)} Division` : `A division can't be bigger than ${n(rules.maxSize)}`) : "Pick a division first"}">${icon("trend")}Bigger <small>+${n(rules.growBy)}</small></button>
+        <button type="button" class="ap-btn primary" data-act="new">${icon("swords")}New division <small>+${n(rules.size)}${next.influenceCost ? ` · ✦${next.influenceCost}` : ""}</small></button>
+        <button type="button" class="ap-btn" data-act="bigger" ${canGrow ? "" : "disabled"} title="${sel ? (canGrow ? `Add ${n(rules.growBy)} troops to the ${ordinal(sel.index + 1)} Division` : `A division can't be bigger than ${n(rules.maxSize)}`) : "Pick a division first"}">${icon("trend")}Bigger <small>+${n(rules.growBy)}${next.influenceCost ? ` · ✦${next.influenceCost}` : ""}</small></button>
       </div>
-      <p class="ap-hint">You can only ask. Your nation agrees if it has the men, the money and the calm to do it.</p>`
+      <p class="ap-hint">You can only ask, with influence. Your nation agrees if it has the men, the money and the calm to do it; new soldiers train for a few months first (striped flags). It also recruits on its own once a year.</p>`
     : `<p class="ap-hint">You can look at other nations' armies, but only ask your own.</p>`;
   panel.innerHTML = `
     <header>
