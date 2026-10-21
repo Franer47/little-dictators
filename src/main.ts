@@ -11,7 +11,8 @@ import { checkNumbers, checkWeights, sampleNations } from "./game/devChecks.ts";
 import { rollNation } from "./game/roller.ts";
 import { createRng } from "./game/random.ts";
 import { runWheelScreen } from "./ui/wheel/wheelScreen.ts";
-import { showNationPanel } from "./ui/nationPanel.ts";
+import { loadPlacementData, type PlacementData } from "./game/territory.ts";
+import { Placement } from "./ui/placement.ts";
 
 async function main(): Promise<void> {
   const canvas = document.querySelector<HTMLCanvasElement>("#map")!;
@@ -27,13 +28,14 @@ async function main(): Promise<void> {
   // Which map to load: picked on the start screen, unless the address names one.
   const choice = requested && /^[\w-]+$/.test(requested) ? { name: requested, done: () => {} } : await chooseMap();
   const mapName = choice.name;
-  const wheelsLoading = loadWheelData();
+  const wheelsLoading = Promise.all([loadWheelData(), loadPlacementData()]);
   // The map loads in the background while the player spins the wheels.
   const startTime = performance.now();
   const mapLoading = loadMap(mapName);
   let wheels: WheelData;
+  let placementData: PlacementData;
   try {
-    wheels = await wheelsLoading;
+    [wheels, placementData] = await wheelsLoading;
   } catch (e) {
     showFatalError((e as Error).message);
     return;
@@ -51,9 +53,11 @@ async function main(): Promise<void> {
   };
   const slowMapTimer = window.setTimeout(bringInWheel, reducedMotion ? 300 : 1500);
   const skipWheel = params.get("wheel") === "skip";
+  // The first nation's colour, shown on its card as its flag.
+  const firstColor = Placement.firstColor(placementData);
   const nationReady = skipWheel
     ? Promise.resolve(rollNation(wheels, mapName, createRng(seed)))
-    : runWheelScreen({ data: wheels, mapName, mapReady: mapLoading, seed, showWhen: wheelCue });
+    : runWheelScreen({ data: wheels, mapName, mapReady: mapLoading, seed, showWhen: wheelCue, color: firstColor });
 
   // Handy for poking at the game from the browser console while developing.
   // game.checkWeights() spins every wheel 100,000 times and compares the wins with the weights;
@@ -92,6 +96,9 @@ async function main(): Promise<void> {
     return map.normalize(Math.floor(mx), Math.floor(my));
   };
 
+  // Placing nations on the map (made once the map is ready, below).
+  let placement: Placement | null = null;
+
   const describe = (x: number, y: number): string => {
     const terrain = TERRAINS[map.terrainAt(x, y)];
     const [lon, lat] = pixelToLonLat(map.meta, x + 0.5, y + 0.5);
@@ -103,13 +110,15 @@ async function main(): Promise<void> {
       terrain.isWater && metres < 0
         ? `${(-metres).toLocaleString("en-US")} m deep`
         : `${metres.toLocaleString("en-US")} m${terrain.isWater ? " above sea level" : ""}`;
-    return `${terrain.name} · ${height} · (${x}, ${y}) · ${Math.abs(lat).toFixed(1)}°${ns} ${Math.abs(lon).toFixed(1)}°${ew}`;
+    const owner = placement?.ownerName(x, y);
+    return `${owner ? `${owner} · ` : ""}${terrain.name} · ${height} · (${x}, ${y}) · ${Math.abs(lat).toFixed(1)}°${ns} ${Math.abs(lon).toFixed(1)}°${ew}`;
   };
 
   // Last mouse position, so the hover info stays right when the map moves under a still mouse (e.g. holding D).
   let pointer: [number, number] | null = null;
   const updateHover = (): void => {
     renderer.hovered = pointer ? pixelUnder(...pointer) : null;
+    placement?.hover(renderer.hovered);
     tileInfo.textContent = renderer.hovered ? describe(...renderer.hovered) : "Hover the map";
     requestRender();
   };
@@ -122,7 +131,10 @@ async function main(): Promise<void> {
     },
     onClick: (sx, sy) => {
       const p = pixelUnder(sx, sy);
-      if (p) console.log("Clicked", describe(...p));
+      if (!p) return;
+      if (placement) placement.click(...p);
+      else console.log("Clicked", describe(...p));
+      updateHover();
     },
     onFit: () => {
       camera.fitToMap();
@@ -165,17 +177,23 @@ async function main(): Promise<void> {
     if (!wheelShown) window.setTimeout(bringInWheel, 1000);
   }
   const nation = await nationReady;
-  // Back out to the whole map.
-  const home = (): void => {
-    camera.fitToMap();
-    requestRender();
-  };
-  if (reducedMotion) home();
-  else await tweenCamera(camera, { x: camera.x, y: camera.y, zoom: camera.minZoom }, 1100, requestRender).done.then(home);
-  controls.enabled = true;
   document.querySelector<HTMLDivElement>("#hud")!.hidden = false;
-  showNationPanel(nation, wheels);
-  debug.nation = nation;
+  // Then fly to Europe and place it (src/ui/placement.ts).
+  placement = new Placement({
+    map,
+    mapName,
+    camera,
+    renderer,
+    controls,
+    requestRender,
+    wheels,
+    data: placementData,
+    seed,
+    skipWheel,
+    reducedMotion,
+  });
+  placement.begin(nation, firstColor);
+  Object.assign(debug, { nation, placement });
 }
 
 /** Shows an error the player can read, e.g. a mistake in a data file. */

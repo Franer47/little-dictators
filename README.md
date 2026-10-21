@@ -153,6 +153,47 @@ server only):
   often rare pulls and golden spins happen, and the smallest and biggest economy rolled.
 - `game.sampleNations(5)` prints a few whole rolled nations.
 
+## Placing nations (Europe test)
+
+![Europe filled with 64 nations (91% of its land)](docs/europe-filled.jpg)
+
+After **Continue to map** the camera flies to Europe and asks where the nation goes. The
+nation card and the corner panel show its **colour**, which is its flag for now.
+
+- **Click any land in Europe**, or press **Surprise me** for a random free spot (it
+  prefers spots away from other nations, with room to grow). The dashed circle under the
+  mouse is roughly how big the nation will get; a red cross means it can't start there
+  (sea, lakes, rivers, ice, another nation, or outside Europe).
+- The land then **grows out from that spot** in a second or two. Only the rolled land size
+  matters for now (a golden "Double land" simply means more land).
+- **Next nation** goes back to the wheel for another one. The list in the top-right corner
+  has every nation made so far; click a row, or a nation on the map, to see it in the
+  corner panel (with 60+ nations the list scrolls). Its header shows how many nations
+  there are and how much of Europe's land they own, e.g. "64 nations · 91% of Europe".
+  Hovering the map shows who owns the land.
+- **Fill Europe** (a testing shortcut) rolls and places nations at random spots until
+  **90% of Europe's land** is owned: usually 50–80 nations, a patchwork like the real
+  1500, in a fraction of a second. Each new nation goes into the biggest gap left, so the
+  late ones are squeezed in and end up smaller than they rolled. Fill picks colours so
+  that nations that touch never share one (with 60+ nations, colours repeat elsewhere).
+  **Clear** removes them all.
+
+**How land grows:** from the start spot the nation keeps taking the "cheapest" pixel it
+can reach next. Plains are cheap, highlands cost more, snow more again, mountains a lot,
+so land spreads quickly across plains and slowly into the mountains. The sea, lakes, ice
+and other nations' land are never taken. Rivers can be crossed but cost a lot, so they
+often end up as borders. A little smooth randomness ("wobble") keeps borders from being
+perfect circles. Every pixel counts with its **real area in km²** (pixels further north
+cover less ground), and growth stops when the nation has its rolled size, so a 340,000
+km² roll gets ~340,000 km². If it's boxed in by the sea or other nations first, it stays
+smaller, and the panel says so: "Land: 101,254 km² (rolled 240,000)". (A nation that
+fills Iceland gets ~101,000 km²; the real Iceland is 103,000 km².) The same seed and the
+same clicks always give the same map.
+
+Tune it in **`public/data/placement.json`**: the region's outline (longitude/latitude
+points), how much of the land **Fill** covers (`fill.percent`, plus caps on nations and tries), the cost of each terrain, the wobble, and the
+colour list.
+
 ## Controls
 
 | Action | Input |
@@ -177,17 +218,20 @@ src/
   ui/startMenu.ts         the start screen: pick a map
   ui/wheel/               the wheel screen: flow, the two wheel looks, sounds, confetti
   ui/nationPanel.ts       the nation panel in the corner and its creation record
+  ui/placement.ts         placing nations: the hint bar, nation list, Surprise me, Fill, Clear
   game/wheels.ts          loads the wheel data, spins (weighted random picks)
   game/nation.ts          a nation and its creation record; chained numbers; name generator
   game/roller.ts          the spin-by-spin rules (rare pulls, exact numbers, picks, golden spin)
   game/chart.ts           the nation chart: the dot, chart-sized slices, the golden chance
   game/devChecks.ts       console checks: game.checkWeights(), checkNumbers(), sampleNations()
   game/random.ts          seeded random numbers for game logic
+  game/territory.ts       who owns each pixel; how a nation's land grows; the Europe region
   map/terrain.ts          terrain types and their (data) colours
   map/projection.ts       turns longitude/latitude into map pixels
   map/gameMap.ts          loads a map into a grid of terrain values + elevation
   render/camera.ts        where the camera looks and how far it's zoomed
   render/mapRenderer.ts   draws the map on screen
+  render/territoryLayer.ts draws nations' colours and borders, updating only what changed
   render/terrainColors.ts the shaded look: colour ramps, hillshade, coasts, sea depth
   input/cameraControls.ts mouse + keyboard camera controls
 scripts/
@@ -196,6 +240,7 @@ scripts/
 public/maps/              map files (see below)
 public/data/wheels.json   which era is used, and the screen text (editable)
 public/data/eras/1500.json the 1500 wheels, number ranges and name parts (editable)
+public/data/placement.json the Europe region, growth costs and nation colours (editable)
 data/raw/                 downloaded source data for the map builder (not committed)
 ```
 
