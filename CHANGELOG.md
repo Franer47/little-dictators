@@ -5,6 +5,22 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 
 ## Unreleased
 
+### Added
+- **The game runs!** Press ▶ (or Space) and time goes by, month by month, at three speeds
+  (about six hours from 1500 to 2000). Nations grow, earn and spend money, build, raise
+  armies, like and dislike their neighbours, make alliances, go to war and sign peace:
+  winners take border land or tribute, and nations can fall. A news feed tells you what's
+  happening.
+- **Guide your nation with influence.** You earn influence every month and spend it to push
+  your nation: build one of eight buildings (Farm, Market, Workshop, Fort, Barracks, Port,
+  School, Temple, five levels each), raise divisions, improve or worsen relations, ally,
+  declare war or offer peace (right-click any nation). Your nation can say no, and says why.
+- **Brushes:** paint the land you want (War goal), the land to guard (Defend) and the land to
+  grow (Develop) right on the map.
+- **Development** now rises slowly over time, faster with schools.
+- **Saving:** the game saves itself every year; the start screen offers Continue.
+- If your nation falls, keep watching or pick another nation to guide.
+
 ### Changed
 - **The map info is folded away.** What's under the mouse (terrain, height, position) and
   the controls now hide behind the ⓘ button in the bottom-left corner; click it to show them.
