@@ -12,6 +12,9 @@
 // - Snakes are avoided by where nations start, not by shape rules (those made octagons):
 //   "Surprise me" and Fill start nations on coasts and riverbanks, so the sea or river
 //   closes off one side, and the inland gaps left over are filled by later nations.
+// - It can also cross short stretches of sea ("seaCrossing": dear per sea pixel, and only so
+//   wide), so a nation on an island can spread to the next island or the mainland when it
+//   runs out of room. The sea itself is never owned.
 // - Afterwards it tidies up: 1-pixel spurs and necks are trimmed (and anything they cut off
 //   is let go), and small holes inside the land are filled.
 
@@ -38,6 +41,12 @@ export interface GrowthRules {
    * (northern nations look bigger), 1 = the same size on the map, 0.5 = halfway.
    */
   latitudeBalance?: number;
+  /**
+   * Growth may cross the sea to reach nearby land (an island nation spreading to the next
+   * island or the mainland): each sea pixel costs `cost` (plains = 1), and it never crosses
+   * more than `maxWidth` sea pixels in a row. The sea itself is never owned.
+   */
+  seaCrossing?: { cost: number; maxWidth: number };
 }
 
 export interface StartRules {
@@ -223,6 +232,10 @@ export class Territory {
   // Reused by survey() for the distance-from-nations field.
   private boxDist = new Int32Array(0);
   private boxQueue = new Int32Array(0);
+  // Reused by grow(): how many sea pixels in a row the best path to a pixel crossed, and
+  // whether that path came ashore from the sea.
+  private seaRun: Uint8Array;
+  private bySea: Uint8Array;
   /** Per pixel: the size (km²) of the free pocket it was in at the last survey (good pockets only). */
   private pocketArea: Float32Array;
   /** The area of a pixel at the equator (the biggest), km². */
@@ -237,6 +250,8 @@ export class Territory {
     this.key = new Float64Array(size);
     this.seen = new Uint32Array(size);
     this.pocketArea = new Float32Array(size);
+    this.seaRun = new Uint8Array(size);
+    this.bySea = new Uint8Array(size);
     this.areas = rowAreas(map);
     this.biggestPixel = Math.max(...this.areas);
     for (const [name, cost] of Object.entries(rules.cost)) {
@@ -633,13 +648,31 @@ export class Territory {
     const noise = wobbleField(createRng(seed), rules.wobble, 8);
     const takeable = (i: number): boolean => owner[i] === 0 && cost[terrain[i]] < Infinity;
     const wrapX = (x: number): number => (x < 0 ? x + width : x >= width ? x - width : x);
+    const { seaRun, bySea } = this;
+    const seaCost = rules.seaCrossing?.cost ?? 0;
+    const maxSea = seaCost > 0 ? Math.min(255, rules.seaCrossing?.maxWidth ?? 0) : 0;
+    /** Sea (or lake) that growth may cross but never own. */
+    const isSea = (i: number): boolean => terrain[i] === Terrain.Ocean || terrain[i] === Terrain.ShallowWater;
     const heap = new MinHeap();
     const start = sy * width + sx;
     key[start] = 0;
     seen[start] = stamp;
+    seaRun[start] = 0;
+    bySea[start] = 0;
     heap.push(0, start);
     const taken: number[] = [];
+    /** The start, plus every pixel the land reached over the sea (each holds a part of the nation). */
+    const roots: number[] = [start];
     let area = 0;
+    const relax = (j: number, nd: number, run: number, fromSea: boolean): void => {
+      if (seen[j] !== stamp || nd < key[j]) {
+        seen[j] = stamp;
+        key[j] = nd;
+        seaRun[j] = run;
+        bySea[j] = fromSea ? 1 : 0;
+        heap.push(nd, j);
+      }
+    };
 
     while (heap.size > 0 && area < targetArea) {
       const k = heap.topKey();
@@ -647,12 +680,30 @@ export class Territory {
       if (owner[i] !== 0 || k !== key[i]) continue; // already taken, or an out-of-date queue entry
       const x = i % width;
       const y = (i - x) / width;
+      if (maxSea > 0 && isSea(i)) {
+        // Out at sea: carry on across it (side steps only), up to maxSea pixels in a row.
+        for (const [dx, dy] of SIDES) {
+          const ny = y + dy;
+          if (ny < 0 || ny >= height) continue;
+          let nx = x + dx;
+          if (nx < 0 || nx >= width) {
+            if (!this.map.wraps) continue;
+            nx = wrapX(nx);
+          }
+          const j = ny * width + nx;
+          if (isSea(j)) {
+            if (seaRun[i] < maxSea) relax(j, k + seaCost, seaRun[i] + 1, false);
+          } else if (takeable(j)) relax(j, k + cost[terrain[j]] * noise(nx, ny), 0, true);
+        }
+        continue;
+      }
       const pa = areas[y];
       // Stop if this pixel would overshoot the target by more than stopping short would miss it.
       if (taken.length > 0 && area + pa > targetArea && area + pa - targetArea > targetArea - area) break;
       owner[i] = id;
       taken.push(i);
       area += pa;
+      if (bySea[i] && i !== start) roots.push(i);
 
       for (let dy = -1; dy <= 1; dy++) {
         const ny = y + dy;
@@ -665,6 +716,10 @@ export class Territory {
             nx = wrapX(nx);
           }
           const j = ny * width + nx;
+          if (maxSea > 0 && dx * dy === 0 && isSea(j)) {
+            relax(j, key[i] + seaCost, 1, false);
+            continue;
+          }
           if (!takeable(j)) continue;
           let step = 1;
           if (dx !== 0 && dy !== 0) {
@@ -675,17 +730,11 @@ export class Territory {
             if (!takeable(sideA) && owner[sideA] !== id && !takeable(sideB) && owner[sideB] !== id) continue;
             step = Math.SQRT2;
           }
-          const nd = key[i] + step * cost[terrain[j]] * noise(nx, ny);
-          const fresh = seen[j] !== stamp;
-          if (fresh || nd < key[j]) {
-            seen[j] = stamp;
-            key[j] = nd;
-            heap.push(nd, j);
-          }
+          relax(j, key[i] + step * cost[terrain[j]] * noise(nx, ny), 0, false);
         }
       }
     }
-    const extra = this.tidy(id, sx, sy, taken, targetArea);
+    const extra = this.tidy(id, roots, taken, targetArea);
     // A trimmed pixel can come back as part of a filled hole, so leave those out of `taken`.
     const refilled = new Set(extra);
     const pixels = taken.filter((i) => owner[i] === id && !refilled.has(i)).concat(extra);
@@ -700,11 +749,13 @@ export class Territory {
    * than a tenth of the target (or one pixel), so sizes still match the roll. Returns the
    * pixels it filled.
    */
-  private tidy(id: number, sx: number, sy: number, taken: number[], targetArea: number): number[] {
+  private tidy(id: number, roots: number[], taken: number[], targetArea: number): number[] {
     if (taken.length < 4) return [];
     const { width, height, terrain } = this.map;
     const { owner, cost } = this;
-    const start = sy * width + sx;
+    const start = roots[0];
+    const sy = (start / width) | 0;
+    const isRoot = new Set(roots);
     const at = (x: number, y: number): number => {
       if (y < 0 || y >= height) return -1;
       if (x < 0 || x >= width) {
@@ -729,7 +780,7 @@ export class Territory {
         reached.add(q);
         let isBig = false;
         for (let k = 0; k < part.length && !isBig; k++) {
-          if (part[k] === start || part.length > partLimit) isBig = true;
+          if (isRoot.has(part[k]) || part.length > partLimit) isBig = true;
           const px = part[k] % width;
           for (const r of around8(px, (part[k] - px) / width)) {
             if (own(r) && !reached.has(r)) {
@@ -755,7 +806,7 @@ export class Territory {
     for (let pass = 0; pass < 3; pass++) {
       let changed = false;
       for (const i of taken) {
-        if (owner[i] !== id || i === start) continue;
+        if (owner[i] !== id || isRoot.has(i)) continue;
         const x = i % width;
         const y = (i - x) / width;
         const l = own(at(x - 1, y));
@@ -770,9 +821,10 @@ export class Territory {
       }
       if (!changed) break;
     }
-    // Keep only what's still joined to the start (corners count: growth steps diagonally too).
-    const keep = new Set<number>([start]);
-    const queue = [start];
+    // Keep only what's still joined to the start, or to a place it came ashore from the sea
+    // (corners count: growth steps diagonally too).
+    const keep = new Set<number>(roots.filter((r) => owner[r] === id));
+    const queue = [...keep];
     while (queue.length) {
       const i = queue.pop()!;
       const x = i % width;

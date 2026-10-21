@@ -38,7 +38,7 @@
   },
 
   "growth": {
-    "about": "Starting land grows out from the chosen spot, always taking the cheapest pixel it can reach next, until it has the rolled area. 'cost' is how hard each terrain is to take (plains = 1). Sea, lakes and ice can't be taken; neither can another nation's land. Rivers can be taken but cost a lot, so they tend to become borders. 'wobble' makes some areas randomly cheaper or dearer (0 = perfect blobs), so borders look natural. Afterwards 1-pixel strings are trimmed and free pockets of up to 'holeSize' pixels inside a nation are filled in (adding at most a tenth of its size). 'latitudeBalance' evens out the flat map's stretching: away from the equator a pixel covers fewer km² (in Europe about half as many as in Africa), so equal rolls look bigger up north. A nation's land in km² is scaled by (pixel area where it starts / pixel area at the equator) ^ latitudeBalance: 0 = real km², 1 = the same size on the map, 0.5 = halfway.",
+    "about": "Starting land grows out from the chosen spot, always taking the cheapest pixel it can reach next, until it has the rolled area. 'cost' is how hard each terrain is to take (plains = 1). Sea, lakes and ice can't be taken; neither can another nation's land. Rivers can be taken but cost a lot, so they tend to become borders. 'wobble' makes some areas randomly cheaper or dearer (0 = perfect blobs), so borders look natural. Afterwards 1-pixel strings are trimmed and free pockets of up to 'holeSize' pixels inside a nation are filled in (adding at most a tenth of its size). 'latitudeBalance' evens out the flat map's stretching: away from the equator a pixel covers fewer km² (in Europe about half as many as in Africa), so equal rolls look bigger up north. A nation's land in km² is scaled by (pixel area where it starts / pixel area at the equator) ^ latitudeBalance: 0 = real km², 1 = the same size on the map, 0.5 = halfway. 'seaCrossing' lets land cross short stretches of sea (never owning the water): each sea pixel costs 'cost' (so a nation only goes overseas when that's cheaper than the land around it, e.g. an island nation that runs out of room), and it never crosses more than 'maxWidth' sea pixels in a row.",
     "cost": {
       "Plains": 1,
       "Highlands": 3.5,
@@ -48,7 +48,8 @@
     },
     "wobble": 0.7,
     "holeSize": 25,
-    "latitudeBalance": 0.5
+    "latitudeBalance": 0.5,
+    "seaCrossing": { "cost": 25, "maxWidth": 8 }
   },
 
   "colors": {
