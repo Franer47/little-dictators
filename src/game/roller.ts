@@ -11,6 +11,7 @@
 //   pick   multi-pick wheels: the next pick, without the earlier ones
 
 import { chartPosition, chartWeighted, gateChance, type ChartPoint } from "./chart.ts";
+import { roomWeighted, type LandRoom } from "./room.ts";
 import { chainBase, createNation, makeEstimate, makeOutcome, type Nation, type WheelOutcome } from "./nation.ts";
 import type { Rng } from "./random.ts";
 import { formatText } from "./text.ts";
@@ -63,6 +64,8 @@ export class NationRoller {
   constructor(
     private readonly data: WheelData,
     private readonly rng: Rng,
+    /** The room left on the map, for the land wheel (none = an empty world). */
+    private readonly room?: LandRoom,
   ) {
     this.current = this.makeStep();
   }
@@ -151,6 +154,7 @@ export class NationRoller {
     let wheel = base;
     const rares = this.outcomes.filter((o) => o.rare).length;
     if (rares >= (this.data.rareLimit ?? 1) && wheel.slices.some((s) => s.rare)) wheel = { ...wheel, slices: wheel.slices.filter((s) => !s.rare) };
+    if (base.room && this.room) wheel = roomWeighted(wheel, this.room, base.room);
     return chartWeighted(wheel, this.chart());
   }
 
@@ -250,8 +254,8 @@ function gateWheel(base: Wheel, chance: number): Wheel {
 }
 
 /** Rolls a whole nation at once, with no animation (?wheel=skip, the dev checks). */
-export function rollNation(data: WheelData, map: string, rng: Rng): Nation {
-  const roller = new NationRoller(data, rng);
+export function rollNation(data: WheelData, map: string, rng: Rng, room?: LandRoom): Nation {
+  const roller = new NationRoller(data, rng, room);
   roller.rollRest();
   return roller.nation(map);
 }

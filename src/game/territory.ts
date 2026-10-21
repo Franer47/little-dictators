@@ -232,6 +232,52 @@ export class Territory {
     return total > 0 ? owned / total : 0;
   }
 
+  /** Free land left in the region (km²), how much is taken (0..1), and the biggest free patch (km²). */
+  room(region: Region): { left: number; taken: number; biggestGap: number } {
+    const { width, height } = this.map;
+    let total = 0;
+    let left = 0;
+    let biggestGap = 0;
+    // Marks visited pixels with a fresh stamp in the shared `seen` array (no map-sized allocation).
+    if (++this.stamp === 0xffffffff) {
+      this.seen.fill(0);
+      this.stamp = 1;
+    }
+    const stamp = this.stamp;
+    const seen = this.seen;
+    const isFree = (i: number): boolean => this.owner[i] === 0 && region.inside[i] === 1 && this.cost[this.map.terrain[i]] < Infinity;
+    for (const i of region.land) {
+      const a = this.areas[(i / width) | 0];
+      total += a;
+      if (this.owner[i] !== 0 || seen[i] === stamp) continue;
+      // Flood this free patch to measure it.
+      let gap = 0;
+      const queue = [i];
+      seen[i] = stamp;
+      while (queue.length) {
+        const j = queue.pop()!;
+        const x = j % width;
+        const y = (j - x) / width;
+        const pa = this.areas[y];
+        gap += pa;
+        for (const [dx, dy] of SIDES) {
+          const ny = y + dy;
+          if (ny < 0 || ny >= height) continue;
+          const p = this.map.normalize(x + dx, ny);
+          if (!p) continue;
+          const k = ny * width + p[0];
+          if (seen[k] !== stamp && isFree(k)) {
+            seen[k] = stamp;
+            queue.push(k);
+          }
+        }
+      }
+      biggestGap = Math.max(biggestGap, gap);
+    }
+    for (const i of region.land) if (this.owner[i] === 0) left += this.areas[(i / width) | 0];
+    return { left, taken: total > 0 ? 1 - left / total : 0, biggestGap };
+  }
+
   /** The ids of the nations whose land touches this one's (side by side, across the map's seam too). */
   neighbours(id: number): Set<number> {
     const found = new Set<number>();

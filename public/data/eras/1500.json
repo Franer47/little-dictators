@@ -136,6 +136,10 @@
     {
       "id": "land",
       "name": "Land size",
+      "room": {
+        "about": "The fuller the map, the rarer the big lands: each slice's weight is multiplied by (share of the region still free) ^ (its typical size / fullness), so smaller 'fullness' makes big lands vanish sooner. Slices bigger than the biggest free patch of land shrink (only the part that fits counts) or go away. The wheel shows how much land is left.",
+        "fullness": 220000
+      },
       "resultName": "Land",
       "question": "How much land?",
       "number": {

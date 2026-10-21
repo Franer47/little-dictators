@@ -197,6 +197,16 @@ smaller, and the panel says so: "Land: 101,254 km² (rolled 240,000)". (A nation
 fills Iceland gets ~101,000 km²; the real Iceland is 103,000 km².) The same seed and the
 same clicks always give the same map.
 
+**The land wheel follows the map.** The fuller Europe gets, the rarer the big land
+slices: each slice shrinks with how much is already taken (bigger slices shrink faster),
+and sizes bigger than the biggest free patch of land shrink to the part that fits or
+disappear. The land wheel says how much is left, e.g. "Europe: 4.03M km² of land left ·
+48% already taken". So nations made late roll sizes that still fit, instead of rolling
+"Vast" and getting scraps. (Fill Europe uses the same odds. Tune it with `room.fullness`
+on the land wheel in `public/data/eras/1500.json`.)
+
+![The land wheel when Europe is half taken](docs/land-wheel-room.jpg)
+
 Tune it in **`public/data/placement.json`**: the region's outline (longitude/latitude
 points), how often random starts pick a coast or riverbank (`start.coastPreference`), how
 much of the land **Fill** covers (`fill.percent`; 100 = until no gap has room for

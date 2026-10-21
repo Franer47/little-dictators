@@ -6,6 +6,11 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 ## Unreleased
 
 ### Changed
+- **The land wheel follows the map.** The more of Europe is taken, the rarer the big land
+  sizes, and sizes bigger than the biggest free patch of land shrink or disappear, so a
+  late nation no longer rolls "Vast" and then gets scraps. The land wheel shows how much
+  is left: "Europe: 4.03M km² of land left · 48% already taken". In Fill Europe, nations
+  getting less than half their roll went from about 25 per fill to 1–7.
 - **Fewer snake-shaped nations.** "Surprise me" and Fill Europe now start nations on a
   coast or riverbank, so the water closes off one side and the land grows into a fuller
   shape instead of snaking out in every direction. The inland gaps left between them are

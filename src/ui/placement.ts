@@ -19,6 +19,7 @@ import { rollNation } from "../game/roller.ts";
 import { createRng, randomSeed, type Rng } from "../game/random.ts";
 import { Region, Territory, type Holding, type PlacementData } from "../game/territory.ts";
 import type { WheelData } from "../game/wheels.ts";
+import type { LandRoom } from "../game/room.ts";
 import { runWheelScreen } from "./wheel/wheelScreen.ts";
 import { closeNationPanel, landText, showNationPanel } from "./nationPanel.ts";
 import { escapeHtml } from "./uiBits.ts";
@@ -237,12 +238,12 @@ export class Placement {
     const seed = this.nextSeed();
     let nation: Nation;
     if (this.opts.skipWheel) {
-      nation = rollNation(this.opts.wheels, this.opts.mapName, createRng(seed));
+      nation = rollNation(this.opts.wheels, this.opts.mapName, createRng(seed), this.room());
     } else {
       this.opts.controls.enabled = false;
       this.opts.renderer.hovered = null;
       this.setUiHidden(true);
-      nation = await runWheelScreen({ data: this.opts.wheels, mapName: this.opts.mapName, mapReady: Promise.resolve(), seed, color });
+      nation = await runWheelScreen({ data: this.opts.wheels, mapName: this.opts.mapName, mapReady: Promise.resolve(), seed, color, room: this.room() });
     }
     this.begin(nation, color);
   }
@@ -273,7 +274,7 @@ export class Placement {
     // Every placement takes at least one free pixel, so this always ends; the caps keep it short.
     for (let tries = 0; !full && tries < maxAttempts && this.nations.length < maxNations; tries++) {
       if (this.territory.ownedShare(this.region) * 100 >= percent) break;
-      placeAnywhere({ nation: rollNation(this.opts.wheels, this.opts.mapName, createRng(this.nextSeed())), color: "" });
+      placeAnywhere({ nation: rollNation(this.opts.wheels, this.opts.mapName, createRng(this.nextSeed()), this.room()), color: "" });
     }
     // A full fill ends with the leftovers (small islands, slivers between borders) going to the
     // nearest nations, so the whole region is owned when the game starts.
@@ -319,6 +320,11 @@ export class Placement {
   }
 
   // ---------------------------------------------------------------- helpers
+
+  /** The room left in the region now, for the land wheel. */
+  private room(): LandRoom {
+    return { region: this.regionName, ...this.territory.room(this.region) };
+  }
 
   private nextSeed(): number | undefined {
     const n = this.made++;
