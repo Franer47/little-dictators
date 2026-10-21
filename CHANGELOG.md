@@ -51,6 +51,11 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
   first) and closes it again; it remembers which you chose.
 
 ### Fixed
+- **Nations next to branching rivers (like the Nile delta) stopped growing far too early**,
+  sometimes ending with a few hundred km² of a 160,000 km² roll. The clean-up after growing
+  cut 1-pixel "necks" even where the land crossed a river, and threw away everything on the
+  other side. Now a neck is only cut when what falls off is small, and land joined at a
+  corner still counts as joined. Tested on 300 random spots: no nation loses more than 10%.
 - **Buttons that are switched on (the chosen style, Skip animation) are easy to read again.**
   Their text was light on the yellow; it's now dark with a thin light outline, in both styles.
 - **"Reveal nation" froze the game in the Retro style.** When the wheel hid behind the

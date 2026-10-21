@@ -715,8 +715,43 @@ export class Territory {
     };
     const own = (j: number): boolean => j >= 0 && owner[j] === id;
 
+    // Around pixel c, without c itself: how many separate parts of the nation there are that are
+    // big (more than `partLimit` pixels) or hold the start. Small parts would just fall off.
+    const partLimit = Math.max(4, this.rules.holeSize);
+    const bigParts = (c: number): number => {
+      const cx = c % width;
+      const cy = (c - cx) / width;
+      const reached = new Set<number>([c]);
+      let big = 0;
+      for (const q of around8(cx, cy)) {
+        if (!own(q) || reached.has(q)) continue;
+        const part = [q];
+        reached.add(q);
+        let isBig = false;
+        for (let k = 0; k < part.length && !isBig; k++) {
+          if (part[k] === start || part.length > partLimit) isBig = true;
+          const px = part[k] % width;
+          for (const r of around8(px, (part[k] - px) / width)) {
+            if (own(r) && !reached.has(r)) {
+              reached.add(r);
+              part.push(r);
+            }
+          }
+        }
+        if (isBig) big++;
+      }
+      return big;
+    };
+    const around8 = (x: number, y: number): number[] => {
+      const list: number[] = [];
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (dx || dy) list.push(at(x + dx, y + dy));
+      return list;
+    };
+
     // 1. Trim: a pixel touching only one own pixel (a spur), or two on opposite sides with
     //    nothing else (a 1-pixel-wide string or neck). A few passes eat strings from the ends.
+    //    A neck is only cut if what falls off is small (a snake's tip), never when it holds
+    //    two big parts together (e.g. where the land crosses a river).
     for (let pass = 0; pass < 3; pass++) {
       let changed = false;
       for (const i of taken) {
@@ -728,22 +763,21 @@ export class Territory {
         const u = own(at(x, y - 1));
         const d = own(at(x, y + 1));
         const n = +l + +r + +u + +d;
-        if (n <= 1 || (n === 2 && ((l && r) || (u && d)))) {
+        if ((n <= 1 || (n === 2 && ((l && r) || (u && d)))) && bigParts(i) <= 1) {
           owner[i] = 0;
           changed = true;
         }
       }
       if (!changed) break;
     }
-    // Keep only what's still joined to the start (side by side).
+    // Keep only what's still joined to the start (corners count: growth steps diagonally too).
     const keep = new Set<number>([start]);
     const queue = [start];
     while (queue.length) {
       const i = queue.pop()!;
       const x = i % width;
       const y = (i - x) / width;
-      for (const [dx, dy] of SIDES) {
-        const j = at(x + dx, y + dy);
+      for (const j of around8(x, y)) {
         if (j >= 0 && owner[j] === id && !keep.has(j)) {
           keep.add(j);
           queue.push(j);
