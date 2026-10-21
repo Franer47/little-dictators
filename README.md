@@ -3,6 +3,14 @@
 A browser game where you spin wheels to create nations on a pixel map of the world,
 then watch (and nudge) them grow, ally and fight. See [DESIGN.md](DESIGN.md) for the plan.
 
+## Play online
+
+**https://franer47.github.io/little-dictators/** — the latest version from `main`, for
+anyone to try in a browser (no install). It updates by itself a minute or two after
+something is merged into `main` (the "Publish to GitHub Pages" job in the Actions tab,
+`.github/workflows/pages.yml`). GitHub Pages is free only for public repositories: if the
+repository is made private again, the link stops working.
+
 ## Running it
 
 You need [Node.js](https://nodejs.org) (LTS).

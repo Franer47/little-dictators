@@ -32,7 +32,7 @@ export function chooseMap(): Promise<{ name: string; done: () => void }> {
         <span class="size"></span>
         <span class="note">${choice.note}</span>`;
       // The size comes from the map's own file, so it's always right.
-      fetch(`/maps/${choice.name}.json`)
+      fetch(`${import.meta.env.BASE_URL}maps/${choice.name}.json`)
         .then((res) => res.json())
         .then((meta: { width: number; height: number }) => {
           option.querySelector(".size")!.textContent = `${meta.width} × ${meta.height}`;

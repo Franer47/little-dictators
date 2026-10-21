@@ -93,7 +93,7 @@ export interface PlacementData {
 }
 
 export async function loadPlacementData(): Promise<PlacementData> {
-  const res = await fetch("/data/placement.json");
+  const res = await fetch(`${import.meta.env.BASE_URL}data/placement.json`);
   if (!res.ok) throw new Error(`Couldn't load data/placement.json (${res.status})`);
   const data = (await res.json()) as PlacementData;
   if (!data.regions?.[data.region]) throw new Error(`data/placement.json: no region called "${data.region}"`);

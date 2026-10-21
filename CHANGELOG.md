@@ -63,6 +63,9 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
   forever. A hidden wheel now keeps its size, and the label sizing always stops.
 
 ### Added
+- **Play it online.** The game is published to GitHub Pages at
+  https://franer47.github.io/little-dictators/ and updates itself whenever something is
+  merged into main, so friends can try it without installing anything.
 - **Island nations can grow overseas.** A nation that starts on a small island no longer
   stops at its coast: its land can cross short stretches of sea (up to 8 sea pixels, and
   dear, so only when it runs out of room or the strait is short) to the next island or the
