@@ -1,13 +1,11 @@
 // Armies on the map: every nation's soldiers are split into divisions (a little flag each),
-// spread along its borders, ready to hold the front when wars come (milestone 5). The player
-// can ask their nation for a new division or a bigger one; the nation decides at once whether
-// it can (money, men, stability). Plain game logic, no drawing (src/render/divisionLayer.ts).
+// spread along its borders, ready to hold the front when wars come (milestone 5). Which
+// divisions a nation has is decided by the running world (src/sim/world.ts); this file only
+// says where their flags stand. Plain game logic, no drawing (src/render/divisionLayer.ts).
 // The numbers are in public/data/eras/1500-stats.json, "divisions".
 
 import type { GameMap } from "../map/gameMap.ts";
 import { Terrain } from "../map/terrain.ts";
-import { compactNumber } from "./numbers.ts";
-import type { StatSheet } from "./stats.ts";
 
 export interface DivisionRules {
   /** Troops in a new division. */
@@ -29,27 +27,8 @@ export interface Division {
   /** Where its flag stands (map pixel). */
   x: number;
   y: number;
-  /** Asked for by the player: it trains once time runs (milestone 4). */
+  /** Still training: it doesn't fight yet. */
   training: boolean;
-}
-
-/** What the player asked one nation for: extra divisions, and extra troops on existing ones (by index). */
-export interface ArmyOrders {
-  added: number[];
-  grown: Map<number, number>;
-}
-
-export function emptyOrders(): ArmyOrders {
-  return { added: [], grown: new Map() };
-}
-
-/** Troops the player asked for in total (they are added to the nation's army and its upkeep). */
-export function orderedTroops(orders: ArmyOrders | undefined): number {
-  if (!orders) return 0;
-  let sum = 0;
-  for (const t of orders.added) sum += t;
-  for (const t of orders.grown.values()) sum += t;
-  return sum;
 }
 
 /** How many divisions the peacetime army makes (at least one for any army of half a division or more). */
@@ -58,20 +37,26 @@ export function baseDivisionCount(army: number, rules: DivisionRules): number {
 }
 
 /**
- * Every nation's divisions, with their flags spread evenly along its land borders (its future
- * front line). A nation whose land border is short next to its coast (an island nation with a
- * small foothold on the mainland) guards its coast too. One pass over the map finds every
- * nation's border pixels.
+ * Where each nation's flags can stand: its land border (its future front line), or front and
+ * coast together for a nation whose land border is short next to its coast (an island nation
+ * with a small foothold on the mainland), or the player's "Defend" paint when there is some.
+ * Each list is sorted to walk round the border, so flags can be spread evenly along it.
+ * One pass over the map; work it out again only when the land or the Defend paint changes.
  */
-export function placeDivisions(
+export interface Borders {
+  /** By nation id (index id − 1): the pixels to spread its flags over, in order round the border. */
+  lines: Int32Array[];
+}
+
+export function findBorders(
   map: GameMap,
   owner: Uint16Array,
-  sheets: readonly StatSheet[],
-  rules: DivisionRules,
-  orders: ReadonlyMap<number, ArmyOrders>,
-): Division[] {
+  count: number,
+  /** The player's paint (src/sim/world.ts): pixels painted 2 ("Defend") are guarded first. */
+  guard?: Uint8Array,
+): Borders {
   const { width, height, terrain } = map;
-  const n = sheets.length + 1;
+  const n = count + 1;
   const isSea = (t: number): boolean => t === Terrain.Ocean || t === Terrain.ShallowWater;
   // Border kind per pixel: 2 = touches another nation or free land (front), 1 = touches the sea, 0 = inside.
   const kind = new Uint8Array(width * height);
@@ -100,8 +85,8 @@ export function placeDivisions(
       else if (k === 1) coastCount[id]++;
     }
   }
-  // Each nation's border pixels in one flat list: its front line only, or front and coast together
-  // when the front is under a quarter of its whole border.
+  // Each nation's border pixels: its front line only, or front and coast together when the
+  // front is under a quarter of its whole border.
   const frontOnly = (id: number): boolean => frontCount[id] >= 0.25 * (frontCount[id] + coastCount[id]) && frontCount[id] > 0;
   const start = new Int32Array(n + 1);
   for (let id = 1; id < n; id++) start[id + 1] = start[id] + (frontOnly(id) ? frontCount[id] : frontCount[id] + coastCount[id]);
@@ -112,34 +97,65 @@ export function placeDivisions(
     if (id === 0 || id >= n || kind[i] === 0) continue;
     if (kind[i] === 2 || !frontOnly(id)) list[fill[id]++] = i;
   }
-
-  const out: Division[] = [];
-  for (let id = 1; id < n; id++) {
-    const sheet = sheets[id - 1];
-    const o = orders.get(id);
-    const troops: number[] = [];
-    for (let k = baseDivisionCount(sheet.baseArmy, rules); k > 0; k--) troops.push(rules.size);
-    const base = troops.length;
-    if (o) for (const t of o.added) troops.push(t);
-    if (o) for (const [index, extra] of o.grown) if (index < troops.length) troops[index] += extra;
-    if (!troops.length) continue;
-    const spots = spreadAlong(list.subarray(start[id], start[id + 1]), troops.length, width, map.wraps, anyPixel[id]);
-    troops.forEach((t, index) => {
-      const p = spots[index];
-      out.push({ nation: id, index, troops: t, x: p % width, y: (p / width) | 0, training: index >= base || (o?.grown.has(index) ?? false) });
-    });
+  // Pixels painted "Defend", per nation (only the player paints, so this is short).
+  const guarded = new Map<number, number[]>();
+  if (guard) {
+    for (let i = 0; i < guard.length; i++) {
+      if (guard[i] !== 2) continue;
+      const id = owner[i];
+      if (id === 0 || id >= n) continue;
+      if (!guarded.has(id)) guarded.set(id, []);
+      guarded.get(id)!.push(i);
+    }
   }
+  const lines: Int32Array[] = [];
+  for (let id = 1; id < n; id++) {
+    const g = guarded.get(id);
+    const raw = g?.length ? Int32Array.from(g) : list.subarray(start[id], start[id + 1]);
+    lines.push(raw.length ? sortAround(raw, width, map.wraps) : anyPixel[id] >= 0 ? Int32Array.of(anyPixel[id]) : new Int32Array(0));
+  }
+  return { lines };
+}
+
+/** Every nation's divisions, with their flags spread evenly along its border (see findBorders). */
+export function spreadDivisions(
+  map: GameMap,
+  borders: Borders,
+  /** Each nation's divisions (by id): troops, and whether it's still training. */
+  troopsOf: (id: number) => readonly { troops: number; training: boolean }[],
+  /** Lines to use instead for some nations (by id), e.g. the front of a war (sorted with sortAround). */
+  override?: ReadonlyMap<number, Int32Array>,
+): Division[] {
+  const { width } = map;
+  const out: Division[] = [];
+  borders.lines.forEach((border, k) => {
+    const id = k + 1;
+    const line = override?.get(id) ?? border;
+    const divs = troopsOf(id);
+    if (!divs.length || !line.length) return;
+    divs.forEach((d, index) => {
+      const p = line[Math.floor(((index + 0.5) * line.length) / divs.length)];
+      out.push({ nation: id, index, troops: Math.round(d.troops), x: p % width, y: (p / width) | 0, training: d.training });
+    });
+  });
   return out;
+}
+
+/** Both steps at once (findBorders, then spreadDivisions). */
+export function placeDivisions(
+  map: GameMap,
+  owner: Uint16Array,
+  count: number,
+  troopsOf: (id: number) => readonly { troops: number; training: boolean }[],
+  guard?: Uint8Array,
+): Division[] {
+  return spreadDivisions(map, findBorders(map, owner, count, guard), troopsOf);
 }
 
 const SIDES: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
-/**
- * `count` pixels spread evenly along a border: sorted by angle around the border's middle
- * (which walks round it), then every (length / count)th one.
- */
-function spreadAlong(border: Int32Array, count: number, width: number, wraps: boolean, fallback: number): number[] {
-  if (!border.length) return new Array(count).fill(Math.max(0, fallback));
+/** A border's pixels sorted by angle around its middle, which walks round it. */
+export function sortAround(border: Int32Array, width: number, wraps: boolean): Int32Array {
   const ref = border[0] % width;
   const half = width / 2;
   const dx = (i: number): number => {
@@ -155,34 +171,9 @@ function spreadAlong(border: Int32Array, count: number, width: number, wraps: bo
   }
   const cx = sx / border.length;
   const cy = sy / border.length;
-  const sorted = Array.from(border).sort((a, b) => Math.atan2(((a / width) | 0) - cy, dx(a) - cx) - Math.atan2(((b / width) | 0) - cy, dx(b) - cx));
-  const spots: number[] = [];
-  for (let k = 0; k < count; k++) spots.push(sorted[Math.floor(((k + 0.5) * sorted.length) / count)]);
-  return spots;
-}
-
-export interface Decision {
-  ok: boolean;
-  /** Why, in plain words. */
-  reason: string;
-}
-
-/**
- * Whether a nation agrees to raise `troops` more soldiers. It refuses when it's too unstable,
- * when it hasn't got the men (its manpower), or when it can't pay for them every year.
- */
-export function decideRequest(sheet: StatSheet, troops: number, rules: DivisionRules, suffixes: string[]): Decision {
-  const s = sheet.stats;
-  const cost = troops * sheet.factors.soldierCost.value;
-  const money = (v: number): string => (v < 0 ? "−$" : "$") + compactNumber(Math.abs(Math.round(v)), suffixes);
-  const people = (v: number): string => compactNumber(Math.round(v), suffixes);
-  if (s.stability.value < rules.minStability)
-    return { ok: false, reason: `Refused: the state is too unstable (stability ${Math.round(s.stability.value)}, needs ${rules.minStability}) to raise new troops.` };
-  if (s.army.value + troops > s.manpower.value)
-    return { ok: false, reason: `Refused: not enough men. The army would be ${people(s.army.value + troops)}, but only ${people(s.manpower.value)} can be called up.` };
-  if (s.net.value - cost < 0)
-    return { ok: false, reason: `Refused: it can't pay for them. ${people(troops)} more soldiers cost ${money(cost)} a year, and its net income is only ${money(s.net.value)}.` };
-  return { ok: true, reason: `Agreed: ${people(troops)} more soldiers for ${money(cost)} a year. They're in training and will be ready once time runs.` };
+  const angle = new Map<number, number>();
+  for (const i of border) angle.set(i, Math.atan2(((i / width) | 0) - cy, dx(i) - cx));
+  return Int32Array.from(border).sort((a, b) => angle.get(a)! - angle.get(b)!);
 }
 
 /** "1st", "2nd", "3rd", "4th"… */

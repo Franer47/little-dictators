@@ -65,7 +65,7 @@ export interface Modifier {
   amount: number;
 }
 
-type ModSet = Partial<Record<FactorId, Modifier>>;
+export type ModSet = Partial<Record<FactorId, Modifier>>;
 
 export interface StatsData {
   inputs: { land: string; people: string; wealth: string; resources?: string };
@@ -138,6 +138,19 @@ export function parseModifier(text: unknown): Modifier | null {
   if (!m) return null;
   const n = Number(m[2]) * (m[1] === "-" ? -1 : 1);
   return m[3] ? { kind: "pct", amount: n / 100 } : { kind: "flat", amount: n };
+}
+
+/** Reads { "factor": "+10%", … } (data files outside the stats file use it too); throws an Error naming `where`. */
+export function readModSet(v: unknown, where: string): ModSet {
+  if (!isObject(v)) throw new Error(`${where} must be { "factor": "+10%", … }`);
+  const set: ModSet = {};
+  for (const key of keysOf(v)) {
+    if (!(FACTOR_IDS as readonly string[]).includes(key)) throw new Error(`${where}: "${key}" isn't a factor (factors: ${FACTOR_IDS.join(", ")})`);
+    const mod = parseModifier(v[key]);
+    if (!mod) throw new Error(`${where}.${key}: "${String(v[key])}" isn't a modifier; write "+30%", "-15%", "+20", "-5" or "×0.5"`);
+    set[key as FactorId] = mod;
+  }
+  return set;
 }
 
 /** Checks the stats file and turns it into StatsData, with an error that says where any mistake is. */
@@ -562,10 +575,26 @@ interface Contribution {
 }
 
 /**
- * Works out a nation's stat sheet from its wheel results and its land. `extraTroops` are
- * soldiers the player asked for (army requests, src/game/army.ts) on top of the peacetime army.
+ * What the running game (src/sim/world.ts) knows about a nation now, on top of its wheel results
+ * and land. Everything is optional: without it the sheet shows the nation as it starts.
  */
-export function statSheet(nation: Nation, land: LandFacts, data: StatsData, extraTroops = 0): StatSheet {
+export interface LiveState {
+  /** People living there now (it grows month by month). Default: rolled density × land. */
+  population?: number;
+  /** Soldiers actually under arms (its divisions). Default: the peacetime army. */
+  army?: number;
+  /** Money in the vaults now. Default: the starting savings. */
+  treasury?: number;
+  /** Development now (it moves slowly toward what the nation's stats aim for). */
+  development?: number;
+  /** Money received (+) or paid (−) every year in tribute. */
+  tribute?: number;
+  /** Extra modifiers, e.g. buildings ("Farm (level 2)") or being in debt. */
+  mods?: { label: string; set: ModSet; scale?: number }[];
+}
+
+/** Works out a nation's stat sheet from its wheel results, its land and (in a running game) its live state. */
+export function statSheet(nation: Nation, land: LandFacts, data: StatsData, live: LiveState = {}): StatSheet {
   const sfx = data.numberSuffixes;
   const people = (v: number): string => compactNumber(Math.max(0, Math.round(v)), sfx);
   const money = (v: number): string => (v < 0 ? "−" : "") + "$" + compactNumber(Math.abs(Math.round(v)), sfx);
@@ -615,6 +644,9 @@ export function statSheet(nation: Nation, land: LandFacts, data: StatsData, extr
     add(data.access[id], label, v);
   }
 
+  // Buildings and anything else the running game adds.
+  for (const m of live.mods ?? []) add(m.set, m.label, m.scale ?? 1);
+
   // The shape of the land costs cohesion.
   const c = data.cohesion;
   const outside = land.km > 0 ? 1 - land.mainPieceKm / land.km : 0;
@@ -658,19 +690,21 @@ export function statSheet(nation: Nation, land: LandFacts, data: StatsData, extr
   const density = rolledKm > 0 ? rolledPeople / rolledKm : 0;
   const perPerson = rolledPeople > 0 ? gdpRolled / rolledPeople : 0;
 
-  const population = density * land.km;
+  const population = live.population ?? density * land.km;
   const gdp = population * perPerson;
   const income = gdp * f("taxRate");
   const manpower = population * f("recruitRate");
   const wanted = manpower * f("armyShare");
   const affordable = (income * f("armyBudget")) / f("soldierCost");
   const baseArmy = Math.max(0, Math.min(wanted, affordable));
-  const army = baseArmy + extraTroops;
+  const army = live.army ?? baseArmy;
+  const tribute = live.tribute ?? 0;
   const armyCost = army * f("soldierCost");
   const admin = income * f("adminCost");
   const upkeep = armyCost + admin;
-  const net = income - upkeep;
-  const treasury = income * f("treasuryYears");
+  const net = income - upkeep + tribute;
+  const startTreasury = income * f("treasuryYears");
+  const treasury = live.treasury ?? startTreasury;
 
   // Food: what each kind of land feeds, more on rivers and coasts, × farming.
   const foodLines: string[] = [];
@@ -726,7 +760,7 @@ export function statSheet(nation: Nation, land: LandFacts, data: StatsData, extr
         affordable < wanted
           ? `Capped: it can only pay for ${people(affordable)} (income ${money(income)} × army budget ${pctText(f("armyBudget"), 0)} ÷ ${money(f("soldierCost"))} a soldier)`
           : `It could pay for up to ${people(affordable)} (income ${money(income)} × army budget ${pctText(f("armyBudget"), 0)} ÷ ${money(f("soldierCost"))} a soldier)`,
-        ...(extraTroops ? [`Divisions you asked for: +${people(extraTroops)}`] : []),
+        ...(live.army !== undefined ? [`Under arms now: ${people(army)} in its divisions`] : []),
         ...indent("armyShare"),
         ...indent("soldierCost"),
         ...indent("armyBudget"),
@@ -740,8 +774,22 @@ export function statSheet(nation: Nation, land: LandFacts, data: StatsData, extr
       `Court & officials: ${pctText(f("adminCost"), 0)} of income = ${money(admin)}`,
       ...indent("adminCost"),
     ]),
-    net: stat("net", net, `${net >= 0 ? "+" : ""}${money(net)}/yr`, [`Income ${money(income)} − upkeep ${money(upkeep)}`], { warn: net < 0 }),
-    treasury: stat("treasury", treasury, money(treasury), [`Income ${money(income)} × ${f("treasuryYears").toFixed(2)} years of savings`, ...indent("treasuryYears")]),
+    net: stat(
+      "net",
+      net,
+      `${net >= 0 ? "+" : ""}${money(net)}/yr`,
+      [`Income ${money(income)} − upkeep ${money(upkeep)}`, ...(tribute ? [tribute > 0 ? `Tribute received: +${money(tribute)}` : `Tribute paid: ${money(tribute)}`] : [])],
+      { warn: net < 0 },
+    ),
+    treasury: stat(
+      "treasury",
+      treasury,
+      money(treasury),
+      live.treasury !== undefined
+        ? [`Money in the vaults now. Every month it gets a twelfth of the net income (${money(net)}/yr); buildings are paid from it.`, `Started with ${money(startTreasury)}`]
+        : [`Income ${money(income)} × ${f("treasuryYears").toFixed(2)} years of savings`, ...indent("treasuryYears")],
+      { warn: treasury < 0 },
+    ),
     growth: stat(
       "growth",
       growth,
@@ -761,7 +809,13 @@ export function statSheet(nation: Nation, land: LandFacts, data: StatsData, extr
     ),
     stability: score("stability"),
     popularity: score("popularity"),
-    development: score("development"),
+    development:
+      live.development === undefined
+        ? score("development")
+        : stat("development", live.development, String(Math.round(live.development)), [
+            `Now ${Math.round(live.development)}; heading for ${Math.round(f("development"))} by about a point a year (faster with schools)`,
+            ...factors.development.lines,
+          ], { detail: live.development < f("development") - 0.5 ? "rising" : live.development > f("development") + 0.5 ? "falling" : undefined }),
     ideology: stat(
       "ideology",
       ideologies[0]?.share ?? 1,

@@ -10,12 +10,20 @@ export interface CameraControlsOptions {
   onHover: (sx: number, sy: number) => void;
   onClick: (sx: number, sy: number) => void;
   onFit: () => void;
+  /** A right-click (no drag) on the map, e.g. the diplomacy menu. */
+  onRightClick?: (sx: number, sy: number) => void;
 }
 
 /** Mouse and keyboard controls for moving the camera around. */
 export class CameraControls {
   /** Off while another screen (e.g. the wheel) is in front of the map. */
   enabled = true;
+  /**
+   * While a brush is picked: called on a left press and every move while it's held, instead of
+   * panning (the right button still pans). Returns false to pan as usual after all.
+   */
+  paint: ((sx: number, sy: number) => boolean) | null = null;
+  private painting = false;
   private keys = new Set<string>();
   private dragStart: { x: number; y: number } | null = null;
   private lastPointer = { x: 0, y: 0 };
@@ -41,12 +49,19 @@ export class CameraControls {
 
   private onPointerDown = (e: PointerEvent): void => {
     this.canvas.setPointerCapture(e.pointerId);
+    this.painting = e.button === 0 && !!this.paint && this.paint(e.offsetX, e.offsetY);
     this.dragStart = { x: e.offsetX, y: e.offsetY };
     this.lastPointer = { x: e.offsetX, y: e.offsetY };
     this.dragging = false;
   };
 
   private onPointerMove = (e: PointerEvent): void => {
+    if (this.painting) {
+      this.paint?.(e.offsetX, e.offsetY);
+      this.lastPointer = { x: e.offsetX, y: e.offsetY };
+      this.opts.onHover(e.offsetX, e.offsetY);
+      return;
+    }
     if (this.dragStart) {
       const moved = Math.hypot(e.offsetX - this.dragStart.x, e.offsetY - this.dragStart.y);
       if (moved > DRAG_THRESHOLD) {
@@ -63,9 +78,11 @@ export class CameraControls {
   };
 
   private onPointerUp = (e: PointerEvent): void => {
-    if (this.dragStart && !this.dragging && e.button === 0) {
+    if (this.dragStart && !this.dragging && !this.painting && e.button === 0) {
       this.opts.onClick(e.offsetX, e.offsetY);
     }
+    if (this.dragStart && !this.dragging && e.button === 2) this.opts.onRightClick?.(e.offsetX, e.offsetY);
+    this.painting = false;
     this.dragStart = null;
     this.dragging = false;
     this.canvas.classList.remove("dragging");

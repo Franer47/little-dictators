@@ -5,6 +5,36 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 
 ## Unreleased
 
+### Added
+- **The game runs!** Press ▶ (or Space) and time goes by, month by month, at three speeds
+  (about six hours from 1500 to 2000). Nations grow, earn and spend money, build, raise
+  armies, like and dislike their neighbours, make alliances, go to war and sign peace:
+  winners take border land or tribute, and nations can fall. A news feed tells you what's
+  happening.
+- **Guide your nation with influence.** You earn influence every month and spend it to push
+  your nation: build one of eight buildings (Farm, Market, Workshop, Fort, Barracks, Port,
+  School, Temple, five levels each), raise divisions, improve or worsen relations, ally,
+  declare war or offer peace (right-click any nation). Your nation can say no, and says why.
+- **Brushes:** paint the land you want (War goal), the land to guard (Defend) and the land to
+  grow (Develop) right on the map.
+- **Development** now rises slowly over time, faster with schools.
+- **Saving:** the game saves itself every year; the start screen offers Continue.
+- If your nation falls, keep watching or pick another nation to guide.
+- **Wars on the map:** crossed swords mark every war front, and armies at war stand on the
+  border with their enemy. Buildings appear on the map where they were built.
+- **Letters:** a war declared on you or a peace you sign pops up and pauses the game.
+- **Conquest pixel by pixel:** in a war the stronger side pushes the border into the
+  enemy's land every month, and you can watch it creep. Mountains, highlands, rivers and
+  crossing the sea slow it down, Defend paint makes land harder to take, and War goal paint is
+  taken first. Conquered land is yours at once; peace adds tribute (or a whole small nation).
+  Your armies keep conquering until you make peace. News says who a fallen nation fell to.
+- **Winning pays:** when you're winning a war you decide when it ends, and the bigger the win
+  the more land you take (up to 60%, or a whole small nation). The Wars panel shows what
+  peace now would give, your recent treaties, and the Wars button counts your wars. Fixed:
+  beating a nation spread over islands only took the bit touching you; allies of the winner
+  now get tribute too.
+- **How to play:** a short guide the first time you play (and from the How to button).
+
 ### Changed
 - **The map info is folded away.** What's under the mouse (terrain, height, position) and
   the controls now hide behind the ⓘ button in the bottom-left corner; click it to show them.

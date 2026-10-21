@@ -401,6 +401,60 @@ export class Territory {
     return gained;
   }
 
+  /**
+   * Gives these pixels to nation `to` (a peace treaty's land). Keeps every affected nation's
+   * area and pixel list right. A nation left with no pixels keeps its (empty) holding.
+   */
+  transfer(pixels: readonly number[], to: number): void {
+    const { width } = this.map;
+    const target = this.holding(to);
+    if (!target) return;
+    const losers = new Set<number>();
+    const moved: number[] = [];
+    for (const i of pixels) {
+      const from = this.owner[i];
+      if (from === to) continue;
+      moved.push(i);
+      const a = this.areas[(i / width) | 0];
+      const loser = from ? this.holding(from) : undefined;
+      if (loser) {
+        loser.area -= a;
+        losers.add(from);
+      }
+      this.owner[i] = to;
+      target.area += a;
+    }
+    for (const id of losers) {
+      const h = this.holding(id)!;
+      h.pixels = h.pixels.filter((i) => this.owner[i] === id);
+    }
+    const grown = new Int32Array(target.pixels.length + moved.length);
+    grown.set(target.pixels);
+    grown.set(moved, target.pixels.length);
+    target.pixels = grown;
+  }
+
+  /**
+   * Restores a saved map: the ownership grid and each nation's holding (its start, sizes, and
+   * the pixels and area worked out again from the grid).
+   */
+  restore(owner: Uint16Array, nations: readonly { start: [number, number]; rolledArea: number; targetArea: number }[]): void {
+    this.owner.set(owner);
+    this.holdings.length = 0;
+    const lists: number[][] = nations.map(() => []);
+    const areas = new Float64Array(nations.length);
+    const { width } = this.map;
+    for (let i = 0; i < owner.length; i++) {
+      const id = owner[i];
+      if (!id || id > nations.length) continue;
+      lists[id - 1].push(i);
+      areas[id - 1] += this.areas[(i / width) | 0];
+    }
+    nations.forEach((n, k) => {
+      this.holdings.push({ id: k + 1, start: n.start, rolledArea: n.rolledArea, targetArea: n.targetArea, area: areas[k], pixels: Int32Array.from(lists[k]) });
+    });
+  }
+
   /** Removes every nation. */
   clear(): void {
     this.owner.fill(0);

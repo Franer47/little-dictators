@@ -121,7 +121,7 @@ export function showNationPanel(nation: Nation, data: WheelData, extras: PanelEx
     return outcome ? outcomeTip(outcome, data.text.tipOdds ?? "Odds: {chance}") : null;
   });
   if (statsEl && extras.stats) {
-    const { sheet } = extras.stats;
+    shownSheet = extras.stats.sheet;
     const toggle = statsEl.querySelector<HTMLButtonElement>(".np-stats-toggle")!;
     toggle.addEventListener("click", () => {
       const open = statsEl.classList.toggle("collapsed") === false;
@@ -129,7 +129,7 @@ export function showNationPanel(nation: Nation, data: WheelData, extras: PanelEx
       savePref("statsOpen", open);
     });
     hoverTips(statsEl, "[data-stat]", (el) => {
-      const stat = sheet.stats[el.dataset.stat as keyof StatSheet["stats"]];
+      const stat = shownSheet?.stats[el.dataset.stat as keyof StatSheet["stats"]];
       return stat ? { title: `${stat.name} · ${stat.text}`, text: stat.why.join("\n"), small: stat.about, kind: "wide" } : null;
     });
   }
@@ -138,8 +138,25 @@ export function showNationPanel(nation: Nation, data: WheelData, extras: PanelEx
   panel.addEventListener("wheel", (e) => e.stopPropagation());
 }
 
+/** The sheet the panel shows now (it's updated every month while time runs). */
+let shownSheet: StatSheet | null = null;
+
+/**
+ * New numbers for the nation the panel shows (a month passed): only the stats are redrawn, so
+ * the panel doesn't jump and a pinned breakdown stays open.
+ */
+export function updateNationPanelStats(sheet: StatSheet, data: StatsData): void {
+  const body = document.querySelector<HTMLElement>("#nation-panel .np-stats-body");
+  if (!body) return;
+  shownSheet = sheet;
+  const pinned = body.querySelector<HTMLElement>(".tip-pinned")?.dataset.stat;
+  body.innerHTML = statsGroups(sheet, data);
+  if (pinned) body.querySelector(`[data-stat="${pinned}"]`)?.classList.add("tip-pinned");
+}
+
 /** Removes the panel (if one is showing). */
 export function closeNationPanel(): void {
+  shownSheet = null;
   hideTips();
   lastPanel?.abort();
   lastPanel = null;
@@ -158,6 +175,14 @@ export function landText(land: { rolled: number; target?: number; actual?: numbe
 /** The stat sheet box: the stats in their groups, each with its breakdown on hover. */
 function statsBox(sheet: StatSheet, data: StatsData): string {
   const open = loadPref<boolean>("statsOpen", true);
+  return `<div class="np-stats${open ? "" : " collapsed"}">
+    <button type="button" class="np-stats-toggle" aria-expanded="${open}" title="Show or hide the stat sheet">Stats <span aria-hidden="true">▾</span></button>
+    <div class="np-stats-body">${statsGroups(sheet, data)}</div>
+  </div>`;
+}
+
+/** The stats in their groups (Military, Economy, People, Land & power). */
+function statsGroups(sheet: StatSheet, data: StatsData): string {
   // Scores (0–100) get a coloured meter; the ideology mix gets a stacked bar.
   const scores = new Set(Object.entries(data.factors).filter(([, f]) => f.format === "score").map(([id]) => id));
   const options = data.ideology?.options ?? [];
@@ -194,8 +219,5 @@ function statsBox(sheet: StatSheet, data: StatsData): string {
       return `<section class="np-stat-group"><h3>${badge(groupIcons[g.id], groupColors[g.id] ?? "#d4b062")}${escapeHtml(g.name)}</h3>${rows}</section>`;
     })
     .join("");
-  return `<div class="np-stats${open ? "" : " collapsed"}">
-    <button type="button" class="np-stats-toggle" aria-expanded="${open}" title="Show or hide the stat sheet">Stats <span aria-hidden="true">▾</span></button>
-    <div class="np-stats-body">${groups}</div>
-  </div>`;
+  return groups;
 }

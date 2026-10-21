@@ -219,6 +219,26 @@ body {
   opacity: 0.7;
 }
 
+/* Continue a saved game: above New game, which then turns plain. */
+#start-menu .start.continue {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+#start-menu .start.continue small {
+  font-size: 11.5px;
+  font-weight: 500;
+  opacity: 0.75;
+}
+
+#start-menu .start.continue + .start {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(212, 176, 98, 0.5);
+}
+
 /* A problem the game can't get past, e.g. a mistake in a data file. */
 #fatal-error {
   position: fixed;

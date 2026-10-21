@@ -339,12 +339,14 @@ open, that nation's flags show from further out too. For **your own** nation you
 - **New division** (+400 troops), or
 - **Bigger** (+400 troops to the division you picked, up to 4,000).
 
-You only ask; your nation decides at once and says why. It refuses if it's too unstable
-(stability under 25), hasn't got the men (more than its manpower) or can't pay (its net
-income would go below zero). If it agrees, the new troops are added to its army and upkeep,
-and the flag is striped while they're **in training** (they'll take time once the clock
-exists). Other nations' armies you can look at but not change. The numbers are in
-`"divisions"` in `public/data/eras/1500-stats.json`.
+Each ask costs influence (✦4; see "Playing" below), and your nation decides at once and says
+why. It refuses if it's too unstable (stability under 25), hasn't got the men (more than its
+manpower) or can't pay (its net income would go below zero). If it agrees, the new troops are
+added to its army and upkeep, and the flag is striped while they're **in training** (six
+months; they don't fight until then). Nations also raise and break up divisions on their own
+once a year, and lose troops in wars. Other nations' armies you can look at but not change.
+The numbers are in `"divisions"` in `public/data/eras/1500-stats.json` and `"army"` in
+`1500-sim.json`.
 
 ![Divisions along the borders and the Army section](docs/army.jpg)
 
@@ -382,6 +384,78 @@ In the dev server's console, **`game.checkStats()`** prints the smallest, typica
 biggest value of every stat over the nations on the map (press Fill the world first) and
 lists anything that looks absurd for 1500; `game.sheet(1)` is the first nation's whole sheet.
 
+## Playing: time runs
+
+Once your nation is on the map the **clock** starts (paused, in January 1500): press **▶**
+in the top strip or **Space**, and pick a speed with the buttons or keys **1–3** (×1, ×3,
+×10). A month lasts about 3.5 seconds at normal speed, so 1500 → 2000 is about six hours.
+Every month each nation's money, people and development change, buildings get built,
+divisions train, and wars are fought. The top strip shows the date, your influence and your
+nation's numbers; the corner panel updates as time runs.
+
+![The game running](docs/playing.jpg)
+
+**You guide, you don't rule.** Your nation decides for itself (once a year it builds what it
+needs, raises or breaks up divisions, picks allies and wars, like every other nation), but
+you can push it with **influence** ✦. You start with 30 and earn about 2–5 a month, more when
+your nation is stable and its ruler is liked. Every push can be refused, with the reason
+("it can't afford it", "the state is too unstable", "they're much stronger").
+
+The menu on the left:
+
+- **Build**: eight buildings (Farm, Market, Workshop, Fort, Barracks, Port, School,
+  Temple), each with 5 levels. A level costs a year of income for level 1, two years for
+  level 2 and so on, takes months to build, and gives stats (e.g. Farm +8% farming and +3%
+  birth rate per level). Pushing a building costs ✦6.
+- **Army**: your divisions; push for a new one or a bigger one (✦4). New soldiers train for
+  six months first (striped flags).
+- **Wars**: your wars (with the war score), your allies and your neighbours, each with ＋
+  / − relations, Ally and War buttons. **Right-click** any nation on the map for the same
+  choices.
+- **Brushes**: paint the map with influence. **War goal** (other nations' land you want: your
+  nation is keener to fight its owner and takes that land first in a peace), **Defend** (your
+  divisions stand there, forts go there first), **Develop** (new buildings go there first, and
+  your nation builds more farms, markets, workshops and schools), **Erase** (gives back half).
+
+**Wars are fought pixel by pixel.** Every month the two sides' armies clash, both lose
+troops, and the war score moves toward the stronger side (troops × army quality, defenders
+helped by their defence). Along every **front** (two enemies whose land touches, or with at
+most 6 pixels of sea between them) the stronger one **pushes into the other's land**: the
+bigger its edge, the more pixels it takes, and you can watch the border creep forward through
+the month. Terrain slows it down (a mountain pixel costs four times a plain, highlands and
+snow twice, rivers three times, landing across the sea twice), your **Defend** paint makes
+land twice as hard to take, and your **War goal** paint is taken first. A nation fighting on
+several fronts splits its army between them. Conquered land is yours at once.
+
+Computer nations make peace when one side is clearly winning (score 50) or after four years.
+**When your nation is winning, you decide**: your armies keep conquering until you press
+**Make peace** (or eight years pass), and the Wars panel says what peace now would give.
+Everyone keeps the land they hold; on top of that, from a score of 20 the loser pays
+**tribute** (10% of its income for 10 years, half that to the winner's allies), and a nation
+under a quarter of the winner's size is **taken whole** from a score of 90. Allies join each
+other's defensive wars. The Wars panel lists your **recent treaties**, and the Wars button
+shows how many wars you're in. A nation that loses all its land has **fallen** ("X has fallen
+to Y"); if it's yours you can keep watching or pick another nation to guide.
+
+**On the map**, every war has crossed swords at the middle of its front (big and red when
+it's yours), and while at war a nation's divisions stand on its front with the enemy instead
+of along its whole border. Buildings show as small icons where they stand when you zoom in
+(faded while they're being built).
+
+![A war front: divisions face each other, swords mark the war](docs/war-front.jpg)
+
+**World news** in the bottom-left corner lists wars, treaties and falls near you (or
+everything); click one to fly there. Big news about your own nation (a war declared on you, a
+peace signed) comes as a **letter** and pauses the game until you've read it. The **How to**
+button on the left shows a short guide (it also opens by itself the first time).
+
+The game **saves itself** in your browser every year and when you close the page; the start
+screen then shows **Continue**.
+
+All the numbers (clock speed, influence, building costs and effects, what computer nations
+do, war and peace rules) are in **`public/data/eras/1500-sim.json`**, with notes in plain
+words.
+
 ## Controls
 
 | Action | Input |
@@ -389,6 +463,10 @@ lists anything that looks absurd for 1500; `game.sheet(1)` is the first nation's
 | Move camera | Drag with the mouse, or WASD / arrow keys (hold Shift for faster) |
 | Zoom | Mouse wheel, or Q / E |
 | Zoom all the way out | F |
+| Pause / go on | Space, or the ❚❚ / ▶ buttons in the top strip |
+| Speed ×1, ×3, ×10 | 1, 2, 3 |
+| Diplomacy with a nation | Right-click it |
+| Paint with a brush | Pick one in Brushes, then drag with the left mouse button (the right button still moves the map); Esc puts it down |
 | Map info (what's under the mouse) and the controls | the ⓘ button, bottom left |
 
 ## Map edges
@@ -420,6 +498,13 @@ src/
   game/roller.ts          the spin-by-spin rules (rare pulls, exact numbers, picks, golden spin)
   game/chart.ts           the nation chart: the dot, chart-sized slices, the golden chance
   game/stats.ts           the stat sheet: one look over the map for everyone's land, then each nation's numbers
+  sim/world.ts            the running world: the monthly tick, money, people, buildings, relations, your pushes and brushes
+  sim/ai.ts               what each nation decides once a year: build, recruit, allies, wars
+  sim/war.ts              simple wars, war score and peace treaties (land, tribute)
+  sim/simData.ts          loads and checks public/data/eras/1500-sim.json
+  sim/save.ts             saving in the browser (IndexedDB) and Continue
+  ui/gameUi.ts            the clock, the left menu and its panels, right-click menu, world news
+  render/paintLayer.ts    draws your brush paint on the map
   game/devChecks.ts       console checks: game.checkWeights(), checkNumbers(), sampleNations(), checkStats()
   game/random.ts          seeded random numbers for game logic
   game/territory.ts       who owns each pixel; how a nation's land grows; the Europe region

@@ -14,13 +14,23 @@ export const MAP_CHOICES: MapChoice[] = [
 ];
 
 /**
- * Shows the start screen and waits until a map is picked. Returns the map's name and a
- * function to call once that map is ready, which hides the screen.
+ * Shows the start screen and waits until a map is picked (or Continue, when there's a saved
+ * game). Returns the map's name, whether to continue the save, and a function to call once
+ * that map is ready, which hides the screen.
  */
-export function chooseMap(): Promise<{ name: string; done: () => void }> {
+export function chooseMap(saved?: { map: string; label: string }): Promise<{ name: string; continue: boolean; done: () => void }> {
   const menu = document.querySelector<HTMLDivElement>("#start-menu")!;
   const list = menu.querySelector<HTMLDivElement>(".map-list")!;
   const start = menu.querySelector<HTMLButtonElement>(".start")!;
+  let resume: HTMLButtonElement | null = null;
+  if (saved) {
+    resume = document.createElement("button");
+    resume.className = "start continue";
+    resume.innerHTML = `Continue<small></small>`;
+    resume.querySelector("small")!.textContent = saved.label;
+    start.before(resume);
+    start.textContent = "New game";
+  }
 
   list.replaceChildren(
     ...MAP_CHOICES.map((choice, k) => {
@@ -44,23 +54,21 @@ export function chooseMap(): Promise<{ name: string; done: () => void }> {
     }),
   );
   menu.hidden = false;
-  start.focus();
+  (resume ?? start).focus();
 
   return new Promise((resolve) => {
-    start.addEventListener(
-      "click",
-      () => {
-        const name = list.querySelector<HTMLInputElement>("input:checked")!.value;
-        start.disabled = true;
-        // The panel fades away; if the map takes a while, a quiet "Loading map…" shows.
-        menu.classList.add("leaving");
-        const done = (): void => {
-          menu.classList.add("gone");
-          window.setTimeout(() => (menu.hidden = true), 700);
-        };
-        resolve({ name, done });
-      },
-      { once: true },
-    );
+    const go = (name: string, cont: boolean): void => {
+      start.disabled = true;
+      if (resume) resume.disabled = true;
+      // The panel fades away; if the map takes a while, a quiet "Loading map…" shows.
+      menu.classList.add("leaving");
+      const done = (): void => {
+        menu.classList.add("gone");
+        window.setTimeout(() => (menu.hidden = true), 700);
+      };
+      resolve({ name, continue: cont, done });
+    };
+    start.addEventListener("click", () => go(list.querySelector<HTMLInputElement>("input:checked")!.value, false), { once: true });
+    resume?.addEventListener("click", () => go(saved!.map, true), { once: true });
   });
 }
