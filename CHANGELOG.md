@@ -13,6 +13,19 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
   forever. A hidden wheel now keeps its size, and the label sizing always stops.
 
 ### Added
+- **Placing nations on the map (Europe test).** After the wheel, click a spot in Europe
+  (or press **Surprise me**) and the nation's land grows from there in a short
+  animation: quickly over plains, slowly into mountains, stopping at the sea and at other
+  nations, and often along rivers. Each pixel counts with its real area, so the land
+  matches the rolled size; if a nation is boxed in, it stays smaller and shows both
+  ("101,254 km² (rolled 240,000)"). **Next nation** makes another one.
+- **Each nation has its own colour**, used as its flag for now (on the card and the
+  corner panel) and drawn over its land with a darker border line.
+- **A list of nations** in the top-right corner. Click a row or a nation on the map to see
+  it in the corner panel; hovering the map shows who owns the land.
+- **Fill Europe** (testing shortcut) rolls and places nations at random until there are
+  15; **Clear** starts over. The region, growth costs and colours are in
+  `public/data/placement.json`.
 - **The wheels are now set in 1500.** 11 spins: Government, Land size, Population
   density, Wealth, Bonus resources, Ideology, History, Stability, Popularity, a Bonus
   spin and a Golden spin, each
