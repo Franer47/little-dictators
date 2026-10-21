@@ -136,6 +136,10 @@
     {
       "id": "land",
       "name": "Land size",
+      "room": {
+        "about": "The fuller the map, the rarer the big lands: each slice's weight is multiplied by (share of the region still free) ^ (its typical size / fullness), so smaller 'fullness' makes big lands vanish sooner. Slices bigger than the biggest free patch of land shrink (only the part that fits counts) or go away. The wheel shows how much land is left.",
+        "fullness": 220000
+      },
       "resultName": "Land",
       "question": "How much land?",
       "number": {
@@ -165,16 +169,16 @@
         }
       },
       "slices": [
-        { "id": "city-state", "label": "City-state", "short": "2K–8K", "weight": 8, "range": [2000, 8000], "blurb": "One proud city and the fields around it." },
-        { "id": "tiny", "label": "Tiny", "short": "8K–25K", "weight": 10, "range": [8000, 25000], "blurb": "A day's ride from end to end." },
-        { "id": "small", "label": "Small", "short": "25K–60K", "weight": 13, "range": [25000, 60000], "blurb": "A few towns and a castle on every hill." },
-        { "id": "modest", "label": "Modest", "short": "60K–120K", "weight": 16, "range": [60000, 120000], "blurb": "A proper realm, if not a big one." },
-        { "id": "medium", "label": "Medium", "short": "120K–220K", "weight": 18, "range": [120000, 220000], "blurb": "Room for a dozen dukes to quarrel." },
-        { "id": "large", "label": "Large", "short": "220K–360K", "weight": 15, "range": [220000, 360000], "blurb": "A week's march from border to border." },
-        { "id": "vast", "label": "Vast", "short": "360K–535K", "weight": 10, "range": [360000, 535000], "blurb": "A great kingdom, the envy of its neighbours." },
-        { "id": "immense", "label": "Immense", "short": "535K–620K", "weight": 5, "range": [535000, 620000], "blurb": "Bigger than France. The tax collectors need a year to get round." },
-        { "id": "colossal", "label": "Colossal", "short": "620K–710K", "weight": 3, "range": [620000, 710000], "blurb": "News from the far border is a month old when it arrives." },
-        { "id": "titanic", "label": "Titanic", "short": "710K–800K", "weight": 2, "range": [710000, 800000], "blurb": "As big as a realm gets in this age, and then some." }
+        { "id": "city-state", "label": "City-state", "short": "2K–8K", "weight": 4, "range": [2000, 8000], "blurb": "One proud city and the fields around it." },
+        { "id": "tiny", "label": "Tiny", "short": "8K–25K", "weight": 6, "range": [8000, 25000], "blurb": "A day's ride from end to end." },
+        { "id": "small", "label": "Small", "short": "25K–60K", "weight": 14, "range": [25000, 60000], "blurb": "A few towns and a castle on every hill." },
+        { "id": "modest", "label": "Modest", "short": "60K–120K", "weight": 23, "range": [60000, 120000], "blurb": "A proper realm, if not a big one." },
+        { "id": "medium", "label": "Medium", "short": "120K–220K", "weight": 25, "range": [120000, 220000], "blurb": "Room for a dozen dukes to quarrel." },
+        { "id": "large", "label": "Large", "short": "220K–360K", "weight": 16, "range": [220000, 360000], "blurb": "A week's march from border to border." },
+        { "id": "vast", "label": "Vast", "short": "360K–535K", "weight": 7, "range": [360000, 535000], "blurb": "A great kingdom, the envy of its neighbours." },
+        { "id": "immense", "label": "Immense", "short": "535K–620K", "weight": 2.5, "range": [535000, 620000], "blurb": "Bigger than France. The tax collectors need a year to get round." },
+        { "id": "colossal", "label": "Colossal", "short": "620K–710K", "weight": 1.5, "range": [620000, 710000], "blurb": "News from the far border is a month old when it arrives." },
+        { "id": "titanic", "label": "Titanic", "short": "710K–800K", "weight": 1, "range": [710000, 800000], "blurb": "As big as a realm gets in this age, and then some." }
       ]
     },
     {

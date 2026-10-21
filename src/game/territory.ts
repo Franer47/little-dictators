@@ -1,15 +1,21 @@
 // Who owns which pixel, and how a new nation's starting land grows. Plain game logic: no
 // drawing here (src/render/territoryLayer.ts draws it), so the simulation can build on it.
 //
-// How land grows: from the start pixel it always takes the cheapest pixel it can reach next
-// (Dijkstra's shortest-path search). Each step costs the terrain's cost (plains 1, highlands
-// more, mountains a lot, see public/data/placement.json) times a smooth random "wobble", so
-// the land spreads quickly over plains, slowly into mountains, and the borders aren't
-// perfect circles. It stops when the claimed area (real km², worked out from the map
-// projection) reaches the rolled land size, or when there's nothing left to take: the sea,
-// lakes, ice and other nations' land are never taken.
+// How land grows (all numbers in public/data/placement.json, "growth"):
+// - From the start pixel it keeps taking the cheapest free pixel next to its land. A pixel's
+//   price is the cheapest way to walk there from the start: each step costs the terrain's
+//   cost (plains 1, highlands more, mountains a lot) times a smooth random "wobble", so land
+//   spreads quickly over plains and slowly into mountains, and borders aren't perfect circles.
+// - It stops when the claimed area (real km², from the map projection) reaches the rolled
+//   land size, or when there's nothing left to take: the sea, lakes, ice and other
+//   nations' land are never taken.
+// - Snakes are avoided by where nations start, not by shape rules (those made octagons):
+//   "Surprise me" and Fill start nations on coasts and riverbanks, so the sea or river
+//   closes off one side, and the inland gaps left over are filled by later nations.
+// - Afterwards it tidies up: 1-pixel spurs and necks are trimmed (and anything they cut off
+//   is let go), and small holes inside the land are filled.
 
-import { Terrain } from "../map/terrain.ts";
+import { TERRAINS, Terrain } from "../map/terrain.ts";
 import { lonLatToPixel, pixelToLonLat } from "../map/projection.ts";
 import type { GameMap } from "../map/gameMap.ts";
 import { createRng, type Rng } from "./random.ts";
@@ -25,12 +31,54 @@ export interface GrowthRules {
   cost: Partial<Record<keyof typeof Terrain, number>>;
   /** How strongly random patches make land cheaper or dearer (0 = none). */
   wobble: number;
+  /** Free pockets of up to this many pixels inside a nation's land are filled in (adding at most a tenth of its size). */
+  holeSize: number;
+  /**
+   * Evens out the flat map's stretching away from the equator (see targetFor): 0 = real km²
+   * (northern nations look bigger), 1 = the same size on the map, 0.5 = halfway.
+   */
+  latitudeBalance?: number;
+}
+
+export interface StartRules {
+  /** How often (0..1) "Surprise me" and Fill pick a spot next to the sea, a lake or a river. */
+  coastPreference: number;
+  /** They never start a nation in a free pocket of land smaller than this (km²)… */
+  minGap: number;
+  /** …or in a pocket surrounded by just one nation (an enclave) unless it's at least this big (km²). */
+  enclaveArea: number;
+}
+
+/** What a random start looks for (see freeSpot). */
+export interface SpotRules {
+  coastPreference?: number;
+  /** The test growth must reach at least this (or the whole target, if smaller). */
+  minArea?: number;
+  minGap?: number;
+  enclaveArea?: number;
+}
+
+export interface FillRules {
+  /** Fill stops making new nations when this share (%) of the region's land is owned (then neighbours take the rest)… */
+  percent: number;
+  /** …or when no gap has room for a nation of at least this many km²… */
+  minArea: number;
+  /** …or after this many nations or tries. */
+  maxNations: number;
+  maxAttempts: number;
+  /** Fill leaves land sizes below this (km²) off its nations' wheel (no dot-sized nations). */
+  smallestRoll?: number;
+  /** Fill places about one nation per this many km² of free land per look at the map (speed). */
+  batchArea: number;
+  /** At the end of a fill, nations spread up to this many pixels at a time into the leftover land and islands. */
+  absorbSteps: number;
 }
 
 export interface PlacementData {
   region: string;
   regions: Record<string, RegionData>;
-  fill: { percent: number; maxNations: number; maxAttempts: number };
+  start: StartRules;
+  fill: FillRules;
   growth: GrowthRules;
   colors: { list: string[] };
 }
@@ -44,6 +92,10 @@ export async function loadPlacementData(): Promise<PlacementData> {
   for (const key of Object.keys(data.growth?.cost ?? {})) {
     if (!(key in Terrain)) throw new Error(`data/placement.json: growth.cost has an unknown terrain "${key}"`);
   }
+  for (const key of ["wobble", "holeSize"] as const) {
+    if (!(typeof data.growth[key] === "number" && data.growth[key] >= 0)) throw new Error(`data/placement.json: growth.${key} must be a number, 0 or more`);
+  }
+  if (!(data.fill?.percent > 0 && data.fill.percent <= 100)) throw new Error("data/placement.json: fill.percent must be from 1 to 100");
   return data;
 }
 
@@ -67,13 +119,15 @@ export class Region {
   readonly inside: Uint8Array;
   /** Every land pixel inside that a nation could start on (by index y * width + x). */
   readonly land: Int32Array;
+  /** The ones of those next to the sea, a lake or a river. */
+  readonly shore: Int32Array;
   /** The outline's bounding box in map pixels. */
   readonly box: { x0: number; y0: number; x1: number; y1: number };
 
   constructor(
     readonly map: GameMap,
     readonly data: RegionData,
-    claimable: (terrain: Terrain) => boolean,
+    canStart: (terrain: Terrain) => boolean,
   ) {
     const corners = data.outline.map(([lon, lat]) => lonLatToPixel(map.meta, lon, lat));
     const xs = corners.map((c) => c[0]);
@@ -87,17 +141,25 @@ export class Region {
     };
     this.inside = new Uint8Array(map.width * map.height);
     const land: number[] = [];
+    const shore: number[] = [];
     const { x0, y0, x1, y1 } = this.box;
+    const water = (x: number, y: number): boolean => {
+      const p = map.normalize(x, y);
+      return p !== null && TERRAINS[map.terrainAt(p[0], p[1])].isWater;
+    };
     for (let y = y0; y <= y1; y++) {
       for (let x = x0; x <= x1; x++) {
         const [lon, lat] = pixelToLonLat(map.meta, x + 0.5, y + 0.5);
         if (!insideOutline(lon, lat, data.outline)) continue;
         const i = y * map.width + x;
         this.inside[i] = 1;
-        if (claimable(map.terrain[i])) land.push(i);
+        if (!canStart(map.terrain[i])) continue;
+        land.push(i);
+        if (water(x - 1, y) || water(x + 1, y) || water(x, y - 1) || water(x, y + 1)) shore.push(i);
       }
     }
     this.land = Int32Array.from(land);
+    this.shore = Int32Array.from(shore);
   }
 
   contains(x: number, y: number): boolean {
@@ -116,6 +178,15 @@ function insideOutline(lon: number, lat: number, outline: [number, number][]): b
   return inside;
 }
 
+/** A look at the region's free land (see Territory.survey). */
+export interface Survey {
+  room: { left: number; taken: number; biggestGap: number };
+  free: number[];
+  shore: number[];
+  farFree: number[];
+  farShore: number[];
+}
+
 /** One nation's land. */
 export interface Holding {
   /** Its number in the ownership grid (1, 2, 3…; 0 means nobody). */
@@ -124,11 +195,17 @@ export interface Holding {
   start: [number, number];
   /** The land size it rolled on the wheel, km². */
   rolledArea: number;
+  /** What it was meant to get here, km²: the roll, evened out for the latitude (see targetFor). */
+  targetArea: number;
   /** The land it actually got, km² (smaller if it was boxed in by sea or other nations). */
   area: number;
   /** Its pixels, in the order they were taken (the growth animation plays them in this order). */
   pixels: Int32Array;
 }
+
+/** The id test growths use while looking for a spot (never a real nation's). */
+const TEST_ID = 65535;
+const SIDES: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
 /** The ownership grid: which nation owns each pixel. */
 export class Territory {
@@ -139,25 +216,43 @@ export class Territory {
   readonly holdings: Holding[] = [];
   /** Cost to take each terrain (Infinity = never). */
   private readonly cost = new Float64Array(16).fill(Infinity);
-  private readonly wobble: number;
   // Reused between growths, so a growth doesn't allocate map-sized arrays.
-  private readonly dist: Float64Array;
+  private readonly key: Float64Array;
   private readonly seen: Uint32Array;
   private stamp = 0;
+  // Reused by survey() for the distance-from-nations field.
+  private boxDist = new Int32Array(0);
+  private boxQueue = new Int32Array(0);
+  /** Per pixel: the size (km²) of the free pocket it was in at the last survey (good pockets only). */
+  private pocketArea: Float32Array;
+  /** The area of a pixel at the equator (the biggest), km². */
+  private readonly biggestPixel: number;
 
   constructor(
     readonly map: GameMap,
-    rules: GrowthRules,
+    private rules: GrowthRules,
   ) {
     const size = map.width * map.height;
     this.owner = new Uint16Array(size);
-    this.dist = new Float64Array(size);
+    this.key = new Float64Array(size);
     this.seen = new Uint32Array(size);
+    this.pocketArea = new Float32Array(size);
     this.areas = rowAreas(map);
+    this.biggestPixel = Math.max(...this.areas);
     for (const [name, cost] of Object.entries(rules.cost)) {
       if (typeof cost === "number" && cost > 0) this.cost[Terrain[name as keyof typeof Terrain]] = cost;
     }
-    this.wobble = rules.wobble;
+  }
+
+  /**
+   * The land a nation that rolled `rolled` km² should get when it starts in map row y. The
+   * flat map stretches land away from the equator (a pixel in Europe covers about half the
+   * km² of one in Africa), so equal rolls would look about twice as big up north. This scales
+   * the km² by (pixel area here / pixel area at the equator) ^ latitudeBalance.
+   */
+  targetFor(rolled: number, y: number): number {
+    const balance = this.rules.latitudeBalance ?? 0;
+    return balance > 0 ? rolled * (this.areas[y] / this.biggestPixel) ** balance : rolled;
   }
 
   /** True if this kind of land can ever be owned (not sea, lakes or ice). */
@@ -199,7 +294,7 @@ export class Territory {
     for (const i of h.pixels) {
       const x = i % width;
       const y = (i - x) / width;
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      for (const [dx, dy] of SIDES) {
         const p = this.map.normalize(x + dx, y + dy);
         if (!p) continue;
         const other = this.owner[p[1] * width + p[0]];
@@ -214,13 +309,81 @@ export class Territory {
    * seed, start and map state always give the same land.
    */
   place(x: number, y: number, targetArea: number, seed: number): Holding {
-    if (this.holdings.length >= 65535) throw new Error("Too many nations");
+    if (this.holdings.length >= TEST_ID - 1) throw new Error("Too many nations");
     if (!this.isFree(x, y)) throw new Error(`Pixel (${x}, ${y}) can't be settled`);
     const id = this.holdings.length + 1;
     const { pixels, area } = this.grow(id, x, y, targetArea, seed);
-    const holding: Holding = { id, start: [x, y], rolledArea: targetArea, area, pixels };
+    const holding: Holding = { id, start: [x, y], rolledArea: targetArea, targetArea: this.targetFor(targetArea, y), area, pixels };
     this.holdings.push(holding);
     return holding;
+  }
+
+  /**
+   * Gives the region's leftover free land (small islands, slivers between borders) to the
+   * nearest nation: every nation spreads out at most `maxSteps` pixels into free land, and
+   * across water to islands, one ring at a time, so the closest nation gets each pixel.
+   * Returns the pixels each nation gained (by id). Repeatable: no randomness.
+   */
+  absorbLeftovers(region: Region, maxSteps: number): Map<number, number[]> {
+    const gained = new Map<number, number[]>();
+    if (!this.holdings.length || maxSteps <= 0) return gained;
+    const { width, height, terrain } = this.map;
+    // Work in the region's box plus a margin, so nations just outside it can reach in too.
+    const x0 = Math.max(0, region.box.x0 - maxSteps);
+    const y0 = Math.max(0, region.box.y0 - maxSteps);
+    const x1 = Math.min(width - 1, region.box.x1 + maxSteps);
+    const y1 = Math.min(height - 1, region.box.y1 + maxSteps);
+    const bw = x1 - x0 + 1;
+    const bh = y1 - y0 + 1;
+    const steps = new Int16Array(bw * bh).fill(-1);
+    const from = new Uint16Array(bw * bh);
+    const queue = new Int32Array(bw * bh);
+    let head = 0;
+    let tail = 0;
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        const id = this.owner[y * width + x];
+        if (id === 0) continue;
+        const b = (y - y0) * bw + (x - x0);
+        steps[b] = 0;
+        from[b] = id;
+        queue[tail++] = b;
+      }
+    }
+    while (head < tail) {
+      const b = queue[head++];
+      if (steps[b] >= maxSteps) continue;
+      const bx = b % bw;
+      const by = (b - bx) / bw;
+      for (const [dx, dy] of SIDES) {
+        const nx = bx + dx;
+        const ny = by + dy;
+        if (nx < 0 || ny < 0 || nx >= bw || ny >= bh) continue;
+        const c = ny * bw + nx;
+        if (steps[c] >= 0) continue;
+        const i = (ny + y0) * width + (nx + x0);
+        if (this.owner[i] !== 0) continue;
+        // Free land and water are both crossed (water to reach islands); only free land in the region is taken.
+        steps[c] = steps[b] + 1;
+        from[c] = from[b];
+        queue[tail++] = c;
+        if (region.inside[i] && this.cost[terrain[i]] < Infinity) {
+          this.owner[i] = from[b];
+          const list = gained.get(from[b]) ?? [];
+          list.push(i);
+          gained.set(from[b], list);
+        }
+      }
+    }
+    for (const [id, list] of gained) {
+      const h = this.holding(id)!;
+      const pixels = new Int32Array(h.pixels.length + list.length);
+      pixels.set(h.pixels);
+      pixels.set(list, h.pixels.length);
+      h.pixels = pixels;
+      for (const i of list) h.area += this.areas[(i / width) | 0];
+    }
+    return gained;
   }
 
   /** Removes every nation. */
@@ -230,54 +393,107 @@ export class Territory {
   }
 
   /**
-   * A random free spot in the region for a nation of `targetArea` km². Prefers spots far
-   * from other nations, and of a few such spots the one with the most room to grow.
-   * Null if the region has no free land left.
+   * A look at the region's free land, used to pick start spots. It's the slow part of
+   * placing a nation on a big map, so Fill takes one and places several nations with it.
+   * - `room`: free land left (km²), how much is taken (0..1), the biggest free patch (km²).
+   * - `free` / `shore`: free pixels in pockets a new nation may start in (at least `minGap`
+   *   km², and not an enclave inside one nation unless at least `enclaveArea` km²), and the
+   *   ones of those next to water.
+   * - `farFree` / `farShore`: the same, only those at least 60% as far from any nation as
+   *   the furthest one.
    */
-  freeSpot(region: Region, rng: Rng, targetArea?: number): [number, number] | null {
-    const { width } = this.map;
-    const free = Array.from(region.land).filter((i) => this.owner[i] === 0);
-    if (!free.length) return null;
-    const far = this.farFromOthers(region, free);
-    const tries = targetArea === undefined ? 1 : Math.min(6, far.length);
-    let best: [number, number] | null = null;
-    let bestArea = -1;
-    for (let t = 0; t < tries; t++) {
-      const i = far[Math.floor(rng.next() * far.length)];
-      const x = i % width;
-      const y = (i - x) / width;
-      // A test growth, undone straight away, to see how much room there is.
-      const area = targetArea === undefined ? 0 : this.testGrow(x, y, targetArea);
-      if (area > bestArea + 1e-6) {
-        best = [x, y];
-        bestArea = area;
+  survey(region: Region, rules: SpotRules = {}): Survey {
+    const { width, height, terrain } = this.map;
+    const { owner, areas, cost } = this;
+    const minGap = rules.minGap ?? 0;
+    const enclaveArea = rules.enclaveArea ?? 0;
+    if (++this.stamp >= 0xfffffffe) {
+      this.seen.fill(0);
+      this.stamp = 1;
+    }
+    const visited = this.stamp;
+    const good = ++this.stamp;
+    const seen = this.seen;
+    const wraps = this.map.wraps;
+    const isFree = (i: number): boolean => owner[i] === 0 && region.inside[i] === 1 && cost[terrain[i]] < Infinity;
+
+    // 1. Flood each free pocket once: its size, and whether it's inside a single nation.
+    let total = 0;
+    let left = 0;
+    let biggestGap = 0;
+    const pocket: number[] = [];
+    for (const start of region.land) {
+      total += areas[(start / width) | 0];
+      if (owner[start] !== 0 || seen[start] === visited || seen[start] === good) continue;
+      pocket.length = 0;
+      pocket.push(start);
+      seen[start] = visited;
+      let area = 0;
+      let firstOwner = 0;
+      let manyOwners = false;
+      for (let k = 0; k < pocket.length; k++) {
+        const j = pocket[k];
+        const x = j % width;
+        const y = (j - x) / width;
+        area += areas[y];
+        for (let s = 0; s < 4; s++) {
+          let nx = x + SIDES[s][0];
+          const ny = y + SIDES[s][1];
+          if (ny < 0 || ny >= height) continue;
+          if (nx < 0 || nx >= width) {
+            if (!wraps) continue;
+            nx = nx < 0 ? nx + width : nx - width;
+          }
+          const n = ny * width + nx;
+          const o = owner[n];
+          if (o !== 0) {
+            if (firstOwner === 0) firstOwner = o;
+            else if (o !== firstOwner) manyOwners = true;
+          } else if (seen[n] !== visited && isFree(n)) {
+            seen[n] = visited;
+            pocket.push(n);
+          }
+        }
+      }
+      biggestGap = Math.max(biggestGap, area);
+      const enclave = firstOwner !== 0 && !manyOwners;
+      if (area >= minGap && (!enclave || area >= enclaveArea)) {
+        for (const j of pocket) {
+          seen[j] = good;
+          this.pocketArea[j] = area;
+        }
       }
     }
-    return best;
-  }
+    // Rivers count as free land in the pockets but not in `region.land`; keep "left" to region.land.
+    left = 0;
+    for (const i of region.land) if (owner[i] === 0) left += areas[(i / width) | 0];
+    const room = { left, taken: total > 0 ? 1 - left / total : 0, biggestGap };
+    const free = Array.from(region.land).filter((i) => seen[i] === good);
+    const shore = Array.from(region.shore).filter((i) => seen[i] === good);
+    if (!this.holdings.length) return { room, free, shore, farFree: free, farShore: shore };
 
-  /** The free pixels that are at least 60% as far from any nation as the furthest one. */
-  private farFromOthers(region: Region, free: number[]): number[] {
-    if (!this.holdings.length) return free;
-    // Distance (in steps) from the nearest owned pixel, inside the region's box.
+    // 2. Distance (in steps) from the nearest owned pixel, inside the region's box.
     const { x0, y0, x1, y1 } = region.box;
     const bw = x1 - x0 + 1;
     const bh = y1 - y0 + 1;
-    const dist = new Int32Array(bw * bh).fill(-1);
-    const queue = new Int32Array(bw * bh);
+    if (this.boxDist.length < bw * bh) {
+      this.boxDist = new Int32Array(bw * bh);
+      this.boxQueue = new Int32Array(bw * bh);
+    }
+    const dist = this.boxDist;
+    const queue = this.boxQueue;
+    dist.fill(-1, 0, bw * bh);
     let head = 0;
     let tail = 0;
-    const { width } = this.map;
     for (let y = y0; y <= y1; y++) {
       for (let x = x0; x <= x1; x++) {
-        if (this.owner[y * width + x] !== 0) {
+        if (owner[y * width + x] !== 0) {
           const b = (y - y0) * bw + (x - x0);
           dist[b] = 0;
           queue[tail++] = b;
         }
       }
     }
-    if (tail === 0) return free;
     while (head < tail) {
       const b = queue[head++];
       const bx = b % bw;
@@ -288,52 +504,154 @@ export class Territory {
       if (by > 0 && dist[b - bw] < 0) (dist[b - bw] = d), (queue[tail++] = b - bw);
       if (by < bh - 1 && dist[b + bw] < 0) (dist[b + bw] = d), (queue[tail++] = b + bw);
     }
-    const distOf = (i: number): number => {
-      const x = i % width;
-      const y = (i - x) / width;
-      return dist[(y - y0) * bw + (x - x0)];
+    const far = (list: number[]): number[] => {
+      const distOf = (i: number): number => {
+        const x = i % width;
+        return dist[(((i - x) / width) - y0) * bw + (x - x0)];
+      };
+      let max = 0;
+      for (const i of list) max = Math.max(max, distOf(i));
+      return list.filter((i) => distOf(i) >= max * 0.6);
     };
-    let max = 0;
-    for (const i of free) max = Math.max(max, distOf(i));
-    return free.filter((i) => distOf(i) >= max * 0.6);
+    return { room, free, shore, farFree: far(free), farShore: far(shore) };
+  }
+
+  /** Free land left in the region (km²), how much is taken (0..1), and the biggest free patch (km²). */
+  room(region: Region): Survey["room"] {
+    return this.survey(region).room;
+  }
+
+  /**
+   * A random free spot in the region for a nation of `targetArea` km², or null if no
+   * suitable pocket has room for at least `minArea` km² (or the whole target, if smaller).
+   * Usually (`coastPreference`) a spot next to the sea, a lake or a river, so nations line
+   * the coasts and rivers and the inland gaps stay open. Prefers spots far from other
+   * nations, and of a few such spots the one with the most room to grow.
+   */
+  freeSpot(region: Region, rng: Rng, targetArea: number, rules: SpotRules = {}): [number, number] | null {
+    return this.spotFrom(this.survey(region, rules), rng, targetArea, rules);
+  }
+
+  /**
+   * A start pixel from a survey, chosen the same way as in spotFrom (coast first, far from
+   * others, not taken since, not too close to `avoid`) but before the nation is rolled, so
+   * its land size can depend on the free land around it. -1 if none is found.
+   */
+  pickStart(survey: Survey, rng: Rng, rules: SpotRules = {}, avoid: Holding[] = []): number {
+    const { width } = this.map;
+    const pools = [survey.farShore.length && rng.next() < (rules.coastPreference ?? 0) ? survey.farShore : survey.farFree, survey.farFree, survey.free];
+    for (const pool of pools) {
+      for (let pick = 0; pick < 30 && pool.length; pick++) {
+        const i = pool[Math.floor(rng.next() * pool.length)];
+        if (this.owner[i] !== 0) continue;
+        const x = i % width;
+        const y = (i - x) / width;
+        if (avoid.some((h) => this.nearHolding(x, y, 0, h))) continue;
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  /** The size (km²) of the free pocket pixel i was in at the last survey. */
+  pocketAt(i: number): number {
+    return this.pocketArea[i];
+  }
+
+  /** Test-grows a nation of `targetArea` from pixel i (undone straight away): the area it would get. */
+  roomAt(i: number, targetArea: number): number {
+    const x = i % this.map.width;
+    return this.testGrow(x, (i - x) / this.map.width, targetArea);
+  }
+
+  /** True if (x, y) is closer to holding h's start than their two expected radii together. */
+  private nearHolding(x: number, y: number, ownRadius: number, h: Holding): boolean {
+    const { width } = this.map;
+    let dx = Math.abs(x - h.start[0]);
+    if (this.map.wraps) dx = Math.min(dx, width - dx);
+    const dy = y - h.start[1];
+    const r = ownRadius + Math.sqrt(h.area / this.areas[h.start[1]] / Math.PI);
+    return dx * dx + dy * dy < r * r;
+  }
+
+  /**
+   * Like freeSpot, from a survey that may be a little out of date (Fill places several
+   * nations per survey): pixels taken since are skipped, and so are spots too close to the
+   * nations in `avoid` (placed since the survey).
+   */
+  spotFrom(survey: Survey, rng: Rng, targetArea: number, rules: SpotRules = {}, avoid: Holding[] = []): [number, number] | null {
+    const { coastPreference = 0, minArea = 0 } = rules;
+    const { width } = this.map;
+    const enough = Math.min(minArea, targetArea);
+    const tooClose = (x: number, y: number): boolean => {
+      const own = Math.sqrt(targetArea / this.areas[y] / Math.PI);
+      return avoid.some((h) => this.nearHolding(x, y, own, h));
+    };
+    let best: [number, number] | null = null;
+    let bestArea = 0;
+    const tryPixels = (candidates: number[], tries: number): void => {
+      let tested = 0;
+      for (let pick = 0; pick < tries * 6 && tested < tries && candidates.length; pick++) {
+        const i = candidates[Math.floor(rng.next() * candidates.length)];
+        if (this.owner[i] !== 0) continue;
+        const x = i % width;
+        const y = (i - x) / width;
+        if (tooClose(x, y)) continue;
+        tested++;
+        // A test growth, undone straight away, to see how much room there is.
+        const area = this.testGrow(x, y, targetArea);
+        if (area >= enough && area > bestArea + 1e-6) {
+          best = [x, y];
+          bestArea = area;
+        }
+      }
+    };
+    const pool = survey.farShore.length && rng.next() < coastPreference ? survey.farShore : survey.farFree;
+    tryPixels(pool, 6);
+    // Nothing roomy there: look anywhere that's free before giving up.
+    if (!best) tryPixels(survey.farFree, 6);
+    if (!best) tryPixels(survey.free, 10);
+    return best;
   }
 
   private testGrow(x: number, y: number, targetArea: number): number {
-    const { pixels, area } = this.grow(65535, x, y, targetArea, 1);
+    const { pixels, area } = this.grow(TEST_ID, x, y, targetArea, 1);
     for (const i of pixels) this.owner[i] = 0;
     return area;
   }
 
   /** The growth itself (see the top of this file). Writes `id` into the grid as it goes. */
-  private grow(id: number, sx: number, sy: number, targetArea: number, seed: number): { pixels: Int32Array; area: number } {
+  private grow(id: number, sx: number, sy: number, rolledArea: number, seed: number): { pixels: Int32Array; area: number } {
+    const targetArea = this.targetFor(rolledArea, sy);
     const { width, height, terrain } = this.map;
-    const { owner, dist, seen, cost, areas } = this;
-    const stamp = ++this.stamp;
-    if (stamp === 0xffffffff) {
+    const { owner, key, seen, cost, areas, rules } = this;
+    if (++this.stamp === 0xffffffff) {
       seen.fill(0);
       this.stamp = 1;
     }
-    const noise = wobbleField(createRng(seed), this.wobble);
+    const stamp = this.stamp;
+    const noise = wobbleField(createRng(seed), rules.wobble, 8);
+    const takeable = (i: number): boolean => owner[i] === 0 && cost[terrain[i]] < Infinity;
+    const wrapX = (x: number): number => (x < 0 ? x + width : x >= width ? x - width : x);
     const heap = new MinHeap();
     const start = sy * width + sx;
-    dist[start] = 0;
-    seen[start] = this.stamp;
+    key[start] = 0;
+    seen[start] = stamp;
     heap.push(0, start);
-    const pixels: number[] = [];
+    const taken: number[] = [];
     let area = 0;
-    const takeable = (i: number): boolean => owner[i] === 0 && cost[terrain[i]] < Infinity;
 
     while (heap.size > 0 && area < targetArea) {
-      const d = heap.topKey();
+      const k = heap.topKey();
       const i = heap.pop();
-      if (owner[i] !== 0 || d > dist[i]) continue; // already taken, or a stale queue entry
+      if (owner[i] !== 0 || k !== key[i]) continue; // already taken, or an out-of-date queue entry
       const x = i % width;
       const y = (i - x) / width;
       const pa = areas[y];
       // Stop if this pixel would overshoot the target by more than stopping short would miss it.
-      if (pixels.length > 0 && area + pa > targetArea && area + pa - targetArea > targetArea - area) break;
+      if (taken.length > 0 && area + pa > targetArea && area + pa - targetArea > targetArea - area) break;
       owner[i] = id;
-      pixels.push(i);
+      taken.push(i);
       area += pa;
 
       for (let dy = -1; dy <= 1; dy++) {
@@ -344,7 +662,7 @@ export class Territory {
           let nx = x + dx;
           if (nx < 0 || nx >= width) {
             if (!this.map.wraps) continue;
-            nx = (nx + width) % width;
+            nx = wrapX(nx);
           }
           const j = ny * width + nx;
           if (!takeable(j)) continue;
@@ -357,24 +675,168 @@ export class Territory {
             if (!takeable(sideA) && owner[sideA] !== id && !takeable(sideB) && owner[sideB] !== id) continue;
             step = Math.SQRT2;
           }
-          const nd = d + step * cost[terrain[j]] * noise(nx, ny);
-          if (seen[j] !== this.stamp || nd < dist[j]) {
-            seen[j] = this.stamp;
-            dist[j] = nd;
+          const nd = key[i] + step * cost[terrain[j]] * noise(nx, ny);
+          const fresh = seen[j] !== stamp;
+          if (fresh || nd < key[j]) {
+            seen[j] = stamp;
+            key[j] = nd;
             heap.push(nd, j);
           }
         }
       }
     }
-    return { pixels: Int32Array.from(pixels), area };
+    const extra = this.tidy(id, sx, sy, taken, targetArea);
+    // A trimmed pixel can come back as part of a filled hole, so leave those out of `taken`.
+    const refilled = new Set(extra);
+    const pixels = taken.filter((i) => owner[i] === id && !refilled.has(i)).concat(extra);
+    let total = 0;
+    for (const i of pixels) total += areas[(i / width) | 0];
+    return { pixels: Int32Array.from(pixels), area: total };
+  }
+
+  /**
+   * After growing: trims 1-pixel spurs and necks (and lets go of anything they cut off from
+   * the start), then fills small free pockets inside the land, as long as that adds no more
+   * than a tenth of the target (or one pixel), so sizes still match the roll. Returns the
+   * pixels it filled.
+   */
+  private tidy(id: number, sx: number, sy: number, taken: number[], targetArea: number): number[] {
+    if (taken.length < 4) return [];
+    const { width, height, terrain } = this.map;
+    const { owner, cost } = this;
+    const start = sy * width + sx;
+    const at = (x: number, y: number): number => {
+      if (y < 0 || y >= height) return -1;
+      if (x < 0 || x >= width) {
+        if (!this.map.wraps) return -1;
+        x = (x + width) % width;
+      }
+      return y * width + x;
+    };
+    const own = (j: number): boolean => j >= 0 && owner[j] === id;
+
+    // Around pixel c, without c itself: how many separate parts of the nation there are that are
+    // big (more than `partLimit` pixels) or hold the start. Small parts would just fall off.
+    const partLimit = Math.max(4, this.rules.holeSize);
+    const bigParts = (c: number): number => {
+      const cx = c % width;
+      const cy = (c - cx) / width;
+      const reached = new Set<number>([c]);
+      let big = 0;
+      for (const q of around8(cx, cy)) {
+        if (!own(q) || reached.has(q)) continue;
+        const part = [q];
+        reached.add(q);
+        let isBig = false;
+        for (let k = 0; k < part.length && !isBig; k++) {
+          if (part[k] === start || part.length > partLimit) isBig = true;
+          const px = part[k] % width;
+          for (const r of around8(px, (part[k] - px) / width)) {
+            if (own(r) && !reached.has(r)) {
+              reached.add(r);
+              part.push(r);
+            }
+          }
+        }
+        if (isBig) big++;
+      }
+      return big;
+    };
+    const around8 = (x: number, y: number): number[] => {
+      const list: number[] = [];
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (dx || dy) list.push(at(x + dx, y + dy));
+      return list;
+    };
+
+    // 1. Trim: a pixel touching only one own pixel (a spur), or two on opposite sides with
+    //    nothing else (a 1-pixel-wide string or neck). A few passes eat strings from the ends.
+    //    A neck is only cut if what falls off is small (a snake's tip), never when it holds
+    //    two big parts together (e.g. where the land crosses a river).
+    for (let pass = 0; pass < 3; pass++) {
+      let changed = false;
+      for (const i of taken) {
+        if (owner[i] !== id || i === start) continue;
+        const x = i % width;
+        const y = (i - x) / width;
+        const l = own(at(x - 1, y));
+        const r = own(at(x + 1, y));
+        const u = own(at(x, y - 1));
+        const d = own(at(x, y + 1));
+        const n = +l + +r + +u + +d;
+        if ((n <= 1 || (n === 2 && ((l && r) || (u && d)))) && bigParts(i) <= 1) {
+          owner[i] = 0;
+          changed = true;
+        }
+      }
+      if (!changed) break;
+    }
+    // Keep only what's still joined to the start (corners count: growth steps diagonally too).
+    const keep = new Set<number>([start]);
+    const queue = [start];
+    while (queue.length) {
+      const i = queue.pop()!;
+      const x = i % width;
+      const y = (i - x) / width;
+      for (const j of around8(x, y)) {
+        if (j >= 0 && owner[j] === id && !keep.has(j)) {
+          keep.add(j);
+          queue.push(j);
+        }
+      }
+    }
+    for (const i of taken) if (owner[i] === id && !keep.has(i)) owner[i] = 0;
+
+    // 2. Fill holes: a free pocket of land touching only this nation (and water) is taken.
+    const filled: number[] = [];
+    const checked = new Set<number>();
+    const limit = this.rules.holeSize;
+    if (limit <= 0) return filled;
+    let room = Math.max(targetArea * 0.1, this.areas[sy]);
+    const free = (j: number): boolean => j >= 0 && owner[j] === 0 && cost[terrain[j]] < Infinity;
+    for (const i of keep) {
+      const x = i % width;
+      const y = (i - x) / width;
+      for (const [dx, dy] of SIDES) {
+        const seed = at(x + dx, y + dy);
+        if (!free(seed) || checked.has(seed)) continue;
+        // Flood the pocket; give up once it's too big or touches someone else (or open land).
+        const pocket = [seed];
+        checked.add(seed);
+        let enclosed = true;
+        for (let p = 0; p < pocket.length && enclosed; p++) {
+          const px = pocket[p] % width;
+          const py = (pocket[p] - px) / width;
+          for (const [ex, ey] of SIDES) {
+            const j = at(px + ex, py + ey);
+            if (j < 0) {
+              enclosed = false;
+              break;
+            }
+            if (owner[j] === id || checked.has(j)) continue;
+            if (free(j)) {
+              checked.add(j);
+              pocket.push(j);
+              if (pocket.length > limit) enclosed = false;
+            } else if (owner[j] !== 0) enclosed = false; // another nation
+          }
+        }
+        const pocketArea = pocket.reduce((sum, j) => sum + this.areas[(j / width) | 0], 0);
+        if (enclosed && pocketArea <= room) {
+          for (const j of pocket) owner[j] = id;
+          filled.push(...pocket);
+          room -= pocketArea;
+        }
+      }
+    }
+    return filled;
   }
 }
 
 /**
- * A smooth random field around 1 (e.g. 0.5–2): patches about 8 pixels across, plus
+ * A smooth random field around 1 (e.g. 0.5–2): patches about `size` pixels across, plus
  * smaller ones. Multiplies the step cost, so some patches fill faster than others.
  */
-function wobbleField(rng: Rng, strength: number): (x: number, y: number) => number {
+function wobbleField(rng: Rng, strength: number, size: number): (x: number, y: number) => number {
   const salt = Math.floor(rng.next() * 0x7fffffff);
   if (strength <= 0) return () => 1;
   const lattice = (x: number, y: number): number => hash01(x, y, salt) * 2 - 1;
@@ -389,7 +851,8 @@ function wobbleField(rng: Rng, strength: number): (x: number, y: number) => numb
     const bottom = lattice(ix, iy + 1) + (lattice(ix + 1, iy + 1) - lattice(ix, iy + 1)) * sx;
     return top + (bottom - top) * sy;
   };
-  return (x, y) => Math.exp(strength * (smooth(x / 8, y / 8) + 0.5 * smooth(x / 3 + 100, y / 3 + 100)));
+  const small = size * 0.4;
+  return (x, y) => Math.exp(strength * (smooth(x / size, y / size) + 0.5 * smooth(x / small + 100, y / small + 100)));
 }
 
 /** A repeatable random number in [0, 1) for a grid point. */

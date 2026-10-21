@@ -59,6 +59,7 @@
     "landFull": "{actual} km²",
     "landShort": "{actual} km² (rolled {rolled})",
     "landToPlace": "{rolled} km² (not placed yet)",
+    "roomNote": "{region}: {left} km² of land left · {taken}% already taken",
     "groupOther": "Other",
     "recordTitle": "Creation record",
     "recordCreated": "Created",

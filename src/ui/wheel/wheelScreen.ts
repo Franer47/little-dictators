@@ -18,6 +18,8 @@ import { GAME_SHOW_COLORS, GameShowWheelView } from "./gameShowWheel.ts";
 import { RETRO_PALETTE, RetroWheelView } from "./retroWheel.ts";
 import { WheelSounds, type SoundStyle } from "./sound.ts";
 import { TAU, angleToShow, fractionAtPointer, sliceAt, sliceEdges, ticksPassed, type WheelView } from "./wheelView.ts";
+import type { LandRoom } from "../../game/room.ts";
+import { compactNumber } from "../../game/numbers.ts";
 import { escapeHtml, flagPlaceholder, formatText, hideTips, hoverTips, nationChart, outcomeTip, skullIcon, speakerIcon } from "../uiBits.ts";
 
 type Style = SoundStyle;
@@ -35,6 +37,8 @@ export interface WheelScreenOptions {
   showWhen?: Promise<void>;
   /** The nation's colour ("#rrggbb"), shown as its flag on the card. */
   color?: string;
+  /** The room left on the map: changes the land wheel and is shown on it. */
+  room?: LandRoom;
 }
 
 /** Shows the wheel screen and resolves with the finished nation when the player continues. */
@@ -102,7 +106,7 @@ class WheelScreen {
     this.data = opts.data;
     this.text = (key, vars) => formatText(this.data.text[key] ?? key, vars);
     this.rng = createRng(opts.seed);
-    this.roller = new NationRoller(this.data, this.rng);
+    this.roller = new NationRoller(this.data, this.rng, this.opts.room);
     this.shown = this.roller.current!;
     this.angle = -TAU * Math.random();
     this.build();
@@ -165,6 +169,7 @@ class WheelScreen {
             <ol class="ws-dots">${this.data.wheels.map(() => "<li></li>").join("")}</ol>
             <div class="ws-wheel-name"></div>
             <div class="ws-question"></div>
+            <div class="ws-room" hidden></div>
           </div>
           <div class="ws-wheel"></div>
           <div class="ws-controls">
@@ -217,6 +222,7 @@ class WheelScreen {
       dots: q(".ws-dots"),
       wheelName: q(".ws-wheel-name"),
       question: q(".ws-question"),
+      room: q(".ws-room"),
       wheel: q(".ws-wheel"),
       readout: q(".ws-readout"),
       readoutLabel: q(".ws-readout-label"),
@@ -375,6 +381,16 @@ class WheelScreen {
     this.el.step.textContent = this.text(key[step.kind], { n: step.index + 1, total, pick: step.pick, picks });
     this.el.wheelName.textContent = wheel.name;
     this.el.question.textContent = wheel.question ?? "";
+    // On the land wheel: how much land is left in the world, and how much is taken.
+    const room = this.opts.room;
+    this.el.room.hidden = !(step.base.room && room && room.taken > 0);
+    if (room && !this.el.room.hidden) {
+      this.el.room.textContent = this.text("roomNote", {
+        region: room.region.charAt(0).toUpperCase() + room.region.slice(1),
+        left: compactNumber(room.left, this.data.numberSuffixes),
+        taken: Math.round(room.taken * 100),
+      });
+    }
     [...this.el.dots.children].forEach((dot, i) => {
       dot.classList.toggle("done", i < step.index);
       dot.classList.toggle("current", i === step.index);
@@ -842,7 +858,7 @@ class WheelScreen {
     this.timers = [];
     this.confetti.clear();
     this.rng = createRng();
-    this.roller = new NationRoller(this.data, this.rng);
+    this.roller = new NationRoller(this.data, this.rng, this.opts.room);
     this.pickLabels = [];
     this.nation = null;
     this.root.classList.remove("final", "doom", "golden");

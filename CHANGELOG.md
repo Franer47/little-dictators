@@ -5,7 +5,57 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 
 ## Unreleased
 
+### Changed
+- **Fairer nation sizes north and south.** The biggest-looking nations were all in Europe
+  and the far north because the flat map stretches land away from the equator (a pixel in
+  Europe covers about half the km² of one in Africa). A nation's land is now scaled
+  halfway for where it starts, so an equal roll up north looks about 1.1–1.6× as big as one
+  near the equator instead of 1.3–2.3×. The panel still shows the real km² it got.
+- **Nations go anywhere in the world now, not just Europe.** Place your own nation
+  anywhere on Earth (except Antarctica), then keep making nations yourself or press
+  **Fill the world**: about 900–1,000 nations in about 3 seconds, and you can watch the
+  map fill up. Every piece of land ends up owned. Fill picks each nation's spot first
+  and then rolls a land size that fits the free land there, so islands get small nations
+  and the middle of a continent, settled late, still gets big ones. New nations stop at
+  95% of the land and in gaps under 60,000 km²; the neighbours take the rest, so the
+  gaps don't fill up with clusters of tiny nations, and Fill leaves City-state and Tiny
+  off its nations' land wheel (yours keeps them): dot-sized nations went from 60–80 per
+  world to 4–17. (The Europe test is still in
+  `public/data/placement.json`.)
+- **Mountains, highlands and rivers are much harder to cross** (mountains 15× plains
+  instead of 6×, highlands 3.5×, snow 4×, rivers 40×), so nations settle open land
+  first instead of pushing straight through mountain ranges.
+- **Land sizes are more balanced.** Big lands are rarer (360,000 km² or more: 20% → 12%
+  of rolls; 535,000 or more: 10% → 5%) and so are the tiniest (under 25,000 km²: 18% →
+  10%), so most nations are modest to large (60,000–360,000 km²: 49% → 64%).
+- **The land wheel follows the map.** The more of Europe is taken, the rarer the big land
+  sizes, and sizes bigger than the biggest free patch of land shrink or disappear, so a
+  late nation no longer rolls "Vast" and then gets scraps. The land wheel shows how much
+  is left: "Europe: 4.03M km² of land left · 48% already taken". In Fill Europe, nations
+  getting less than half their roll went from about 25 per fill to 1–7.
+- **No more dot-sized nations stuck inside big ones.** "Surprise me" and Fill Europe no
+  longer start a nation in a gap smaller than 20,000 km², or in a pocket surrounded by
+  just one nation; those bits go to the nations around them at the end of the fill.
+  Fill now makes about 60–95 nations, with far fewer tiny ones.
+- **Fewer snake-shaped nations.** "Surprise me" and Fill Europe now start nations on a
+  coast or riverbank, so the water closes off one side and the land grows into a fuller
+  shape instead of snaking out in every direction. The inland gaps left between them are
+  filled by later nations. After growing, 1-pixel strings are trimmed and tiny holes
+  inside a nation are filled. (Clicking by hand can still start a nation anywhere.)
+- **Fill Europe now fills all of Europe** (65–100 nations) instead of stopping at 90%: it
+  keeps going until no gap is left with room for another nation, then the leftover bits
+  (small islands, slivers between borders) go to the nearest nations, which spread up to
+  10 pixels at a time into them. Every piece of land in Europe is owned when it's done.
+- **The nation list is short by default**: the top 3 nations by land plus yours (marked
+  "You"), under "89 nations · 100% of Europe". The arrow opens the full list (biggest
+  first) and closes it again; it remembers which you chose.
+
 ### Fixed
+- **Nations next to branching rivers (like the Nile delta) stopped growing far too early**,
+  sometimes ending with a few hundred km² of a 160,000 km² roll. The clean-up after growing
+  cut 1-pixel "necks" even where the land crossed a river, and threw away everything on the
+  other side. Now a neck is only cut when what falls off is small, and land joined at a
+  corner still counts as joined. Tested on 300 random spots: no nation loses more than 10%.
 - **Buttons that are switched on (the chosen style, Skip animation) are easy to read again.**
   Their text was light on the yellow; it's now dark with a thin light outline, in both styles.
 - **"Reveal nation" froze the game in the Retro style.** When the wheel hid behind the
@@ -21,12 +71,11 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
   ("101,254 km² (rolled 240,000)"). **Next nation** makes another one.
 - **Each nation has its own colour**, used as its flag for now (on the card and the
   corner panel) and drawn over its land with a darker border line.
-- **A list of nations** in the top-right corner, with how much of Europe is owned
-  ("64 nations · 91% of Europe"); it scrolls when there are many. Click a row or a nation
-  on the map to see it in the corner panel; hovering the map shows who owns the land.
-- **Fill Europe** (testing shortcut) rolls and places nations at random until 90% of
-  Europe's land is owned (usually 50–80 nations, late ones squeezed into the gaps), with
-  colours chosen so touching nations never match; **Clear** starts over. The region, growth costs and colours are in
+- **A list of nations** in the top-right corner, with how much of Europe is owned. Click
+  a row or a nation on the map to see it in the corner panel; hovering the map shows who
+  owns the land.
+- **Fill Europe** (testing shortcut) rolls and places nations at random until Europe is
+  full, with colours chosen so touching nations never match; **Clear** starts over. The region, growth costs and colours are in
   `public/data/placement.json`.
 - **The wheels are now set in 1500.** 11 spins: Government, Land size, Population
   density, Wealth, Bonus resources, Ideology, History, Stability, Popularity, a Bonus

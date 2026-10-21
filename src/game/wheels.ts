@@ -1,3 +1,4 @@
+import type { RoomRule } from "./room.ts";
 // The nation-creation wheels: loaded from public/data/ (wheels.json for the shared bits and
 // which era is active, plus one file per era with that era's wheels and names), plus the
 // actual spin (a weighted random pick). No drawing here; src/ui/wheel/ shows it.
@@ -152,6 +153,8 @@ export interface Wheel {
   chartWeights?: ChartWeights;
   /** Spin a yes/no wheel first; this wheel is only spun on yes. */
   gate?: Gate;
+  /** The land wheel: big slices get rarer as the map fills up (see room.ts). */
+  room?: RoomRule;
   /** A special look for the whole wheel: "doom" (rare pulls) or "golden". */
   theme?: "doom" | "golden";
 }

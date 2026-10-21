@@ -10,8 +10,11 @@ import { escapeHtml, flagPlaceholder, formatText, hoverTips, nationChart, oddsTe
 export interface PanelExtras {
   /** The nation's colour, shown as its flag. */
   color?: string;
-  /** Its land on the map: the rolled size and what it actually got (km²; none until it's placed). */
-  land?: { rolled: number; actual?: number };
+  /**
+   * Its land on the map: the rolled size, what it was meant to get where it started (the roll
+   * evened out for the latitude) and what it actually got (km²; none until it's placed).
+   */
+  land?: { rolled: number; target?: number; actual?: number };
 }
 
 /** Removes the panel's window listeners when the panel is replaced. */
@@ -119,10 +122,10 @@ export function closeNationPanel(): void {
 }
 
 /** E.g. "210,000 km² (rolled 340,000)", or just "340,000 km²" when it got it all. */
-export function landText(land: { rolled: number; actual?: number }, data: WheelData): string {
+export function landText(land: { rolled: number; target?: number; actual?: number }, data: WheelData): string {
   const km = (v: number): string => Math.round(v).toLocaleString("en-US");
   if (land.actual === undefined) return formatText(data.text.landToPlace ?? "{rolled} km²", { rolled: km(land.rolled) });
   // Within half a percent counts as the full size (land comes in whole pixels).
-  const full = land.actual >= land.rolled * 0.995;
+  const full = land.actual >= (land.target ?? land.rolled) * 0.995;
   return formatText(data.text[full ? "landFull" : "landShort"] ?? "{actual} km²", { actual: km(land.actual), rolled: km(land.rolled) });
 }
