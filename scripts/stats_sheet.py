@@ -618,6 +618,8 @@ def apply_wishes(entries):
 
 
 if __name__ == "__main__":
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     cmd = sys.argv[1] if len(sys.argv) > 1 else ""
     if cmd == "export":
         export_list(Path(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_LIST)

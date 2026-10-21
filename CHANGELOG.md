@@ -8,6 +8,12 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 ### Changed
 - **The map info is folded away.** What's under the mouse (terrain, height, position) and
   the controls now hide behind the ⓘ button in the bottom-left corner; click it to show them.
+- **First round of stat tuning:** every government, ideology, history, trait, wealth level,
+  resource, land type and the stability/popularity effects got at least one change, from the
+  owner's notes (e.g. Elected Monarchy +10 stability and popularity, Feudal Monarchy +20%
+  recruits, Monastic State +25 stability, Peace-loving +25 defence, Satanism much better at war)
+  plus small additions in the same spirit. Nothing was taken away. Nations are a bit more
+  stable and developed on average.
 - **A spreadsheet of what everything gives:** every government, ideology, history, trait,
   wealth level and resource, and what it does to each number, in one Excel workbook you
   can edit; a script puts your changes back into the game.
