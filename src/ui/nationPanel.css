@@ -7,9 +7,10 @@
   z-index: 5;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: stretch;
   gap: 8px;
-  max-width: calc(100vw - 24px);
+  /* Everything in the corner (stats, the nation's card, the record) is one width. */
+  width: min(420px, calc(100vw - 24px));
   pointer-events: none; /* only the boxes themselves catch clicks; the map stays usable around them */
   animation: np-in 0.5s cubic-bezier(0.2, 1.4, 0.4, 1);
 }
@@ -29,13 +30,13 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  max-width: 340px;
+  width: 100%;
   padding: 10px 14px 10px 10px;
   font: inherit;
-  color: #eef2f6;
+  color: var(--ink);
   text-align: left;
-  background: rgba(14, 22, 34, 0.86);
-  border: 1px solid rgba(127, 180, 230, 0.35);
+  background: rgba(26, 22, 17, 0.86);
+  border: 1px solid rgba(212, 176, 98, 0.35);
   border-radius: 10px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
   cursor: pointer;
@@ -44,14 +45,14 @@
 
 .np-summary:hover,
 #nation-panel.open .np-summary {
-  border-color: #7fb4e6;
-  background: rgba(18, 30, 48, 0.92);
+  border-color: var(--gold);
+  background: rgba(40, 33, 24, 0.92);
 }
 
 .np-summary .flag-frame {
   width: 54px;
   height: 40px;
-  color: #7fb4e6;
+  color: var(--gold);
 }
 
 .np-text {
@@ -73,11 +74,11 @@
   list-style: none;
   font-size: 12px;
   line-height: 1.45;
-  color: rgba(238, 242, 246, 0.85);
+  color: rgba(241, 232, 212, 0.85);
 }
 
 .np-fact-name {
-  color: rgba(238, 242, 246, 0.5);
+  color: rgba(241, 232, 212, 0.5);
 }
 
 .np-fact-name::after {
@@ -87,11 +88,11 @@
 .np-record {
   display: flex;
   flex-direction: column;
-  width: min(460px, calc(100vw - 24px));
+  width: 100%;
   max-height: calc(100vh - 150px);
   padding: 14px 16px 12px;
-  background: rgba(14, 22, 34, 0.94);
-  border: 1px solid rgba(127, 180, 230, 0.35);
+  background: rgba(26, 22, 17, 0.94);
+  border: 1px solid rgba(212, 176, 98, 0.35);
   border-radius: 10px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
   font-size: 13px;
@@ -127,7 +128,7 @@
   font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: #7fb4e6;
+  color: var(--gold);
 }
 
 .np-close {
@@ -135,7 +136,7 @@
   height: 28px;
   font-size: 20px;
   line-height: 1;
-  color: #eef2f6;
+  color: var(--ink);
   background: rgba(255, 255, 255, 0.06);
   border: 0;
   border-radius: 6px;
@@ -167,7 +168,7 @@
 
 .np-record th {
   font-weight: 500;
-  color: rgba(238, 242, 246, 0.55);
+  color: rgba(241, 232, 212, 0.55);
   white-space: nowrap;
 }
 
@@ -177,7 +178,7 @@
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #7fb4e6;
+  color: var(--gold);
   border-top: 0;
 }
 
@@ -194,7 +195,7 @@
 }
 
 .np-golden .np-result {
-  color: #ffd84a;
+  color: var(--gold-bright);
 }
 
 .np-record .nation-chart {
@@ -203,12 +204,12 @@
 
 .np-est {
   font-size: 12px;
-  color: #9cc6ee;
+  color: var(--gold-soft);
 }
 
 .np-odds {
   font-size: 11px;
-  color: rgba(238, 242, 246, 0.45);
+  color: rgba(241, 232, 212, 0.45);
   text-align: right !important;
   white-space: nowrap;
 }
@@ -224,7 +225,7 @@
 }
 
 .np-record dt {
-  color: rgba(238, 242, 246, 0.55);
+  color: rgba(241, 232, 212, 0.55);
 }
 
 .np-record dd {
@@ -235,13 +236,13 @@
 /* The stat sheet, above the nation's name. Point at a stat to see its breakdown. */
 
 .np-stats {
-  width: min(420px, calc(100vw - 24px));
+  width: 100%;
   max-height: calc(100vh - 170px);
   overflow: auto;
   padding: 6px 12px 10px;
-  color: #eef2f6;
-  background: linear-gradient(180deg, rgba(22, 34, 52, 0.93), rgba(12, 19, 30, 0.93));
-  border: 1px solid rgba(127, 180, 230, 0.28);
+  color: var(--ink);
+  background: linear-gradient(180deg, rgba(46, 39, 29, 0.93), rgba(20, 17, 13, 0.93));
+  border: 1px solid rgba(212, 176, 98, 0.28);
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   backdrop-filter: blur(6px);
@@ -263,7 +264,7 @@
   font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: #7fb4e6;
+  color: var(--gold);
   background: none;
   border: 0;
   cursor: pointer;
@@ -296,13 +297,13 @@
   align-items: center;
   gap: 6px;
   padding-bottom: 3px;
-  border-bottom: 1px solid rgba(127, 180, 230, 0.18);
+  border-bottom: 1px solid rgba(212, 176, 98, 0.18);
   margin: 8px 0 3px;
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(238, 242, 246, 0.45);
+  color: rgba(241, 232, 212, 0.45);
 }
 
 .np-stat {
@@ -319,7 +320,7 @@
 
 .np-stat:hover,
 .np-stat:focus-visible {
-  background: rgba(127, 180, 230, 0.14);
+  background: rgba(212, 176, 98, 0.14);
   outline: none;
 }
 
@@ -327,13 +328,13 @@
   flex: none;
   width: 13px;
   height: 13px;
-  color: #7fb4e6;
+  color: var(--gold);
   opacity: 0.85;
 }
 
 .np-stat-name {
   flex: 1;
-  color: rgba(238, 242, 246, 0.6);
+  color: rgba(241, 232, 212, 0.6);
 }
 
 .np-meter,
@@ -362,7 +363,7 @@
   width: 100%;
   padding-left: 19px;
   font-size: 10.5px;
-  color: #9cc6ee;
+  color: var(--gold-soft);
   text-align: right;
 }
 

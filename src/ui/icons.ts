@@ -59,8 +59,8 @@ export function icon(name: string | undefined, className = "icon"): string {
 /** A colour for a 0–100 score: red when low, amber in the middle, green when high. */
 export function scoreColor(v: number): string {
   const t = Math.max(0, Math.min(1, v / 100));
-  const hue = t * 125; // 0 red … 125 green
-  return `hsl(${Math.round(hue)} 70% 52%)`;
+  const hue = 8 + t * 100; // 8 brick red … 108 olive green
+  return `hsl(${Math.round(hue)} 52% 52%)`;
 }
 
 /** Colours for the ideology mix, picked by each ideology's place in the list. */

@@ -12,9 +12,9 @@
   gap: 4px;
   height: 52px;
   padding: 0 10px;
-  color: #eef2f6;
-  background: linear-gradient(180deg, rgba(22, 34, 52, 0.96), rgba(12, 19, 30, 0.94));
-  border-bottom: 1px solid rgba(127, 180, 230, 0.28);
+  color: var(--ink);
+  background: linear-gradient(180deg, rgba(46, 39, 29, 0.96), rgba(20, 17, 13, 0.94));
+  border-bottom: 1px solid rgba(212, 176, 98, 0.28);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
   backdrop-filter: blur(6px);
   font-size: 12.5px;
@@ -75,7 +75,7 @@ body.has-strip #nation-list {
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #7fb4e6;
+  color: var(--gold);
 }
 
 .nb-name {
@@ -114,7 +114,7 @@ body.has-strip #nation-list {
 
 .nb-item:hover,
 .nb-item:focus-visible {
-  background: rgba(127, 180, 230, 0.1);
+  background: rgba(212, 176, 98, 0.1);
   outline: none;
 }
 
@@ -122,7 +122,7 @@ body.has-strip #nation-list {
   flex: none;
   width: 18px;
   height: 18px;
-  color: #7fb4e6;
+  color: var(--gold);
 }
 
 .nb-text {
@@ -136,7 +136,7 @@ body.has-strip #nation-list {
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(238, 242, 246, 0.5);
+  color: rgba(241, 232, 212, 0.5);
 }
 
 .nb-value {
@@ -158,16 +158,16 @@ body.has-strip #nation-list {
 }
 
 .nb-delta.up {
-  color: #6fdc8c;
+  color: var(--up);
 }
 
 .nb-delta.down {
-  color: #ff7b72;
+  color: var(--down);
 }
 
 .nb-sub {
   font-size: 11px;
-  color: rgba(238, 242, 246, 0.5);
+  color: rgba(241, 232, 212, 0.5);
 }
 
 .nb-meter {
@@ -209,7 +209,7 @@ body.has-strip #nation-list {
   font: inherit;
   font-weight: 700;
   color: #1a1404;
-  background: #ffd23f;
+  background: var(--gold);
   border: 0;
   border-radius: 8px;
   cursor: pointer;

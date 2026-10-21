@@ -2,6 +2,19 @@
   box-sizing: border-box;
 }
 
+/* The look of the panels on the map, in the spirit of Victoria 3: dark ink panels with a thin
+   gold frame, cream text, and classical capitals (Cinzel) for names and headings. */
+:root {
+  --ink: #f1e8d4;
+  --gold: #d4b062;
+  --gold-bright: #f0d48a;
+  --gold-soft: #e6cf98;
+  --up: #93d17c;
+  --down: #e8806a;
+  --title-font: "Cinzel", Georgia, "Times New Roman", serif;
+  --frame: 0 8px 26px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 3px rgba(212, 176, 98, 0.1);
+}
+
 html,
 body {
   margin: 0;
@@ -9,7 +22,7 @@ body {
   overflow: hidden;
   background: #1b3354;
   font-family: system-ui, sans-serif;
-  color: #eef2f6;
+  color: var(--ink);
 }
 
 #map {
@@ -31,7 +44,7 @@ body {
   bottom: 12px;
   left: 12px;
   padding: 10px 14px;
-  background: rgba(14, 22, 34, 0.82);
+  background: rgba(26, 22, 17, 0.82);
   border-radius: 8px;
   font-size: 13px;
   line-height: 1.5;
@@ -63,7 +76,7 @@ body {
   padding: 0;
   font-size: 15px;
   line-height: 1;
-  color: #eef2f6;
+  color: var(--ink);
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 6px;
@@ -72,7 +85,7 @@ body {
 
 #hud .hud-toggle:hover,
 #hud .hud-toggle[aria-expanded="true"] {
-  background: rgba(127, 180, 230, 0.3);
+  background: rgba(212, 176, 98, 0.3);
 }
 
 #hud-more {
@@ -106,7 +119,7 @@ body {
 #start-menu .panel {
   width: min(360px, calc(100vw - 32px));
   padding: 28px 28px 24px;
-  background: rgba(14, 22, 34, 0.88);
+  background: rgba(26, 22, 17, 0.88);
   border-radius: 12px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
   text-align: center;
@@ -158,14 +171,14 @@ body {
 }
 
 .map-option:has(input:checked) {
-  border-color: #7fb4e6;
-  background: rgba(127, 180, 230, 0.12);
+  border-color: var(--gold);
+  background: rgba(212, 176, 98, 0.12);
 }
 
 .map-option input {
   grid-row: span 2;
   margin: 0;
-  accent-color: #7fb4e6;
+  accent-color: var(--gold);
 }
 
 .map-option .name {
@@ -191,14 +204,14 @@ body {
   font-size: 16px;
   font-weight: 600;
   color: #10203a;
-  background: #7fb4e6;
+  background: var(--gold);
   border: none;
   border-radius: 8px;
   cursor: pointer;
 }
 
 #start-menu .start:hover:not(:disabled) {
-  background: #9cc6ee;
+  background: var(--gold-soft);
 }
 
 #start-menu .start:disabled {
@@ -254,7 +267,7 @@ body {
   font-size: 13px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: rgba(238, 242, 246, 0.6);
+  color: rgba(241, 232, 212, 0.6);
   opacity: 0;
   pointer-events: none;
 }
@@ -279,4 +292,56 @@ body {
   #start-menu.leaving .panel {
     transform: none;
   }
+}
+
+/* ---- the shared panel look (see :root) */
+
+.np-summary,
+.np-stats,
+.np-record,
+#army-panel,
+#nation-list,
+#hud,
+.ui-tip,
+#place-bar .pb-main {
+  border: 1px solid rgba(212, 176, 98, 0.55) !important;
+  box-shadow: var(--frame) !important;
+}
+
+#nation-bar {
+  border-bottom: 1px solid rgba(212, 176, 98, 0.6);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.6), 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+
+/* Names and headings in classical capitals. */
+.np-name,
+.np-record h2,
+.np-record-name,
+.np-stats-toggle,
+.np-stat-group h3,
+.nb-name,
+.nb-you,
+.ap-name,
+.ap-kicker,
+#hud .title,
+.nl-title,
+.ui-tip-title {
+  font-family: var(--title-font) !important;
+}
+
+.np-name,
+.nb-name,
+.ap-name,
+.np-record-name {
+  letter-spacing: 0.03em;
+}
+
+/* Gold buttons, like the ornate ones in Paradox games. */
+.nb-army,
+.ap-btn.primary {
+  color: #22190a !important;
+  background: linear-gradient(180deg, #ecd08a, #c49a4a 55%, #a87f36) !important;
+  border: 1px solid #6b5020 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 245, 210, 0.6), 0 2px 6px rgba(0, 0, 0, 0.45) !important;
+  font-family: var(--title-font) !important;
 }

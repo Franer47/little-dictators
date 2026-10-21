@@ -1,3 +1,5 @@
+import "@fontsource/cinzel/600.css";
+import "@fontsource/cinzel/700.css";
 import { loadMap } from "./map/gameMap.ts";
 import { TERRAINS } from "./map/terrain.ts";
 import { pixelToLonLat } from "./map/projection.ts";
@@ -184,6 +186,8 @@ async function main(): Promise<void> {
     );
   }
   requestAnimationFrame(frame);
+  // Nation names on the map use Cinzel: draw again once the font has loaded.
+  void document.fonts.load('700 16px "Cinzel"').then(requestRender);
 
   // The map waits behind the wheel screen until the nation is made.
   controls.enabled = false;

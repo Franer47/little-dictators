@@ -1,7 +1,8 @@
 // Army flags on the map: one little flag per division in its nation's colour, with its troops.
 // Flags only show when zoomed in close (further out they'd cover the map). Up close, a nation's
 // flags that would overlap merge into one with their total; zoom in more to see every division.
-// The nation whose Army section is open shows its flags from further out (one flag per army). Divisions in training have a striped flag; the selected one is gold.
+// The nation whose Army section is open shows its flags from further out (one flag per army).
+// Divisions in training have a striped flag; the selected one is gold.
 
 import type { Division } from "../game/army.ts";
 import { compactNumber } from "../game/numbers.ts";
@@ -13,10 +14,8 @@ const MIN_ZOOM = 7;
 const FOCUS_MIN_ZOOM = 1.5;
 /** Below this zoom each nation's army is one flag. */
 const WHOLE_ARMY_ZOOM = 5;
-/** Further in, a nation's flags closer than this (CSS pixels) merge: wider at middle zoom. */
-function mergePx(zoom: number): number {
-  return zoom < 9 ? 56 : 30;
-}
+/** About how close (CSS pixels) a nation's flags may stand before they merge. */
+const MERGE_PX = 44;
 
 interface Hit {
   /** Where the flag is drawn, CSS pixels. */
@@ -28,19 +27,29 @@ interface Hit {
   indices: number[];
 }
 
+/** Adds up the divisions of one flag while grouping. */
+interface Sum {
+  nation: number;
+  troops: number;
+  training: number;
+  indices: number[];
+  refX: number;
+  dx: number;
+  y: number;
+}
+
+/** One flag on the map: one division, or several merged. Positions in map pixels. */
 interface Group {
   nation: number;
   troops: number;
-  count: number;
-  sx: number;
-  sy: number;
+  x: number;
+  y: number;
   training: number;
-  selected: boolean;
   indices: number[];
 }
 
 export class DivisionLayer implements MapOverlay {
-  divisions: Division[] = [];
+  private list: Division[] = [];
   /** Each nation's colour, by id. */
   colorOf: (nation: number) => string = () => "#888";
   selected: { nation: number; index: number } | null = null;
@@ -48,53 +57,89 @@ export class DivisionLayer implements MapOverlay {
   focus = 0;
   visible = true;
   private hits: Hit[] = [];
+  /**
+   * The merged flags for each zoom step, worked out once. Flags are merged on a grid fixed to
+   * the map (not the screen), and the grid only changes when the zoom passes a power of two,
+   * so dragging the map never changes which flags are merged.
+   */
+  private cache = new Map<number, Group[]>();
+
+  get divisions(): Division[] {
+    return this.list;
+  }
+
+  set divisions(list: Division[]) {
+    this.list = list;
+    this.cache.clear();
+  }
+
+  /** The flags at zoom step `step` (-1 = one flag per army). */
+  private groupsAt(step: number): Group[] {
+    const cached = this.cache.get(step);
+    if (cached) return cached;
+    // Map pixels per grid cell: about MERGE_PX on screen at this step's zoom (2^step).
+    const cell = step < 0 ? 0 : MERGE_PX / 2 ** step;
+    const w = this.mapWidth;
+    const byKey = new Map<number, Sum>();
+    for (const d of this.list) {
+      const key = step < 0 ? d.nation : (d.nation * 4096 + Math.floor(d.x / cell)) * 4096 + Math.floor(d.y / cell);
+      let sum = byKey.get(key);
+      if (!sum) byKey.set(key, (sum = { nation: d.nation, troops: 0, training: 0, indices: [], refX: d.x, dx: 0, y: 0 }));
+      // x is measured from the group's first flag, so an army across the map's seam stays together.
+      let dx = d.x - sum.refX;
+      if (w && Math.abs(dx) > w / 2) dx -= Math.sign(dx) * w;
+      sum.dx += dx;
+      sum.y += d.y;
+      sum.troops += d.troops;
+      if (d.training) sum.training++;
+      sum.indices.push(d.index);
+    }
+    const groups = [...byKey.values()].map((s) => {
+      const n = s.indices.length;
+      return { nation: s.nation, troops: s.troops, x: s.refX + s.dx / n, y: s.y / n, training: s.training, indices: s.indices };
+    });
+    this.cache.set(step, groups);
+    return groups;
+  }
+
+  /** The map's width in pixels (from the last frame), for armies across its seam. */
+  private mapWidth = 0;
 
   draw(ctx: CanvasRenderingContext2D, v: MapView): void {
     this.hits = [];
+    this.mapWidth = v.mapWidth;
     const zoom = v.scale / v.dpr;
-    if (!this.visible || !this.divisions.length) return;
+    if (!this.visible || !this.list.length) return;
     const onlyFocus = zoom < MIN_ZOOM;
     if (onlyFocus && (!this.focus || zoom < FOCUS_MIN_ZOOM)) return;
-    const cell = mergePx(zoom) * v.dpr;
-    const groups = new Map<number, Group>();
+    const step = zoom < WHOLE_ARMY_ZOOM ? -1 : Math.floor(Math.log2(zoom));
+    const sel = this.selected;
     const margin = 40 * v.dpr;
-    for (const d of this.divisions) {
-      if (onlyFocus && d.nation !== this.focus) continue;
+    const shown: { g: Group; x: number; y: number; selected: boolean }[] = [];
+    for (const g of this.groupsAt(step)) {
+      if (onlyFocus && g.nation !== this.focus) continue;
       for (const k of v.copies) {
-        const sx = v.offsetX + (d.x + 0.5 + k * v.mapWidth) * v.scale;
-        const sy = v.offsetY + (d.y + 0.5) * v.scale;
-        if (sx < -margin || sx > v.screenWidth + margin || sy < -margin || sy > v.screenHeight + margin) continue;
-        // One number per (nation, cell), or per (nation, map copy) for whole armies: cells are
-        // well under 2,048 a side on any screen.
-        const key = zoom < WHOLE_ARMY_ZOOM ? -(d.nation * 16 + k + 8) : (d.nation * 2048 + Math.floor(sx / cell) + 1) * 2048 + Math.floor(sy / cell) + 1;
-        let g = groups.get(key);
-        if (!g) groups.set(key, (g = { nation: d.nation, troops: 0, count: 0, sx: 0, sy: 0, training: 0, selected: false, indices: [] }));
-        g.troops += d.troops;
-        g.count++;
-        g.sx += sx;
-        g.sy += sy;
-        if (d.training) g.training++;
-        if (this.selected && this.selected.nation === d.nation && this.selected.index === d.index) g.selected = true;
-        g.indices.push(d.index);
+        const x = Math.round(v.offsetX + (g.x + 0.5 + k * v.mapWidth) * v.scale);
+        const y = Math.round(v.offsetY + (g.y + 0.5) * v.scale);
+        if (x < -margin || x > v.screenWidth + margin || y < -margin || y > v.screenHeight + margin) continue;
+        shown.push({ g, x, y, selected: !!sel && sel.nation === g.nation && g.indices.includes(sel.index) });
       }
     }
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     const u = v.dpr;
-    ctx.font = `700 ${10 * u}px system-ui, sans-serif`;
+    ctx.font = `700 ${10 * u}px Georgia, "Times New Roman", serif`;
     ctx.textBaseline = "middle";
     // Selected last, so it's drawn on top.
-    const list = [...groups.values()].sort((a, b) => Number(a.selected) - Number(b.selected));
-    for (const g of list) {
-      const x = Math.round(g.sx / g.count);
-      const y = Math.round(g.sy / g.count);
-      this.drawFlag(ctx, x, y, u, g);
+    shown.sort((a, b) => Number(a.selected) - Number(b.selected));
+    for (const { g, x, y, selected } of shown) {
+      this.drawFlag(ctx, x, y, u, g, selected);
       this.hits.push({ x0: (x - 3 * u) / u, y0: (y - 22 * u) / u, x1: (x + 40 * u) / u, y1: (y + 2 * u) / u, nation: g.nation, indices: g.indices });
     }
     ctx.restore();
   }
 
-  private drawFlag(ctx: CanvasRenderingContext2D, x: number, y: number, u: number, g: Group): void {
+  private drawFlag(ctx: CanvasRenderingContext2D, x: number, y: number, u: number, g: Group, selected: boolean): void {
     const color = this.colorOf(g.nation);
     const poleTop = y - 20 * u;
     const w = 15 * u;
@@ -133,18 +178,18 @@ export class DivisionLayer implements MapOverlay {
       }
       ctx.restore();
     }
-    ctx.lineWidth = (g.selected ? 2.2 : 1.2) * u;
-    ctx.strokeStyle = g.selected ? "#ffd84a" : "rgba(10, 14, 22, 0.85)";
+    ctx.lineWidth = (selected ? 2.2 : 1.2) * u;
+    ctx.strokeStyle = selected ? "#f0d48a" : "rgba(10, 14, 22, 0.85)";
     ctx.stroke();
     // Troops (and how many divisions, when merged) on a dark tag next to the cloth.
     const text = compactNumber(g.troops, ["K", "M", "B"]);
     const tw = text.length * 6.1 * u + 6 * u;
     const tx = x + w + 2 * u;
     const ty = poleTop + h / 2;
-    ctx.fillStyle = g.selected ? "rgba(70, 54, 8, 0.92)" : "rgba(12, 18, 28, 0.85)";
+    ctx.fillStyle = selected ? "rgba(70, 54, 8, 0.92)" : "rgba(26, 22, 17, 0.88)";
     roundRect(ctx, tx, ty - 6 * u, tw, 12 * u, 3 * u);
     ctx.fill();
-    ctx.fillStyle = g.selected ? "#ffd84a" : "#eef2f6";
+    ctx.fillStyle = selected ? "#f0d48a" : "#f1e8d4";
     ctx.fillText(text, tx + 3 * u, ty + 0.5 * u);
   }
 

@@ -8,8 +8,11 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 ### Changed
 - **The map info is folded away.** What's under the mouse (terrain, height, position) and
   the controls now hide behind the ⓘ button in the bottom-left corner; click it to show them.
-- **A cleaner look for the panels:** small icons for every stat, coloured meters for the
-  0–100 scores, green and red for going up and down.
+- **A look in the spirit of Victoria 3:** dark ink panels with thin gold frames, cream text,
+  gold buttons and classical capitals (the Cinzel font) for names and headings, on the map
+  too; small icons for every stat, coloured meters for the 0–100 scores, green and red for
+  going up and down. The stats and the nation's card in the bottom-right corner are now the
+  same width.
 - **Fairer nation sizes north and south.** The biggest-looking nations were all in Europe
   and the far north because the flat map stretches land away from the equator (a pixel in
   Europe covers about half the km² of one in Africa). A nation's land is now scaled
@@ -81,7 +84,7 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
   believe. Click the name to open your nation.
 - **Armies on the map.** Every nation's army is split into divisions of 400 troops, each a
   little flag along its borders. Zoom in close to see them (nearby flags merge into one with
-  the total). Click a flag or the **Army** button to see a nation's divisions; for your own
+  the total, and dragging the map doesn't change how they're merged). Click a flag or the **Army** button to see a nation's divisions; for your own
   nation you can ask for a new division or a bigger one, and it agrees or refuses (not
   enough money, men or stability) and tells you why.
 - **Nation names on the map**, written across each nation's land, tilted along it and sized

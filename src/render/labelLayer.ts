@@ -15,7 +15,7 @@ interface Label {
 const MIN_PX = 8;
 const MAX_PX = 56;
 /** Rough width of one capital letter (with its spacing) compared with the font size. */
-const CHAR_WIDTH = 0.78;
+const CHAR_WIDTH = 0.86;
 
 export class LabelLayer implements MapOverlay {
   private labels: Label[] = [];
@@ -50,8 +50,8 @@ export class LabelLayer implements MapOverlay {
         if (sx + reach < 0 || sx - reach > v.screenWidth || sy + reach < 0 || sy - reach > v.screenHeight) continue;
         ctx.setTransform(1, 0, 0, 1, sx, sy);
         ctx.rotate(spot.angle);
-        ctx.font = `700 ${px.toFixed(1)}px Georgia, "Times New Roman", serif`;
-        ctx.letterSpacing = `${(px * 0.16).toFixed(1)}px`;
+        ctx.font = `700 ${px.toFixed(1)}px Cinzel, Georgia, "Times New Roman", serif`;
+        ctx.letterSpacing = `${(px * 0.12).toFixed(1)}px`;
         // Fade the biggest names a little so they don't shout over the map.
         const alpha = css > 30 ? 0.62 : 0.85;
         ctx.lineWidth = Math.max(2, px * 0.14);
