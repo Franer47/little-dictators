@@ -33,6 +33,11 @@ export interface GrowthRules {
   wobble: number;
   /** Free pockets of up to this many pixels inside a nation's land are filled in (adding at most a tenth of its size). */
   holeSize: number;
+  /**
+   * Evens out the flat map's stretching away from the equator (see targetFor): 0 = real km²
+   * (northern nations look bigger), 1 = the same size on the map, 0.5 = halfway.
+   */
+  latitudeBalance?: number;
 }
 
 export interface StartRules {
@@ -188,6 +193,8 @@ export interface Holding {
   start: [number, number];
   /** The land size it rolled on the wheel, km². */
   rolledArea: number;
+  /** What it was meant to get here, km²: the roll, evened out for the latitude (see targetFor). */
+  targetArea: number;
   /** The land it actually got, km² (smaller if it was boxed in by sea or other nations). */
   area: number;
   /** Its pixels, in the order they were taken (the growth animation plays them in this order). */
@@ -216,6 +223,8 @@ export class Territory {
   private boxQueue = new Int32Array(0);
   /** Per pixel: the size (km²) of the free pocket it was in at the last survey (good pockets only). */
   private pocketArea: Float32Array;
+  /** The area of a pixel at the equator (the biggest), km². */
+  private readonly biggestPixel: number;
 
   constructor(
     readonly map: GameMap,
@@ -227,9 +236,21 @@ export class Territory {
     this.seen = new Uint32Array(size);
     this.pocketArea = new Float32Array(size);
     this.areas = rowAreas(map);
+    this.biggestPixel = Math.max(...this.areas);
     for (const [name, cost] of Object.entries(rules.cost)) {
       if (typeof cost === "number" && cost > 0) this.cost[Terrain[name as keyof typeof Terrain]] = cost;
     }
+  }
+
+  /**
+   * The land a nation that rolled `rolled` km² should get when it starts in map row y. The
+   * flat map stretches land away from the equator (a pixel in Europe covers about half the
+   * km² of one in Africa), so equal rolls would look about twice as big up north. This scales
+   * the km² by (pixel area here / pixel area at the equator) ^ latitudeBalance.
+   */
+  targetFor(rolled: number, y: number): number {
+    const balance = this.rules.latitudeBalance ?? 0;
+    return balance > 0 ? rolled * (this.areas[y] / this.biggestPixel) ** balance : rolled;
   }
 
   /** True if this kind of land can ever be owned (not sea, lakes or ice). */
@@ -290,7 +311,7 @@ export class Territory {
     if (!this.isFree(x, y)) throw new Error(`Pixel (${x}, ${y}) can't be settled`);
     const id = this.holdings.length + 1;
     const { pixels, area } = this.grow(id, x, y, targetArea, seed);
-    const holding: Holding = { id, start: [x, y], rolledArea: targetArea, area, pixels };
+    const holding: Holding = { id, start: [x, y], rolledArea: targetArea, targetArea: this.targetFor(targetArea, y), area, pixels };
     this.holdings.push(holding);
     return holding;
   }
@@ -598,7 +619,8 @@ export class Territory {
   }
 
   /** The growth itself (see the top of this file). Writes `id` into the grid as it goes. */
-  private grow(id: number, sx: number, sy: number, targetArea: number, seed: number): { pixels: Int32Array; area: number } {
+  private grow(id: number, sx: number, sy: number, rolledArea: number, seed: number): { pixels: Int32Array; area: number } {
+    const targetArea = this.targetFor(rolledArea, sy);
     const { width, height, terrain } = this.map;
     const { owner, key, seen, cost, areas, rules } = this;
     if (++this.stamp === 0xffffffff) {

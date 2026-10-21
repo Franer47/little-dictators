@@ -137,7 +137,7 @@ export class Placement {
     }
     const [x, y] = p;
     // About the size it will grow to, as a circle.
-    const radius = Math.sqrt(rolledArea(this.pending.nation) / this.territory.areas[y] / Math.PI);
+    const radius = Math.sqrt(this.territory.targetFor(rolledArea(this.pending.nation), y) / this.territory.areas[y] / Math.PI);
     renderer.preview = { radius, color: this.pending.color, valid: !this.whyNot(x, y) };
   }
 
@@ -458,7 +458,7 @@ export class Placement {
     if (placed) {
       showNationPanel(placed.nation, this.opts.wheels, {
         color: placed.color,
-        land: { rolled: placed.holding.rolledArea, actual: placed.holding.area },
+        land: { rolled: placed.holding.rolledArea, target: placed.holding.targetArea, actual: placed.holding.area },
       });
     } else if (this.pending) {
       this.shownId = 0;
@@ -530,7 +530,7 @@ export class Placement {
     } else if (this.state === "idle") {
       const last = this.nations[this.nations.length - 1];
       const info = last
-        ? `${swatch(last.color)}<span><b>${escapeHtml(last.nation.name)}</b> · Land ${escapeHtml(landText({ rolled: last.holding.rolledArea, actual: last.holding.area }, this.opts.wheels))}</span>`
+        ? `${swatch(last.color)}<span><b>${escapeHtml(last.nation.name)}</b> · Land ${escapeHtml(landText({ rolled: last.holding.rolledArea, target: last.holding.targetArea, actual: last.holding.area }, this.opts.wheels))}</span>`
         : `<span>The map is empty.</span>`;
       html = `<div class="pb-main">${info}<button type="button" data-action="next" class="pb-next">${last ? "Next nation" : "New nation"}</button></div>`;
     }
@@ -558,7 +558,7 @@ export class Placement {
     this.list.querySelector(".nl-rows")!.innerHTML = (open ? byLand : shortList)
       .map((n, i) => {
         const gap = !open && n === mine && byLand.indexOf(n) > i ? " gap" : "";
-        const short = n.holding.area < n.holding.rolledArea * 0.995;
+        const short = n.holding.area < n.holding.targetArea * 0.995;
         const title = short ? `${km(n.holding.area)} km² of ${km(n.holding.rolledArea)} km² rolled (boxed in)` : `${km(n.holding.area)} km²`;
         return `<li data-id="${n.holding.id}" class="${n.holding.id === this.shownId ? "selected" : ""}${gap}" title="${escapeHtml(title)}">
           <span class="nl-swatch" style="background:${escapeHtml(n.color)}"></span>

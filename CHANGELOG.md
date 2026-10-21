@@ -6,6 +6,11 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 ## Unreleased
 
 ### Changed
+- **Fairer nation sizes north and south.** The biggest-looking nations were all in Europe
+  and the far north because the flat map stretches land away from the equator (a pixel in
+  Europe covers about half the km² of one in Africa). A nation's land is now scaled
+  halfway for where it starts, so an equal roll up north looks about 1.1–1.6× as big as one
+  near the equator instead of 1.3–2.3×. The panel still shows the real km² it got.
 - **Nations go anywhere in the world now, not just Europe.** Place your own nation
   anywhere on Earth (except Antarctica), then keep making nations yourself or press
   **Fill the world**: about 800–1,000 nations in about 3 seconds, and you can watch the

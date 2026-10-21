@@ -205,7 +205,16 @@ filled. Every pixel counts with its **real area in km²** (pixels further north
 cover less ground), and growth stops when the nation has its rolled size, so a 340,000
 km² roll gets ~340,000 km². If it's boxed in by the sea or other nations first, it stays
 smaller, and the panel says so: "Land: 101,254 km² (rolled 240,000)". (A nation that
-fills Iceland gets ~101,000 km²; the real Iceland is 103,000 km².) The same seed and the
+fills Iceland gets ~101,000 km²; the real Iceland is 103,000 km².)
+
+**Fair sizes north and south.** The flat map stretches land away from the equator: a
+pixel in Europe covers about half the km² of one in Africa, so a nation with the same real
+size looked about twice as big up north (the same reason Greenland looks huge on maps). To
+even that out halfway, a nation's land is scaled by where it starts:
+rolled km² × (pixel area there / pixel area at the equator) ^ 0.5. A 400,000 km² roll in
+Africa gets ~400,000 km²; in Europe ~280,000 km², which still looks about 1.1–1.4× as big on
+the map instead of 2×. The panel always shows the real km² the nation got. (Setting:
+`growth.latitudeBalance`: 0 = real km², 1 = the same size on the map.) The same seed and the
 same clicks always give the same map.
 
 **The land wheel follows the map.** The fuller the world gets, the rarer the big land
