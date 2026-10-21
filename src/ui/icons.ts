@@ -1,4 +1,9 @@
-// Small line icons for the stats (16×16, drawn in the text colour).
+// Small icons for the stats (16×16). Each stat has its own colour (money gold, people green,
+// military red, sea blue…), shown as a little tinted badge; stats that judge the nation
+// (stability, popularity, growth, net income…) take a colour from how good they are, and
+// warnings pulse.
+
+import type { Stat } from "../game/stats.ts";
 
 const PATHS: Record<string, string> = {
   coin: '<circle cx="8" cy="8" r="6"/><path d="M10 5.6H7.2a1.4 1.4 0 0 0 0 2.8h1.6a1.4 1.4 0 0 1 0 2.8H6M8 4.2v7.6"/>',
@@ -48,15 +53,68 @@ export const STAT_ICONS: Record<string, string> = {
   cohesion: "link",
 };
 
+/** Icons with closed shapes get a soft fill in their colour; line icons stay lines. */
+const FILLED = new Set(["coin", "chest", "people", "heart", "star", "flame", "flag", "book", "mountain", "shield", "anchor", "outflow"]);
+
 /** An inline SVG icon by name (empty if there's no such icon). */
 export function icon(name: string | undefined, className = "icon"): string {
   const path = name ? PATHS[name] : undefined;
+  const fill = name && FILLED.has(name) ? 'fill="currentColor" fill-opacity="0.28"' : 'fill="none"';
   return path
-    ? `<svg class="${className}" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`
+    ? `<svg class="${className}" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" ${fill} stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`
     : "";
 }
 
-/** A colour for a 0–100 score: red when low, amber in the middle, green when high. */
+/** Each stat's own colour. */
+export const STAT_COLORS: Record<string, string> = {
+  manpower: "#e07a6a",
+  army: "#e0604f",
+  armyQuality: "#e8a25a",
+  aggression: "#f06a3c",
+  gdp: "#e6c25a",
+  income: "#f0c84e",
+  upkeep: "#d0905a",
+  net: "#f0c84e",
+  treasury: "#f2c24a",
+  population: "#86cf72",
+  growth: "#86cf72",
+  food: "#dcc15e",
+  stability: "#8fb8e0",
+  popularity: "#ea7fa2",
+  ideology: "#b494ec",
+  development: "#5fcbbd",
+  land: "#c4a06a",
+  access: "#62b0e6",
+  defence: "#a8bccf",
+  trade: "#eca94a",
+  naval: "#5f95ec",
+  cohesion: "#6fd0a4",
+};
+
+/** Stats whose colour shows how good they are (0–100 scores: red when low, green when high). */
+const JUDGED = new Set(["stability", "popularity", "development", "cohesion"]);
+
+/** The colour for a stat now: its own, or red-to-green for judged scores, red/green by sign for changes. */
+export function statColor(stat: Stat): string {
+  if (stat.warn) return "#e8806a";
+  if (JUDGED.has(stat.id)) return scoreColor(stat.value);
+  if (stat.id === "growth" || stat.id === "net") return stat.value >= 0 ? "#93d17c" : "#e8806a";
+  return STAT_COLORS[stat.id] ?? "#d4b062";
+}
+
+/** A stat's icon as a little tinted badge in its colour; it pulses when something's wrong. */
+export function statIcon(stat: Stat): string {
+  const color = statColor(stat);
+  const alarm = stat.warn || (JUDGED.has(stat.id) && stat.value < 20) || (stat.id === "growth" && stat.value < 0);
+  return badge(STAT_ICONS[stat.id], color, alarm);
+}
+
+/** An icon in a tinted badge of `color`. */
+export function badge(name: string | undefined, color: string, alarm = false): string {
+  return `<span class="ic${alarm ? " alarm" : ""}" style="--ic:${color}">${icon(name)}</span>`;
+}
+
+/** A colour for a 0–100 score: brick red when low, amber in the middle, olive green when high. */
 export function scoreColor(v: number): string {
   const t = Math.max(0, Math.min(1, v / 100));
   const hue = 8 + t * 100; // 8 brick red … 108 olive green

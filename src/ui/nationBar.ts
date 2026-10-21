@@ -5,7 +5,7 @@
 import "./nationBar.css";
 import type { StatSheet, StatsData } from "../game/stats.ts";
 import { escapeHtml, hoverTips } from "./uiBits.ts";
-import { STAT_ICONS, icon, ideologyColor, scoreColor } from "./icons.ts";
+import { badge, icon, ideologyColor, scoreColor, statIcon } from "./icons.ts";
 
 export interface NationBarInfo {
   name: string;
@@ -53,7 +53,7 @@ export function showNationBar(info: NationBarInfo | null): void {
     `<span class="nb-delta ${v >= 0 ? "up" : "down"}">${v >= 0 ? "▲" : "▼"} ${escapeHtml(text.replace(/^[+−-]/, ""))}</span>`;
   const meter = (v: number): string => `<span class="nb-meter"><span style="width:${Math.max(2, Math.min(100, v))}%;background:${scoreColor(v)}"></span></span>`;
   const item = (id: keyof StatSheet["stats"], label: string, value: string): string =>
-    `<div class="nb-item" data-stat="${id}" tabindex="0">${icon(STAT_ICONS[id])}<span class="nb-text"><span class="nb-label">${escapeHtml(label)}</span><span class="nb-value">${value}</span></span></div>`;
+    `<div class="nb-item" data-stat="${id}" tabindex="0">${statIcon(s[id])}<span class="nb-text"><span class="nb-label">${escapeHtml(label)}</span><span class="nb-value">${value}</span></span></div>`;
   const score = (id: "stability" | "popularity" | "development", label: string): string =>
     item(id, label, `<b style="color:${scoreColor(s[id].value)}">${Math.round(s[id].value)}</b>${meter(s[id].value)}`);
 
@@ -80,7 +80,7 @@ export function showNationBar(info: NationBarInfo | null): void {
       ${score("development", "Development")}
       ${
         main
-          ? `<div class="nb-item nb-ideology" data-stat="ideology" tabindex="0">${icon(STAT_ICONS.ideology)}<span class="nb-text"><span class="nb-label">Ideology</span><span class="nb-value"><b>${escapeHtml(main.label)} ${Math.round(main.share * 100)}%</b></span><span class="nb-stack">${segments}</span></span></div>`
+          ? `<div class="nb-item nb-ideology" data-stat="ideology" tabindex="0">${badge("flag", colorOf(main.id))}<span class="nb-text"><span class="nb-label">Ideology</span><span class="nb-value"><b>${escapeHtml(main.label)} ${Math.round(main.share * 100)}%</b></span><span class="nb-stack">${segments}</span></span></div>`
           : ""
       }
     </div>

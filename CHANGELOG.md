@@ -8,6 +8,11 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 ### Changed
 - **The map info is folded away.** What's under the mouse (terrain, height, position) and
   the controls now hide behind the ⓘ button in the bottom-left corner; click it to show them.
+- **Every click does something:** click a stat to keep its breakdown open (with a close
+  button); buttons and rows dip and light up while pressed. Stat icons now have colours
+  that mean something (money gold, people green, military red, sea blue; stability and the
+  like from red to green by how good they are), hop when you point at them, and pulse when
+  something's wrong.
 - **A look in the spirit of Victoria 3:** dark ink panels with thin gold frames, cream text,
   gold buttons and classical capitals (the Cinzel font) for names and headings, on the map
   too; small icons for every stat, coloured meters for the 0–100 scores, green and red for

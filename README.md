@@ -276,6 +276,14 @@ along it and as big as it fits, like on a Paradox map.
 
 ![The top strip, nation names and the stat sheet](docs/stats-panel.jpg)
 
+**Click** any stat (in the strip, the stat sheet or the creation record) to keep its
+breakdown open; click it again, press Esc or click anywhere else to close it. Every stat has
+its own coloured icon (money gold, people green, military red, sea blue…); stability,
+popularity, development, cohesion, growth and net income are coloured by how good they are,
+and an icon pulses when something's wrong (starving, losing money, about to collapse).
+
+![A pinned breakdown](docs/stats-breakdown.jpg)
+
 The stats come from the wheel results **and the land the nation actually got**: a nation
 boxed in by its neighbours has fewer people than it rolled, and mountains, coasts and
 rivers change food, defence, trade and ships. Money is in today's US dollars.

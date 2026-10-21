@@ -8,9 +8,9 @@ import "./nationPanel.css";
 import { describeOutcome, type Nation } from "../game/nation.ts";
 import { resultGroups, type WheelData } from "../game/wheels.ts";
 import type { StatSheet, StatsData } from "../game/stats.ts";
-import { escapeHtml, flagPlaceholder, formatText, hoverTips, nationChart, oddsText, outcomeTip } from "./uiBits.ts";
+import { escapeHtml, flagPlaceholder, formatText, hideTips, hoverTips, nationChart, oddsText, outcomeTip } from "./uiBits.ts";
 import { loadPref, savePref } from "./prefs.ts";
-import { STAT_ICONS, icon, ideologyColor, scoreColor } from "./icons.ts";
+import { badge, ideologyColor, scoreColor, statIcon } from "./icons.ts";
 
 export interface PanelExtras {
   /** The nation's colour, shown as its flag. */
@@ -140,6 +140,7 @@ export function showNationPanel(nation: Nation, data: WheelData, extras: PanelEx
 
 /** Removes the panel (if one is showing). */
 export function closeNationPanel(): void {
+  hideTips();
   lastPanel?.abort();
   lastPanel = null;
   document.getElementById("nation-panel")?.remove();
@@ -169,6 +170,7 @@ function statsBox(sheet: StatSheet, data: StatsData): string {
         .join("")}</span>`
     : "";
   const groupIcons: Record<string, string> = { military: "swords", economy: "coin", people: "people", land: "mountain" };
+  const groupColors: Record<string, string> = { military: "#e0604f", economy: "#f0c84e", people: "#86cf72", land: "#c4a06a" };
   const groups = data.groups
     .map((g) => {
       const rows = g.stats
@@ -184,12 +186,12 @@ function statsBox(sheet: StatSheet, data: StatsData): string {
                 ? `<span class="np-stat-detail">${escapeHtml(s.detail)}</span>`
                 : "";
           return `<div class="np-stat${s.warn ? " warn" : ""}" data-stat="${s.id}" tabindex="0">
-            ${icon(STAT_ICONS[s.id])}<span class="np-stat-name">${escapeHtml(s.short)}</span>
+            ${statIcon(s)}<span class="np-stat-name">${escapeHtml(s.short)}</span>
             <span class="np-stat-val">${val}</span>${under}
           </div>`;
         })
         .join("");
-      return `<section class="np-stat-group"><h3>${icon(groupIcons[g.id])}${escapeHtml(g.name)}</h3>${rows}</section>`;
+      return `<section class="np-stat-group"><h3>${badge(groupIcons[g.id], groupColors[g.id] ?? "#d4b062")}${escapeHtml(g.name)}</h3>${rows}</section>`;
     })
     .join("");
   return `<div class="np-stats${open ? "" : " collapsed"}">

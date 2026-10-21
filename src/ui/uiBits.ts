@@ -99,13 +99,27 @@ export function outcomeTip(outcome: WheelOutcome, oddsLabel: string): Tip {
 }
 
 let tipBox: HTMLDivElement | null = null;
+/** The element whose tip was clicked open ("pinned"): it stays until closed or another is clicked. */
+let pinnedEl: HTMLElement | null = null;
+let pinListeners = false;
+
+function unpin(): void {
+  pinnedEl?.classList.remove("tip-pinned");
+  pinnedEl = null;
+  if (tipBox) {
+    tipBox.classList.remove("pinned");
+    tipBox.hidden = true;
+  }
+}
 
 /**
  * Hover (or keyboard focus) on an element matching `selector` inside `root` shows a tip
- * box next to it. `tipFor` says what's in it, or null for no tip.
+ * box next to it. Clicking it (or Enter / Space) pins the tip open, with a close button, so
+ * a press always does something; clicking it again, anywhere else or Esc closes it.
+ * `tipFor` says what's in the tip, or null for none.
  */
 export function hoverTips(root: HTMLElement, selector: string, tipFor: (el: HTMLElement) => Tip | null): void {
-  const show = (el: HTMLElement): void => {
+  const show = (el: HTMLElement, pin = false): void => {
     const tip = tipFor(el);
     if (!tip) return hide();
     if (!tipBox) {
@@ -113,13 +127,16 @@ export function hoverTips(root: HTMLElement, selector: string, tipFor: (el: HTML
       tipBox.className = "ui-tip";
       tipBox.setAttribute("role", "tooltip");
       document.body.append(tipBox);
+      tipBox.addEventListener("click", (e) => {
+        if ((e.target as HTMLElement).closest(".ui-tip-close")) unpin();
+      });
     }
     const box = tipBox;
-    box.className = `ui-tip${tip.kind ? ` ${tip.kind}` : ""}`;
-    box.innerHTML = `<div class="ui-tip-title"></div><div class="ui-tip-text"></div><div class="ui-tip-small"></div>`;
-    box.children[0].textContent = tip.title;
-    box.children[1].textContent = tip.text;
-    box.children[2].textContent = tip.small ?? "";
+    box.className = `ui-tip${tip.kind ? ` ${tip.kind}` : ""}${pin ? " pinned" : ""}`;
+    box.innerHTML = `<button type="button" class="ui-tip-close" aria-label="Close" title="Close (Esc)">×</button><div class="ui-tip-title"></div><div class="ui-tip-text"></div><div class="ui-tip-small"></div><div class="ui-tip-hint">Click to keep this open</div>`;
+    box.children[1].textContent = tip.title;
+    box.children[2].textContent = tip.text;
+    box.children[3].textContent = tip.small ?? "";
     box.hidden = false;
     // Just under the element, lined up with its left edge; above it if there's no room below.
     const r = el.getBoundingClientRect();
@@ -132,24 +149,58 @@ export function hoverTips(root: HTMLElement, selector: string, tipFor: (el: HTML
     box.style.top = `${Math.max(8, Math.min(window.innerHeight - h - 8, y))}px`;
   };
   const hide = (): void => {
-    if (tipBox) tipBox.hidden = true;
+    if (tipBox && !pinnedEl) tipBox.hidden = true;
+  };
+  const pin = (el: HTMLElement): void => {
+    if (pinnedEl === el) return unpin();
+    pinnedEl?.classList.remove("tip-pinned");
+    pinnedEl = el;
+    el.classList.add("tip-pinned");
+    show(el, true);
   };
   const target = (e: Event): HTMLElement | null => (e.target as HTMLElement | null)?.closest?.<HTMLElement>(selector) ?? null;
   root.addEventListener("pointerover", (e) => {
     const el = target(e);
-    if (el) show(el);
+    if (el && !pinnedEl) show(el);
   });
   root.addEventListener("pointerout", (e) => {
     if (target(e) && !target({ target: (e as PointerEvent).relatedTarget } as unknown as Event)) hide();
   });
   root.addEventListener("focusin", (e) => {
     const el = target(e);
-    if (el) show(el);
+    if (el && !pinnedEl) show(el);
   });
   root.addEventListener("focusout", hide);
+  root.addEventListener("click", (e) => {
+    const el = target(e);
+    if (el) pin(el);
+  });
+  root.addEventListener("keydown", (e) => {
+    const el = target(e);
+    if (el && (e.key === "Enter" || e.key === " ") && !(el instanceof HTMLButtonElement)) {
+      e.preventDefault();
+      pin(el);
+    }
+  });
+  if (!pinListeners) {
+    pinListeners = true;
+    // A press anywhere else closes a pinned tip (capture: panels stop presses reaching the map).
+    window.addEventListener(
+      "pointerdown",
+      (e) => {
+        const t = e.target as HTMLElement;
+        if (pinnedEl && !t.closest(".ui-tip") && !pinnedEl.contains(t)) unpin();
+      },
+      true,
+    );
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && pinnedEl) unpin();
+    });
+  }
 }
 
 /** Hides any open tip (e.g. when the screen changes). */
 export function hideTips(): void {
+  unpin();
   if (tipBox) tipBox.hidden = true;
 }
