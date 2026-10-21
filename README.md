@@ -164,7 +164,9 @@ nation card and the corner panel show its **colour**, which is its flag for now.
   me (and Fill) start nations on a **coast or riverbank** whenever one with room is left,
   away from other nations, so the water closes off one side and the land grows into a
   fuller shape instead of snaking off; the inland gaps left between them are filled by
-  later nations. The dashed circle under the
+  later nations. They never start in a gap smaller than 20,000 km², or in a pocket
+  surrounded by just one nation, so no dot-sized nations end up stuck inside big ones;
+  those bits go to the nations around them at the end of a fill. The dashed circle under the
   mouse is roughly how big the nation will get; a red cross means it can't start there
   (sea, lakes, rivers, ice, another nation, or outside Europe).
 - The land then **grows out from that spot** in a second or two. Only the rolled land size
@@ -175,7 +177,7 @@ nation card and the corner panel show its **colour**, which is its flag for now.
   again; it remembers your choice. Click a row, or a nation on the map, to see it in the
   corner panel. Hovering the map shows who owns the land.
 - **Fill Europe** (a testing shortcut) rolls and places nations until **no gap is left with
-  room for another nation** (usually 65–100 nations, a patchwork like the real 1500, in
+  room for another nation** (usually 60–95 nations, a patchwork like the real 1500, in
   about half a second). Coasts and riverbanks fill first, then the inland gaps; the late
   nations are squeezed in and end up smaller than they rolled. Then the **leftover bits**
   (small islands, slivers between borders) go to the nearest nations, which spread up to
@@ -208,7 +210,8 @@ on the land wheel in `public/data/eras/1500.json`.)
 ![The land wheel when Europe is half taken](docs/land-wheel-room.jpg)
 
 Tune it in **`public/data/placement.json`**: the region's outline (longitude/latitude
-points), how often random starts pick a coast or riverbank (`start.coastPreference`), how
+points), how often random starts pick a coast or riverbank (`start.coastPreference`), the
+smallest gap they use (`start.minGap`) and the smallest enclave (`start.enclaveArea`), how
 much of the land **Fill** covers (`fill.percent`; 100 = until no gap has room for
 `fill.minArea` km², plus caps on nations and tries), the cost of each terrain, the wobble,
 the biggest hole that gets filled (`holeSize`), how far nations spread into the leftovers

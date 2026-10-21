@@ -15,8 +15,10 @@
   },
 
   "start": {
-    "about": "Where 'Surprise me' and Fill put nations. coastPreference: how often (0 to 1) they pick a spot next to the sea, a lake or a river while there is one with room. The water closes off one side, so nations don't snake out in every direction, and the inland gaps left between them are filled by later nations. Clicking by hand can go anywhere.",
-    "coastPreference": 1
+    "about": "Where 'Surprise me' and Fill put nations. coastPreference: how often (0 to 1) they pick a spot next to the sea, a lake or a river while there is one with room. The water closes off one side, so nations don't snake out in every direction, and the inland gaps left between them are filled by later nations. They also never start a nation in a free pocket of land smaller than minGap km², or in a pocket surrounded by only one nation (an enclave) smaller than enclaveArea km²; those pockets go to the nation around them at the end of a fill. Clicking by hand can go anywhere.",
+    "coastPreference": 1,
+    "minGap": 20000,
+    "enclaveArea": 60000
   },
 
   "fill": {

@@ -38,6 +38,19 @@ export interface GrowthRules {
 export interface StartRules {
   /** How often (0..1) "Surprise me" and Fill pick a spot next to the sea, a lake or a river. */
   coastPreference: number;
+  /** They never start a nation in a free pocket of land smaller than this (km²)… */
+  minGap: number;
+  /** …or in a pocket surrounded by just one nation (an enclave) unless it's at least this big (km²). */
+  enclaveArea: number;
+}
+
+/** What a random start looks for (see freeSpot). */
+export interface SpotRules {
+  coastPreference?: number;
+  /** The test growth must reach at least this (or the whole target, if smaller). */
+  minArea?: number;
+  minGap?: number;
+  enclaveArea?: number;
 }
 
 export interface FillRules {
@@ -392,9 +405,12 @@ export class Territory {
    * the coasts and rivers and the inland gaps stay open. Prefers spots far from other
    * nations, and of a few such spots the one with the most room to grow.
    */
-  freeSpot(region: Region, rng: Rng, targetArea: number, coastPreference = 0, minArea = 0): [number, number] | null {
+  freeSpot(region: Region, rng: Rng, targetArea: number, rules: SpotRules = {}): [number, number] | null {
+    const { coastPreference = 0, minArea = 0 } = rules;
     const { width } = this.map;
-    const isFree = (i: number): boolean => this.owner[i] === 0;
+    // Small pockets, and pockets inside a single nation, are left for that nation to take later.
+    const goodPocket = this.goodPockets(region, rules.minGap ?? 0, rules.enclaveArea ?? 0);
+    const isFree = (i: number): boolean => this.owner[i] === 0 && goodPocket(i);
     const free = Array.from(region.land).filter(isFree);
     if (!free.length) return null;
     const freeShore = Array.from(region.shore).filter(isFree);
@@ -420,6 +436,53 @@ export class Territory {
     if (!best) tryPixels(this.farFromOthers(region, free), 6);
     if (!best) tryPixels(free, 10);
     return best;
+  }
+
+  /**
+   * Splits the region's free land into pockets (patches joined side by side) and returns a
+   * test for "this pixel is in a pocket a new nation may start in": at least `minGap` km²,
+   * and not an enclave (touching just one nation) unless it's at least `enclaveArea` km².
+   */
+  private goodPockets(region: Region, minGap: number, enclaveArea: number): (i: number) => boolean {
+    if (minGap <= 0 && enclaveArea <= 0) return () => true;
+    const { width, height } = this.map;
+    if (++this.stamp === 0xffffffff) {
+      this.seen.fill(0);
+      this.stamp = 1;
+    }
+    const visited = this.stamp;
+    const seen = this.seen;
+    // Pixels in good pockets get a second, different stamp.
+    const good = ++this.stamp;
+    const isFree = (i: number): boolean => this.owner[i] === 0 && region.inside[i] === 1 && this.cost[this.map.terrain[i]] < Infinity;
+    for (const start of region.land) {
+      if (this.owner[start] !== 0 || seen[start] === visited || seen[start] === good) continue;
+      const pocket = [start];
+      seen[start] = visited;
+      const around = new Set<number>();
+      let area = 0;
+      for (let k = 0; k < pocket.length; k++) {
+        const j = pocket[k];
+        const x = j % width;
+        const y = (j - x) / width;
+        area += this.areas[y];
+        for (const [dx, dy] of SIDES) {
+          const ny = y + dy;
+          if (ny < 0 || ny >= height) continue;
+          const q = this.map.normalize(x + dx, ny);
+          if (!q) continue;
+          const n = ny * width + q[0];
+          if (this.owner[n] !== 0) around.add(this.owner[n]);
+          else if (seen[n] !== visited && isFree(n)) {
+            seen[n] = visited;
+            pocket.push(n);
+          }
+        }
+      }
+      const ok = area >= minGap && (around.size !== 1 || area >= enclaveArea);
+      if (ok) for (const j of pocket) seen[j] = good;
+    }
+    return (i) => seen[i] === good;
   }
 
   /** The free pixels that are at least 60% as far from any nation as the furthest one. */

@@ -11,6 +11,10 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
   late nation no longer rolls "Vast" and then gets scraps. The land wheel shows how much
   is left: "Europe: 4.03M km² of land left · 48% already taken". In Fill Europe, nations
   getting less than half their roll went from about 25 per fill to 1–7.
+- **No more dot-sized nations stuck inside big ones.** "Surprise me" and Fill Europe no
+  longer start a nation in a gap smaller than 20,000 km², or in a pocket surrounded by
+  just one nation; those bits go to the nations around them at the end of the fill.
+  Fill now makes about 60–95 nations, with far fewer tiny ones.
 - **Fewer snake-shaped nations.** "Surprise me" and Fill Europe now start nations on a
   coast or riverbank, so the water closes off one side and the land grows into a fuller
   shape instead of snaking out in every direction. The inland gaps left between them are

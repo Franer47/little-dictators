@@ -158,7 +158,7 @@ export class Placement {
 
   private surprise(): void {
     if (this.state !== "placing" || !this.pending) return;
-    const spot = this.territory.freeSpot(this.region, this.rng, rolledArea(this.pending.nation), this.opts.data.start.coastPreference);
+    const spot = this.territory.freeSpot(this.region, this.rng, rolledArea(this.pending.nation), this.opts.data.start);
     if (!spot) {
       this.note = `There's no free land left in ${this.regionName}.`;
       this.update();
@@ -256,12 +256,12 @@ export class Placement {
     if (this.state === "wheel") return;
     this.finishGrowth();
     const { percent, minArea, maxNations, maxAttempts, absorbSteps } = this.opts.data.fill;
-    const { coastPreference } = this.opts.data.start;
+    const spotRules = { ...this.opts.data.start, minArea };
     const started = performance.now();
     let full = false;
     let lastId = 0;
     const placeAnywhere = (pending: Pending): void => {
-      const spot = this.territory.freeSpot(this.region, this.rng, rolledArea(pending.nation), coastPreference, minArea);
+      const spot = this.territory.freeSpot(this.region, this.rng, rolledArea(pending.nation), spotRules);
       if (!spot) {
         full = true;
         return;
