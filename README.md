@@ -155,26 +155,29 @@ server only):
 
 ## Placing nations (Europe test)
 
-![Europe filled with 64 nations (91% of its land)](docs/europe-filled.jpg)
+![Europe filled with 66 nations (98% of its land)](docs/europe-filled.jpg)
 
 After **Continue to map** the camera flies to Europe and asks where the nation goes. The
 nation card and the corner panel show its **colour**, which is its flag for now.
 
-- **Click any land in Europe**, or press **Surprise me** for a random free spot (it
-  prefers spots away from other nations, with room to grow). The dashed circle under the
+- **Click any land in Europe**, or press **Surprise me** for a random free spot. Surprise
+  me (and Fill) start nations on a **coast or riverbank** whenever one with room is left,
+  away from other nations, so the water closes off one side and the land grows into a
+  fuller shape instead of snaking off; the inland gaps left between them are filled by
+  later nations. The dashed circle under the
   mouse is roughly how big the nation will get; a red cross means it can't start there
   (sea, lakes, rivers, ice, another nation, or outside Europe).
 - The land then **grows out from that spot** in a second or two. Only the rolled land size
   matters for now (a golden "Double land" simply means more land).
 - **Next nation** goes back to the wheel for another one. The list in the top-right corner
-  has every nation made so far; click a row, or a nation on the map, to see it in the
-  corner panel (with 60+ nations the list scrolls). Its header shows how many nations
-  there are and how much of Europe's land they own, e.g. "64 nations · 91% of Europe".
-  Hovering the map shows who owns the land.
-- **Fill Europe** (a testing shortcut) rolls and places nations at random spots until
-  **90% of Europe's land** is owned: usually 50–80 nations, a patchwork like the real
-  1500, in a fraction of a second. Each new nation goes into the biggest gap left, so the
-  late ones are squeezed in and end up smaller than they rolled. Fill picks colours so
+  shows the **top 3 nations by land plus yours** (marked "You"), under e.g. "66 nations ·
+  98% of Europe". The arrow opens the full list (biggest first, it scrolls) and closes it
+  again; it remembers your choice. Click a row, or a nation on the map, to see it in the
+  corner panel. Hovering the map shows who owns the land.
+- **Fill Europe** (a testing shortcut) rolls and places nations until **no gap is left with
+  room for another nation** (98–99% of the land, usually 65–100 nations, a patchwork like
+  the real 1500, in under half a second). Coasts and riverbanks fill first, then the
+  inland gaps; the late nations are squeezed in and end up smaller than they rolled. Fill picks colours so
   that nations that touch never share one (with 60+ nations, colours repeat elsewhere).
   **Clear** removes them all.
 
@@ -183,7 +186,8 @@ can reach next. Plains are cheap, highlands cost more, snow more again, mountain
 so land spreads quickly across plains and slowly into the mountains. The sea, lakes, ice
 and other nations' land are never taken. Rivers can be crossed but cost a lot, so they
 often end up as borders. A little smooth randomness ("wobble") keeps borders from being
-perfect circles. Every pixel counts with its **real area in km²** (pixels further north
+perfect circles. Afterwards 1-pixel strings are trimmed and tiny holes inside a nation are
+filled. Every pixel counts with its **real area in km²** (pixels further north
 cover less ground), and growth stops when the nation has its rolled size, so a 340,000
 km² roll gets ~340,000 km². If it's boxed in by the sea or other nations first, it stays
 smaller, and the panel says so: "Land: 101,254 km² (rolled 240,000)". (A nation that
@@ -191,8 +195,10 @@ fills Iceland gets ~101,000 km²; the real Iceland is 103,000 km².) The same se
 same clicks always give the same map.
 
 Tune it in **`public/data/placement.json`**: the region's outline (longitude/latitude
-points), how much of the land **Fill** covers (`fill.percent`, plus caps on nations and tries), the cost of each terrain, the wobble, and the
-colour list.
+points), how often random starts pick a coast or riverbank (`start.coastPreference`), how
+much of the land **Fill** covers (`fill.percent`; 100 = until no gap has room for
+`fill.minArea` km², plus caps on nations and tries), the cost of each terrain, the wobble,
+the biggest hole that gets filled (`holeSize`), and the colour list.
 
 ## Controls
 

@@ -5,6 +5,18 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 
 ## Unreleased
 
+### Changed
+- **Fewer snake-shaped nations.** "Surprise me" and Fill Europe now start nations on a
+  coast or riverbank, so the water closes off one side and the land grows into a fuller
+  shape instead of snaking out in every direction. The inland gaps left between them are
+  filled by later nations. After growing, 1-pixel strings are trimmed and tiny holes
+  inside a nation are filled. (Clicking by hand can still start a nation anywhere.)
+- **Fill Europe now fills Europe** (about 98–99% of its land, 65–100 nations) instead of
+  stopping at 90%: it keeps going until no gap is left with room for another nation.
+- **The nation list is short by default**: the top 3 nations by land plus yours (marked
+  "You"), under "66 nations · 98% of Europe". The arrow opens the full list (biggest
+  first) and closes it again; it remembers which you chose.
+
 ### Fixed
 - **Buttons that are switched on (the chosen style, Skip animation) are easy to read again.**
   Their text was light on the yellow; it's now dark with a thin light outline, in both styles.
@@ -21,12 +33,11 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
   ("101,254 km² (rolled 240,000)"). **Next nation** makes another one.
 - **Each nation has its own colour**, used as its flag for now (on the card and the
   corner panel) and drawn over its land with a darker border line.
-- **A list of nations** in the top-right corner, with how much of Europe is owned
-  ("64 nations · 91% of Europe"); it scrolls when there are many. Click a row or a nation
-  on the map to see it in the corner panel; hovering the map shows who owns the land.
-- **Fill Europe** (testing shortcut) rolls and places nations at random until 90% of
-  Europe's land is owned (usually 50–80 nations, late ones squeezed into the gaps), with
-  colours chosen so touching nations never match; **Clear** starts over. The region, growth costs and colours are in
+- **A list of nations** in the top-right corner, with how much of Europe is owned. Click
+  a row or a nation on the map to see it in the corner panel; hovering the map shows who
+  owns the land.
+- **Fill Europe** (testing shortcut) rolls and places nations at random until Europe is
+  full, with colours chosen so touching nations never match; **Clear** starts over. The region, growth costs and colours are in
   `public/data/placement.json`.
 - **The wheels are now set in 1500.** 11 spins: Government, Land size, Population
   density, Wealth, Bonus resources, Ideology, History, Stability, Popularity, a Bonus

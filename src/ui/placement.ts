@@ -1,7 +1,7 @@
 // Putting nations on the map (milestone 2d, the Europe test): after the wheel, click a spot
 // in Europe (or "Surprise me") and the nation's land grows from there. Then "Next nation"
 // goes back to the wheel. "Fill Europe" (for testing) rolls and places nations instantly
-// until about 90% of Europe's land is taken; "Clear" empties the map.
+// until Europe is full (see "fill" in public/data/placement.json); "Clear" empties the map.
 //
 // The rules for how land grows are in src/game/territory.ts; this file is the screens and
 // buttons around them.
@@ -22,13 +22,18 @@ import type { WheelData } from "../game/wheels.ts";
 import { runWheelScreen } from "./wheel/wheelScreen.ts";
 import { closeNationPanel, landText, showNationPanel } from "./nationPanel.ts";
 import { escapeHtml } from "./uiBits.ts";
+import { loadPref, savePref } from "./prefs.ts";
 
 /** A nation on the map. */
 export interface PlacedNation {
   nation: Nation;
   color: string;
   holding: Holding;
+  /** The player's own nation: the first one made on the wheel (Fill's nations never are). */
+  mine?: boolean;
 }
+
+type Pending = Omit<PlacedNation, "holding">;
 
 export interface PlacementOptions {
   map: GameMap;
@@ -55,7 +60,7 @@ export class Placement {
   private layer: TerritoryLayer;
   private state: State = "wheel";
   /** The nation waiting to be placed. */
-  private pending: { nation: Nation; color: string } | null = null;
+  private pending: Pending | null = null;
   /** The nation open in the corner panel. */
   private shownId = 0;
   private rng: Rng;
@@ -64,6 +69,8 @@ export class Placement {
   private growth: { holding: Holding; startedAt: number; ms: number; done: number } | null = null;
   private cameraMove: CameraTween | null = null;
   private note = "";
+  /** The nation list shows everything (true) or just the top 3 and yours (remembered). */
+  private listOpen = loadPref<boolean>("nationListOpen", false);
 
   private bar = document.createElement("div");
   private list = document.createElement("aside");
@@ -91,7 +98,8 @@ export class Placement {
 
   /** A new nation from the wheel: fly to the region and ask where it goes. */
   begin(nation: Nation, color: string): void {
-    this.pending = { nation, color };
+    const mine = !this.nations.some((n) => n.mine);
+    this.pending = { nation, color, mine };
     this.state = "placing";
     this.note = "";
     this.setUiHidden(false);
@@ -149,7 +157,7 @@ export class Placement {
 
   private surprise(): void {
     if (this.state !== "placing" || !this.pending) return;
-    const spot = this.territory.freeSpot(this.region, this.rng, rolledArea(this.pending.nation));
+    const spot = this.territory.freeSpot(this.region, this.rng, rolledArea(this.pending.nation), this.opts.data.start.coastPreference);
     if (!spot) {
       this.note = `There's no free land left in ${this.regionName}.`;
       this.update();
@@ -246,25 +254,26 @@ export class Placement {
   private fill(): void {
     if (this.state === "wheel") return;
     this.finishGrowth();
-    const { percent, maxNations, maxAttempts } = this.opts.data.fill;
+    const { percent, minArea, maxNations, maxAttempts } = this.opts.data.fill;
+    const { coastPreference } = this.opts.data.start;
     const started = performance.now();
     let full = false;
     let lastId = 0;
-    const placeAnywhere = (nation: Nation, color: string): void => {
-      const spot = this.territory.freeSpot(this.region, this.rng, rolledArea(nation));
+    const placeAnywhere = (pending: Pending): void => {
+      const spot = this.territory.freeSpot(this.region, this.rng, rolledArea(pending.nation), coastPreference, minArea);
       if (!spot) {
         full = true;
         return;
       }
-      this.pending = { nation, color };
+      this.pending = pending;
       lastId = this.place(spot[0], spot[1], "fill")!.holding.id;
     };
     // The nation waiting to be placed goes first (it keeps the colour on its card).
-    if (this.pending) placeAnywhere(this.pending.nation, this.pending.color);
+    if (this.pending) placeAnywhere(this.pending);
     // Every placement takes at least one free pixel, so this always ends; the caps keep it short.
     for (let tries = 0; !full && tries < maxAttempts && this.nations.length < maxNations; tries++) {
       if (this.territory.ownedShare(this.region) * 100 >= percent) break;
-      placeAnywhere(rollNation(this.opts.wheels, this.opts.mapName, createRng(this.nextSeed())), "");
+      placeAnywhere({ nation: rollNation(this.opts.wheels, this.opts.mapName, createRng(this.nextSeed())), color: "" });
     }
     if (import.meta.env.DEV) {
       const share = Math.round(this.territory.ownedShare(this.region) * 100);
@@ -272,7 +281,8 @@ export class Placement {
     }
     this.pending = null;
     this.state = "idle";
-    this.note = full ? `No free land left in ${this.regionName}.` : "";
+    // Stopping because the gaps left are too small for another nation is the normal end of a 100% fill.
+    this.note = full && percent < 100 ? `No room for more nations in ${this.regionName}.` : "";
     if (lastId) this.showNation(lastId);
     this.update();
     this.opts.requestRender();
@@ -396,10 +406,13 @@ export class Placement {
     this.list.id = "nation-list";
     this.list.hidden = true;
     this.list.innerHTML = `
-      <header><span class="nl-title">Nations</span><span class="nl-count"></span></header>
+      <header>
+        <span class="nl-title">Nations</span><span class="nl-count"></span>
+        <button type="button" class="nl-toggle" aria-expanded="false"><span aria-hidden="true">▾</span></button>
+      </header>
       <ol class="nl-rows"></ol>
       <footer>
-        <button type="button" class="nl-fill" title="Testing shortcut: roll and place nations at random until ${this.opts.data.fill.percent}% of ${escapeHtml(this.regionName)}'s land is taken">Fill ${escapeHtml(this.regionName)}</button>
+        <button type="button" class="nl-fill" title="Testing shortcut: roll and place nations at random until ${this.opts.data.fill.percent < 100 ? `${this.opts.data.fill.percent}% of ${escapeHtml(this.regionName)}'s land is taken` : `there's no room left in ${escapeHtml(this.regionName)}`}">Fill ${escapeHtml(this.regionName)}</button>
         <button type="button" class="nl-clear" title="Remove every nation from the map">Clear</button>
       </footer>`;
     document.body.append(this.bar, this.list);
@@ -410,6 +423,11 @@ export class Placement {
     });
     this.list.querySelector(".nl-fill")!.addEventListener("click", () => this.fill());
     this.list.querySelector(".nl-clear")!.addEventListener("click", () => this.clear());
+    this.list.querySelector(".nl-toggle")!.addEventListener("click", () => {
+      this.listOpen = !this.listOpen;
+      savePref("nationListOpen", this.listOpen);
+      this.updateList();
+    });
     this.list.querySelector(".nl-rows")!.addEventListener("click", (e) => {
       const row = (e.target as HTMLElement).closest<HTMLElement>("[data-id]");
       if (row) this.showNation(Number(row.dataset.id));
@@ -447,13 +465,27 @@ export class Placement {
     this.list.querySelector(".nl-title")!.textContent = `${this.nations.length} ${this.nations.length === 1 ? "nation" : "nations"}`;
     this.list.querySelector(".nl-count")!.textContent = `· ${share}% of ${this.regionName}`;
     const km = (v: number): string => Math.round(v).toLocaleString("en-US");
-    this.list.querySelector(".nl-rows")!.innerHTML = this.nations
-      .map((n) => {
+    // Biggest first. Closed, the list shows only the top 3 and your own nation.
+    const byLand = [...this.nations].sort((a, b) => b.holding.area - a.holding.area || a.holding.id - b.holding.id);
+    const shortList = byLand.slice(0, 3);
+    const mine = byLand.find((n) => n.mine);
+    if (mine && !shortList.includes(mine)) shortList.push(mine);
+    const canOpen = byLand.length > shortList.length;
+    const open = this.listOpen && canOpen;
+    const toggle = this.list.querySelector<HTMLButtonElement>(".nl-toggle")!;
+    toggle.hidden = !canOpen;
+    toggle.setAttribute("aria-expanded", String(open));
+    toggle.title = open ? "Show only the top 3 and your nation" : `Show all ${byLand.length} nations`;
+    toggle.setAttribute("aria-label", toggle.title);
+    this.list.classList.toggle("open", open);
+    this.list.querySelector(".nl-rows")!.innerHTML = (open ? byLand : shortList)
+      .map((n, i) => {
+        const gap = !open && n === mine && byLand.indexOf(n) > i ? " gap" : "";
         const short = n.holding.area < n.holding.rolledArea * 0.995;
         const title = short ? `${km(n.holding.area)} km² of ${km(n.holding.rolledArea)} km² rolled (boxed in)` : `${km(n.holding.area)} km²`;
-        return `<li data-id="${n.holding.id}" class="${n.holding.id === this.shownId ? "selected" : ""}" title="${escapeHtml(title)}">
+        return `<li data-id="${n.holding.id}" class="${n.holding.id === this.shownId ? "selected" : ""}${gap}" title="${escapeHtml(title)}">
           <span class="nl-swatch" style="background:${escapeHtml(n.color)}"></span>
-          <span class="nl-name">${escapeHtml(n.nation.name)}</span>
+          <span class="nl-name">${escapeHtml(n.nation.name)}</span>${n.mine ? '<span class="nl-you">You</span>' : ""}
           <span class="nl-area${short ? " short" : ""}">${km(n.holding.area)}</span>
         </li>`;
       })
