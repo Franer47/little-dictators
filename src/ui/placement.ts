@@ -95,6 +95,8 @@ export class Placement {
   private borders: Borders | null = null;
   /** Land changed hands since the names and flag positions were last worked out. */
   private mapDirty = false;
+  /** Conquered pixels being drawn a few at a time through the month (one list per conqueror). */
+  private creep: { pixels: number[]; done: number; start: number; ms: number }[] = [];
   /** The nation whose Army section is open (0 = closed), its selected division and its last answer. */
   private army: { nation: number; selected: number | null; message: { ok: boolean; text: string } | null } = { nation: 0, selected: null, message: null };
   private layer: TerritoryLayer;
@@ -561,7 +563,7 @@ export class Placement {
   /** After a month passed: repaint land that changed hands, then the numbers and screens. */
   private afterTick(r: TickResult): void {
     if (r.changedPixels.length) {
-      this.layer.reveal(r.changedPixels);
+      this.creepIn(r.changedPixels);
       this.paintLayer.update(r.changedPixels);
       this.mapDirty = true;
     }
@@ -578,6 +580,47 @@ export class Placement {
     this.refreshShownPanel();
     this.opts.requestRender();
   }
+
+  /**
+   * Draws conquered pixels a few at a time over most of a month (at the current speed), each
+   * front at the same pace, so borders creep forward instead of jumping. The game already
+   * counts them as conquered; this is only the drawing.
+   */
+  private creepIn(pixels: number[]): void {
+    // Whatever is still creeping from last month is finished first.
+    for (const c of this.creep) this.layer.reveal(c.pixels, c.done);
+    this.creep = [];
+    const speed = this.ui?.speed ?? 0;
+    const clock = this.opts.sim.clock;
+    const ms = speed ? (clock.msPerMonth / clock.speeds[speed - 1]) * 0.85 : 0;
+    if (!ms || this.opts.reducedMotion) {
+      this.layer.reveal(pixels);
+      return;
+    }
+    // One list per conqueror, in the order it took them (front first).
+    const byOwner = new Map<number, number[]>();
+    for (const i of pixels) {
+      const o = this.territory.owner[i];
+      if (!byOwner.has(o)) byOwner.set(o, []);
+      byOwner.get(o)!.push(i);
+    }
+    const start = performance.now();
+    for (const list of byOwner.values()) this.creep.push({ pixels: list, done: 0, start, ms });
+    requestAnimationFrame(this.creepFrame);
+  }
+
+  private creepFrame = (now: number): void => {
+    for (const c of this.creep) {
+      const upTo = Math.min(c.pixels.length, Math.ceil(((now - c.start) / c.ms) * c.pixels.length));
+      if (upTo > c.done) {
+        this.layer.reveal(c.pixels, c.done, upTo);
+        c.done = upTo;
+      }
+    }
+    this.creep = this.creep.filter((c) => c.done < c.pixels.length);
+    this.opts.requestRender();
+    if (this.creep.length) requestAnimationFrame(this.creepFrame);
+  };
 
   /** After a push (build, recruit, war…): the same, without a month passing. */
   private afterPush(): void {

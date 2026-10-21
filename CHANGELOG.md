@@ -23,6 +23,11 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 - **Wars on the map:** crossed swords mark every war front, and armies at war stand on the
   border with their enemy. Buildings appear on the map where they were built.
 - **Letters:** a war declared on you or a peace you sign pops up and pauses the game.
+- **Conquest pixel by pixel:** in a war the stronger side pushes the border into the
+  enemy's land every month, and you can watch it creep. Mountains, highlands, rivers and
+  crossing the sea slow it down, Defend paint makes land harder to take, and War goal paint is
+  taken first. Conquered land is yours at once; peace adds tribute (or a whole small nation).
+  Your armies keep conquering until you make peace. News says who a fallen nation fell to.
 - **Winning pays:** when you're winning a war you decide when it ends, and the bigger the win
   the more land you take (up to 60%, or a whole small nation). The Wars panel shows what
   peace now would give, your recent treaties, and the Wars button counts your wars. Fixed:

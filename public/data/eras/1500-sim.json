@@ -82,20 +82,25 @@
   },
 
   "war": {
-    "about": "Simple wars: every month each side's strength is its troops × army quality ÷ 50 (defenders × (1 + defence ÷ 100)), with its allies. The war score (−100..100, + = attackers winning) moves by up to 'scorePerMonth' toward the stronger side. Each side loses about 'losses' of its troops a month (more against a stronger enemy).",
+    "about": "Wars with front lines. Every month each side's strength is its troops × army quality ÷ 50 (defenders × (1 + defence ÷ 100)), with its allies. The war score (−100..100, + = attackers winning) moves by up to 'scorePerMonth' toward the stronger side, and each side loses about 'losses' of its troops a month (more against a stronger enemy). Along each front (two enemies whose land touches; a nation's army is split between its fronts) the stronger one pushes into the other's land: it gets 'pushRate' × the front's length (at least 'minPush') × its edge (0 when even, 1 when overwhelming) to spend on pixels, at most 'maxShare' of the loser's land a month; what it can't spend carries over to the next month, so short fronts still move. Each pixel costs 'conquestCost' by terrain, ×'defendPaintCost' on land you painted Defend. Edges under 'deadZone' don't move the front. Enemies whose land doesn't touch can still fight across up to 'seaCrossing' pixels of sea (islands, straits): the first pixels taken that way (the landing) cost 'seaCost' × as much.",
     "scorePerMonth": 8,
     "losses": 0.02,
-    "maxLosses": 0.06
+    "maxLosses": 0.06,
+    "pushRate": 1,
+    "minPush": 12,
+    "maxShare": 0.06,
+    "deadZone": 0.08,
+    "defendPaintCost": 2,
+    "seaCrossing": 6,
+    "seaCost": 2,
+    "conquestCost": { "Plains": 1, "Highlands": 2, "Mountains": 4, "Snow": 2, "River": 3 }
   },
 
   "peace": {
-    "about": "When a war ends. Computer nations make peace when the war score reaches 'winAt' (after 'minMonths'), or after 'maxMonths' whatever it is. When YOUR nation is winning, you decide: the war goes on until you offer peace or the score reaches 100 (or twice 'maxMonths'). Terms by score: at 'landAt' or more the winner takes border land, from 'minLandShare' of the loser's land at 'landAt' up to 'maxLandShare' at a score of 100; a loser smaller than 'annexSize' × the winner's land is taken whole at 'annexAt' or more. At 'tributeAt' or more (below 'landAt') the loser pays 'tributeShare' of its income every year for 'tributeYears' years. Below that, a draw.",
+    "about": "When a war ends. Everyone keeps the land they hold (fronts move during the war). Computer nations make peace when the war score reaches 'winAt' (after 'minMonths'), or after 'maxMonths' whatever it is. When YOUR nation is winning, you decide: the war goes on (and your armies keep conquering) until you make peace, or for at most twice 'maxMonths'. On top of the land, from 'tributeAt' the loser pays 'tributeShare' of its income every year for 'tributeYears' years (half that to each of the winner's allies); a loser smaller than 'annexSize' × the winner's land is taken whole from 'annexAt'.",
     "winAt": 50,
     "minMonths": 6,
     "maxMonths": 48,
-    "landAt": 40,
-    "minLandShare": 0.15,
-    "maxLandShare": 0.6,
     "annexAt": 90,
     "annexSize": 0.25,
     "tributeAt": 20,

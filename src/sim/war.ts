@@ -1,30 +1,33 @@
-// Simple wars (milestone 4): no front lines yet (that's milestone 5). Every month each side's
-// armies clash at the border: both lose troops, and the war score moves toward the stronger
-// side. When one side is clearly winning (or the war drags on too long) peace is signed:
-// white peace, tribute for some years, or border land that really changes owner on the map.
+// Wars with front lines (milestone 5, first version). Every month:
+// - each side's armies clash: both lose troops, and the war score moves toward the stronger side;
+// - along every front (each pair of enemies whose land touches) the stronger of the two pushes
+//   into the other's land, pixel by pixel: the bigger its edge, the further. Terrain slows it
+//   (mountains, highlands, rivers cost more), and so does the player's "Defend" paint; the
+//   player's "War goal" paint is taken first. Conquered land belongs to the conqueror at once.
+// When one side is clearly winning (or the war drags on too long) peace is signed: everyone
+// keeps what they hold, and the winner may also get tribute, or all of a small loser.
 // The numbers are in public/data/eras/<era>-sim.json ("war", "peace").
 
+import { Terrain } from "../map/terrain.ts";
 import type { War, World } from "./world.ts";
 
 export interface PeaceTerms {
   text: string;
 }
 
-/** What a peace would give, worked out without signing it (for the Wars panel and for makePeace). */
+/** What a peace would give on top of the land already held, worked out without signing it. */
 export interface Terms {
   winner: number;
   loser: number;
-  kind: "draw" | "tribute" | "land" | "annex";
-  /** Share of the loser's land the winner takes (0..1; 1 = all of it). */
-  landShare: number;
-  /** About how many km² that is. */
+  kind: "draw" | "tribute" | "annex";
+  /** km² of the loser's land the winner takes in the peace (annex only). */
   km: number;
 }
 
 /**
- * The terms the current war score gives: below 'tributeAt' a draw; then tribute; from 'landAt'
- * border land, from 'minLandShare' of the loser's land rising to 'maxLandShare' at a score of
- * 100; and a loser under 'annexSize' of the winner's size is taken whole from 'annexAt'.
+ * The terms the current war score gives: below 'tributeAt' nothing more (everyone keeps what
+ * they hold); from 'tributeAt' tribute; a loser under 'annexSize' of the winner's size is taken
+ * whole from 'annexAt'.
  */
 export function peaceTerms(w: World, war: War): Terms {
   const p = w.sim.peace;
@@ -32,30 +35,28 @@ export function peaceTerms(w: World, war: War): Terms {
   const score = Math.abs(war.score);
   const winner = attackersWon ? war.attackers[0] : war.defenders[0];
   const loser = attackersWon ? war.defenders[0] : war.attackers[0];
-  const none: Terms = { winner, loser, kind: "draw", landShare: 0, km: 0 };
+  const none: Terms = { winner, loser, kind: "draw", km: 0 };
   if (!winner || !loser || score < p.tributeAt) return none;
-  if (score < p.landAt) return { ...none, kind: "tribute" };
   const { territory } = w.opts;
   const loserKm = territory.holding(loser)?.area ?? 0;
   const winnerKm = territory.holding(winner)?.area ?? 0;
-  if (score >= p.annexAt && loserKm <= winnerKm * p.annexSize) return { ...none, kind: "annex", landShare: 1, km: loserKm };
-  const t = Math.min(1, (score - p.landAt) / Math.max(1, 100 - p.landAt));
-  const share = p.minLandShare + (p.maxLandShare - p.minLandShare) * t;
-  return { ...none, kind: "land", landShare: share, km: loserKm * share };
+  if (score >= p.annexAt && loserKm <= winnerKm * p.annexSize) return { ...none, kind: "annex", km: loserKm };
+  return { ...none, kind: "tribute" };
 }
 
-/** "you'd take about 12,000 km² (35% of their land)" etc., for the Wars panel. */
+/** "you keep what you hold, and X pays you tribute" etc., for the Wars panel. */
 export function describeTerms(w: World, t: Terms): string {
   const mine = w.mineId;
   const km = `${Math.round(t.km).toLocaleString("en-US")} km²`;
   const we = t.winner === mine;
+  const p = w.sim.peace;
   switch (t.kind) {
     case "draw":
-      return "a draw: nobody gains anything";
+      return "everyone keeps the land they hold now, nothing more";
     case "tribute":
-      return we ? `${w.name(t.loser)} pays you ${Math.round(w.sim.peace.tributeShare * 100)}% of its income for ${w.sim.peace.tributeYears} years` : `you pay ${w.name(t.winner)} tribute for ${w.sim.peace.tributeYears} years`;
-    case "land":
-      return we ? `you take about ${km} (${Math.round(t.landShare * 100)}% of ${w.name(t.loser)}'s land)` : `${w.name(t.winner)} takes about ${km} (${Math.round(t.landShare * 100)}% of your land)`;
+      return we
+        ? `you keep the land you hold, and ${w.name(t.loser)} pays you ${Math.round(p.tributeShare * 100)}% of its income for ${p.tributeYears} years`
+        : `${w.name(t.winner)} keeps what it holds, and you pay it tribute for ${p.tributeYears} years`;
     case "annex":
       return we ? `you take all of ${w.name(t.loser)} (${km})` : `${w.name(t.winner)} takes all of your land`;
   }
@@ -63,10 +64,22 @@ export function describeTerms(w: World, t: Terms): string {
 
 const SIDES: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
-/** One month of every war: battles, losses, war score, and peace where it's due. */
+/** One month of every war: battles, losses, war score, the fronts moving, and peace where it's due. */
 export function fightWars(w: World): void {
   const rules = w.sim.war;
   const peace = w.sim.peace;
+  // How many enemies each nation faces across a border: its army is split between those fronts.
+  const fronts = new Map<number, number>();
+  const pairs: [number, number][] = [];
+  for (const war of w.wars) {
+    for (const a of war.attackers) for (const d of war.defenders) {
+      if (!w.alive(a) || !w.alive(d)) continue;
+      // Enemies that don't touch can still fight across a short stretch of sea (see push).
+      pairs.push([a, d]);
+      fronts.set(a, (fronts.get(a) ?? 0) + 1);
+      fronts.set(d, (fronts.get(d) ?? 0) + 1);
+    }
+  }
   for (const war of [...w.wars]) {
     war.attackers = war.attackers.filter((id) => w.alive(id));
     war.defenders = war.defenders.filter((id) => w.alive(id));
@@ -76,7 +89,7 @@ export function fightWars(w: World): void {
     }
     war.months++;
     const side = (ids: number[], defending: boolean): number =>
-      ids.reduce((t, id) => t + w.strength(id) * (defending ? 1 + (w.sheets[id - 1]?.stats.defence.value ?? 0) / 100 : 1), 0);
+      ids.reduce((t, id) => t + w.strength(id) * (defending ? 1 + defence(w, id) : 1), 0);
     const sa = side(war.attackers, false);
     const sd = side(war.defenders, true);
     if (sa + sd > 0) {
@@ -88,10 +101,26 @@ export function fightWars(w: World): void {
       for (const id of war.attackers) bleed(w, id, lossA);
       for (const id of war.defenders) bleed(w, id, lossD);
     }
-    // Peace: when one side is clearly winning, or the war drags on. When the player's nation is
-    // the one winning, the player decides when to stop (Offer peace), up to a full win.
+  }
+  // The fronts move: on each, the stronger side pushes into the other's land.
+  const warOf = (a: number, d: number): War | undefined => w.wars.find((x) => x.attackers.includes(a) && x.defenders.includes(d));
+  for (const [a, d] of pairs) {
+    if (!w.alive(a) || !w.alive(d)) continue;
+    const ea = w.strength(a) / (fronts.get(a) ?? 1);
+    const ed = (w.strength(d) / (fronts.get(d) ?? 1)) * (1 + defence(w, d));
+    if (ea + ed <= 0) continue;
+    const r = ea / (ea + ed);
+    const edge = Math.abs(r - 0.5) * 2;
+    if (edge < rules.deadZone) continue;
+    const [winner, loser] = r > 0.5 ? [a, d] : [d, a];
+    const war = warOf(a, d);
+    if (war) push(w, war, winner, loser, edge);
+  }
+  // Peace: when one side is clearly winning, or the war drags on. When the player's nation is
+  // the one winning, the player decides when to stop (Make peace) and keeps conquering till then.
+  for (const war of [...w.wars]) {
     const winnerIsMine = (war.score >= 0 ? war.attackers[0] : war.defenders[0]) === w.mineId && w.mineId > 0;
-    const decided = Math.abs(war.score) >= (winnerIsMine ? 100 : peace.winAt) && war.months >= peace.minMonths;
+    const decided = !winnerIsMine && Math.abs(war.score) >= peace.winAt && war.months >= peace.minMonths;
     const tired = war.months >= peace.maxMonths * (winnerIsMine ? 2 : 1);
     // A long war going nowhere may just stop, but not the player's own (they decide).
     const playerIn = [...war.attackers, ...war.defenders].includes(w.mineId);
@@ -100,81 +129,42 @@ export function fightWars(w: World): void {
   }
 }
 
+/** A nation's defence as a bonus (0.5 = +50%). */
+function defence(w: World, id: number): number {
+  return (w.sheets[id - 1]?.stats.defence.value ?? 0) / 100;
+}
+
 /** A nation loses `share` of its fighting troops. */
 function bleed(w: World, id: number, share: number): void {
   const l = w.live[id - 1];
   for (const d of l.divisions) if (d.training === 0) d.troops *= 1 - share;
 }
 
-/** Ends a war on its current score, with terms to match (see peaceTerms). */
-export function makePeace(w: World, war: War): PeaceTerms {
-  const p = w.sim.peace;
-  const terms = peaceTerms(w, war);
-  const { winner, loser } = terms;
-  let text = `Peace: the ${war.name} ends in a draw.`;
-  if (terms.kind !== "draw") {
-    let tookLand = false;
-    if (terms.kind === "annex") {
-      const all = Array.from(w.opts.territory.holding(loser)?.pixels ?? []);
-      if (all.length) {
-        if (loser === w.mineId) w.landChanged();
-        w.opts.territory.transfer(all, winner);
-        for (const i of all) w.paint[i] = 0;
-        w.markChanged(all);
-        tookLand = true;
-        text = `Peace: ${w.name(winner)} wins the ${war.name} and takes all of ${w.name(loser)}.`;
-      }
-    } else if (terms.kind === "land") {
-      const loserPixels = w.opts.territory.holding(loser)?.pixels.length ?? 0;
-      const count = Math.max(1, Math.round(loserPixels * terms.landShare));
-      const pixels = takeBorderLand(w, loser, winner, count);
-      if (pixels.length) {
-        tookLand = true;
-        const km = pixels.reduce((s, i) => s + w.opts.territory.areas[(i / w.opts.map.width) | 0], 0);
-        text = `Peace: ${w.name(winner)} wins the ${war.name} and takes ${Math.round(km).toLocaleString("en-US")} km² from ${w.name(loser)}.`;
-      }
-    }
-    if (!tookLand) {
-      const income = Math.max(0, w.sheets[loser - 1]?.stats.income.value ?? 0);
-      const amount = income * p.tributeShare;
-      w.live[loser - 1].tributes.push({ to: winner, amount, yearsLeft: p.tributeYears });
-      text = `Peace: ${w.name(winner)} wins the ${war.name}; ${w.name(loser)} pays it ${Math.round(p.tributeShare * 100)}% of its income for ${p.tributeYears} years.`;
-    }
-  }
-  // The winner's allies get a smaller tribute from the loser.
-  if (terms.kind !== "draw") {
-    const allies = (winner === war.attackers[0] ? war.attackers : war.defenders).filter((id) => id !== winner && w.alive(id));
-    const income = Math.max(0, w.sheets[loser - 1]?.stats.income.value ?? 0);
-    if (allies.length && w.alive(loser)) {
-      for (const a of allies) w.live[loser - 1].tributes.push({ to: a, amount: (income * p.tributeShare) / 2, yearsLeft: p.tributeYears });
-      text += ` Its allies (${allies.map((a) => w.name(a)).join(", ")}) get ${Math.round((p.tributeShare / 2) * 100)}% of ${w.name(loser)}'s income for ${p.tributeYears} years.`;
-    }
-  }
-  for (const id of [...war.attackers, ...war.defenders]) w.touch(id);
-  w.peaceSigned(war, { text });
-  return { text };
-}
-
 /**
- * Up to `count` of the loser's pixels next to the winner's land, spreading inward from the
- * border. The player's war-goal paint is taken first. Returns the pixels that changed owner.
+ * `winner` pushes into `loser`'s land along their front: it has a budget of
+ * front length × 'pushRate' × its edge (0..1) (at least 'minPush' × its edge, at most 'maxShare'
+ * of the loser's land), plus whatever it didn't spend last month on this front. Each pixel
+ * costs its terrain's 'conquestCost' (doubled on the player's Defend paint). It spreads from
+ * the front inward, the player's War goal paint first.
  */
-function takeBorderLand(w: World, loser: number, winner: number, count: number): number[] {
+function push(w: World, war: War, winner: number, loser: number, edge: number): void {
   const { map, territory } = w.opts;
-  const { width, height } = map;
+  const { width } = map;
   const owner = territory.owner;
-  const prefer = winner === w.mineId;
-  const seen = new Uint8Array(width * height);
+  const rules = w.sim.war;
+  const holding = territory.holding(loser);
+  if (!holding?.pixels.length) return;
+  const preferGoal = winner === w.mineId;
+  const guarded = loser === w.mineId;
+  const seen = new Set<number>();
   const painted: number[] = [];
   const plain: number[] = [];
-  const push = (i: number): void => {
-    if (seen[i]) return;
-    seen[i] = 1;
-    (prefer && w.paint[i] === 1 ? painted : plain).push(i);
+  const add = (i: number): void => {
+    if (seen.has(i)) return;
+    seen.add(i);
+    (preferGoal && w.paint[i] === 1 ? painted : plain).push(i);
   };
-  const holding = territory.holding(loser);
-  if (!holding) return [];
-  // Start from the loser's pixels that touch the winner.
+  // The front: the loser's pixels that touch the winner.
   for (const i of holding.pixels) {
     if (owner[i] !== loser) continue;
     const x = i % width;
@@ -182,40 +172,39 @@ function takeBorderLand(w: World, loser: number, winner: number, count: number):
     for (const [dx, dy] of SIDES) {
       const p = map.normalize(x + dx, y + dy);
       if (p && owner[p[1] * width + p[0]] === winner) {
-        push(i);
+        add(i);
         break;
       }
     }
   }
+  // No land front: land on the loser's coast across a short stretch of sea, if there's one.
+  let seaCost = 1;
+  if (!painted.length && !plain.length) {
+    for (const i of landings(w, winner, loser)) add(i);
+    seaCost = rules.seaCost;
+  }
+  const frontLength = painted.length + plain.length;
+  if (!frontLength) return;
+  const key = `${winner}-${loser}`;
+  war.progress ??= {};
+  // Push on this front from the other side's earlier months is lost when the tide turns.
+  delete war.progress[`${loser}-${winner}`];
+  // At most 'maxShare' of the loser's land a month, but never under 'minPush' (so a nearly beaten nation can be finished).
+  let budget = Math.min(Math.max(frontLength * rules.pushRate, rules.minPush) * edge, Math.max(holding.pixels.length * rules.maxShare, rules.minPush));
+  budget += war.progress[key] ?? 0;
   const taken: number[] = [];
   let hp = 0;
   let hq = 0;
-  // Where the taking started (the front), to find the loser's next-nearest land.
-  const startPixels = [...painted, ...plain];
-  if (!startPixels.length) return []; // they don't touch: tribute instead
-  const fx = startPixels.length ? startPixels.reduce((s, i) => s + (i % width), 0) / startPixels.length : 0;
-  const fy = startPixels.length ? startPixels.reduce((s, i) => s + ((i / width) | 0), 0) / startPixels.length : 0;
-  while (taken.length < count) {
-    if (hp >= painted.length && hq >= plain.length) {
-      // This piece of the loser's land is used up (an island, an exclave): carry on from its
-      // land nearest the front (war-goal paint first), so the winner gets the share it won.
-      let next = -1;
-      let best = Infinity;
-      for (const i of holding.pixels) {
-        if (seen[i] || owner[i] !== loser) continue;
-        let dx = Math.abs((i % width) - fx);
-        if (map.wraps) dx = Math.min(dx, width - dx);
-        const dy = ((i / width) | 0) - fy;
-        const d = dx * dx + dy * dy - (prefer && w.paint[i] === 1 ? 1e9 : 0);
-        if (d < best) {
-          best = d;
-          next = i;
-        }
-      }
-      if (next < 0) break;
-      push(next);
-    }
+  while (hp < painted.length || hq < plain.length) {
     const i = hp < painted.length ? painted[hp++] : plain[hq++];
+    let cost = (rules.conquestCost[map.terrain[i]] ?? 1) * (taken.length < frontLength ? seaCost : 1);
+    if (guarded && w.paint[i] === 2) cost *= rules.defendPaintCost;
+    if (cost > budget) {
+      // Not enough left this month for this pixel: maybe a cheaper one is still in reach.
+      if (budget < 1) break;
+      continue;
+    }
+    budget -= cost;
     taken.push(i);
     const x = i % width;
     const y = (i - x) / width;
@@ -223,14 +212,103 @@ function takeBorderLand(w: World, loser: number, winner: number, count: number):
       const p = map.normalize(x + dx, y + dy);
       if (!p) continue;
       const j = p[1] * width + p[0];
-      if (owner[j] === loser && j < height * width) push(j);
+      if (owner[j] === loser) add(j);
     }
   }
-  if (!taken.length) return [];
+  // What wasn't spent carries over (a little, so it can't pile up forever).
+  war.progress[key] = Math.min(budget, 6);
+  if (!taken.length) return;
   if (loser === w.mineId) w.landChanged();
   territory.transfer(taken, winner);
+  w.lastConqueror.set(loser, winner);
   // Paint on land that changed hands no longer applies.
   for (const i of taken) w.paint[i] = 0;
   w.markChanged(taken);
-  return taken;
+  w.touch(winner);
+  w.touch(loser);
+}
+
+/**
+ * The loser's coast pixels the winner can reach over at most 'seaCrossing' pixels of sea from
+ * its own coast (islands, straits). Empty if the sea between them is wider.
+ */
+function landings(w: World, winner: number, loser: number): number[] {
+  const { map, territory } = w.opts;
+  const { width, height, terrain } = map;
+  const owner = territory.owner;
+  const maxSteps = w.sim.war.seaCrossing;
+  const holding = territory.holding(winner);
+  if (!holding || maxSteps <= 0) return [];
+  const isSea = (i: number): boolean => terrain[i] === Terrain.Ocean || terrain[i] === Terrain.ShallowWater;
+  const steps = new Map<number, number>();
+  let frontier: number[] = [];
+  // Start from the sea next to the winner's land.
+  for (const i of holding.pixels) {
+    if (owner[i] !== winner) continue;
+    const x = i % width;
+    const y = (i - x) / width;
+    for (const [dx, dy] of SIDES) {
+      const p = map.normalize(x + dx, y + dy);
+      if (!p) continue;
+      const j = p[1] * width + p[0];
+      if (isSea(j) && !steps.has(j)) {
+        steps.set(j, 1);
+        frontier.push(j);
+      }
+    }
+  }
+  const found = new Set<number>();
+  for (let step = 1; step <= maxSteps && frontier.length; step++) {
+    const next: number[] = [];
+    for (const i of frontier) {
+      const x = i % width;
+      const y = (i - x) / width;
+      for (const [dx, dy] of SIDES) {
+        const p = map.normalize(x + dx, y + dy);
+        if (!p || p[1] >= height) continue;
+        const j = p[1] * width + p[0];
+        if (owner[j] === loser) found.add(j);
+        else if (isSea(j) && !steps.has(j)) {
+          steps.set(j, step + 1);
+          next.push(j);
+        }
+      }
+    }
+    frontier = next;
+  }
+  return [...found];
+}
+
+/** Ends a war on its current score: everyone keeps what they hold, plus the terms (see peaceTerms). */
+export function makePeace(w: World, war: War): PeaceTerms {
+  const p = w.sim.peace;
+  const terms = peaceTerms(w, war);
+  const { winner, loser } = terms;
+  let text = `Peace: the ${war.name} ends; everyone keeps what they hold.`;
+  if (terms.kind === "annex") {
+    const all = Array.from(w.opts.territory.holding(loser)?.pixels ?? []);
+    if (all.length) {
+      if (loser === w.mineId) w.landChanged();
+      w.opts.territory.transfer(all, winner);
+      for (const i of all) w.paint[i] = 0;
+      w.markChanged(all);
+      text = `Peace: ${w.name(winner)} wins the ${war.name} and takes all of ${w.name(loser)}.`;
+    }
+  } else if (terms.kind === "tribute") {
+    const income = Math.max(0, w.sheets[loser - 1]?.stats.income.value ?? 0);
+    w.live[loser - 1].tributes.push({ to: winner, amount: income * p.tributeShare, yearsLeft: p.tributeYears });
+    text = `Peace: ${w.name(winner)} wins the ${war.name}, keeps what it took, and ${w.name(loser)} pays it ${Math.round(p.tributeShare * 100)}% of its income for ${p.tributeYears} years.`;
+  }
+  // The winner's allies get a smaller tribute from the loser.
+  if (terms.kind !== "draw") {
+    const allies = (winner === war.attackers[0] ? war.attackers : war.defenders).filter((id) => id !== winner && w.alive(id));
+    const income = Math.max(0, w.sheets[loser - 1]?.stats.income.value ?? 0);
+    if (allies.length && w.alive(loser) && terms.kind !== "annex") {
+      for (const a of allies) w.live[loser - 1].tributes.push({ to: a, amount: (income * p.tributeShare) / 2, yearsLeft: p.tributeYears });
+      text += ` Its allies (${allies.map((a) => w.name(a)).join(", ")}) get ${Math.round((p.tributeShare / 2) * 100)}% of ${w.name(loser)}'s income for ${p.tributeYears} years.`;
+    }
+  }
+  for (const id of [...war.attackers, ...war.defenders]) w.touch(id);
+  w.peaceSigned(war, { text });
+  return { text };
 }

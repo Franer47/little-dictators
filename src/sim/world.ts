@@ -59,6 +59,8 @@ export interface War {
   /** −100..100; above 0 the attackers are winning. */
   score: number;
   months: number;
+  /** Push not yet spent on each front (by "winner-loser"), carried to next month. */
+  progress?: Record<string, number>;
 }
 
 export type EventKind = "war" | "peace" | "build" | "army" | "diplomacy" | "fall" | "info";
@@ -131,6 +133,8 @@ export class World {
   relationBase = new Map<number, number>();
   alliances = new Set<number>();
   events: GameEvent[] = [];
+  /** Who last took land from each nation (by id), for "X has fallen to Y". */
+  lastConqueror = new Map<number, number>();
   /** The player's paint: 0 none, 1 war goal, 2 defend, 3 develop (one value per map pixel). */
   paint: Uint8Array;
   rng: Rng;
@@ -490,7 +494,8 @@ export class World {
     }
     this.wars = this.wars.filter((w) => w.attackers.length && w.defenders.length);
     for (const key of [...this.alliances]) if (Math.floor(key / 65536) === id || key % 65536 === id) this.alliances.delete(key);
-    this.log("fall", `${this.name(id)} has fallen.`, [id]);
+    const by = this.lastConqueror.get(id);
+    this.log("fall", by && this.alive(by) ? `${this.name(id)} has fallen to ${this.name(by)}.` : `${this.name(id)} has fallen.`, by ? [id, by] : [id]);
   }
 
   log(kind: EventKind, text: string, nations: number[]): void {

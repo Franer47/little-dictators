@@ -417,19 +417,25 @@ The menu on the left:
   divisions stand there, forts go there first), **Develop** (new buildings go there first, and
   your nation builds more farms, markets, workshops and schools), **Erase** (gives back half).
 
-**Wars** are simple for now (front lines come later): every month the two sides' armies
-clash, both lose troops, and the war score moves toward the stronger side (troops × army
-quality, defenders helped by their defence). Computer nations make peace when one side is
-clearly winning (score 50) or after four years. **When your nation is winning, you decide**:
-the war goes on until you press **Make peace** or the score reaches 100, and the Wars panel
-always says what peace now would give. Terms by score: from 40 the winner takes **land**,
-15% of the loser's land rising to 60% at a full win (spreading from the shared border, then on
-to the loser's other islands); a nation under a quarter of the winner's size is **taken
-whole** from a score of 90; from 20 the loser pays **tribute** (10% of its income for 10
-years); below that it's a draw. The winner's allies get half that tribute. Allies join each
+**Wars are fought pixel by pixel.** Every month the two sides' armies clash, both lose
+troops, and the war score moves toward the stronger side (troops × army quality, defenders
+helped by their defence). Along every **front** (two enemies whose land touches, or with at
+most 6 pixels of sea between them) the stronger one **pushes into the other's land**: the
+bigger its edge, the more pixels it takes, and you can watch the border creep forward through
+the month. Terrain slows it down (a mountain pixel costs four times a plain, highlands and
+snow twice, rivers three times, landing across the sea twice), your **Defend** paint makes
+land twice as hard to take, and your **War goal** paint is taken first. A nation fighting on
+several fronts splits its army between them. Conquered land is yours at once.
+
+Computer nations make peace when one side is clearly winning (score 50) or after four years.
+**When your nation is winning, you decide**: your armies keep conquering until you press
+**Make peace** (or eight years pass), and the Wars panel says what peace now would give.
+Everyone keeps the land they hold; on top of that, from a score of 20 the loser pays
+**tribute** (10% of its income for 10 years, half that to the winner's allies), and a nation
+under a quarter of the winner's size is **taken whole** from a score of 90. Allies join each
 other's defensive wars. The Wars panel lists your **recent treaties**, and the Wars button
-shows how many wars you're in. A nation that loses all its land has **fallen**; if it's yours you
-can keep watching or pick another nation to guide.
+shows how many wars you're in. A nation that loses all its land has **fallen** ("X has fallen
+to Y"); if it's yours you can keep watching or pick another nation to guide.
 
 **On the map**, every war has crossed swords at the middle of its front (big and red when
 it's yours), and while at war a nation's divisions stand on its front with the enemy instead

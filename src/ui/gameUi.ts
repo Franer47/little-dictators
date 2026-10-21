@@ -480,7 +480,7 @@ export class GameUi {
     const mine = w.mineId;
     const near = new Set<number>([mine, ...(w.neighbours[mine - 1] ?? [])]);
     const list = w.events
-      .filter((e: GameEvent) => this.eventFilter === "all" || e.nations.some((n) => near.has(n)) || (e.kind === "fall" && e.nations.length))
+      .filter((e: GameEvent) => this.eventFilter === "all" || e.nations.some((n) => near.has(n)))
       .slice(-6)
       .reverse();
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -535,7 +535,7 @@ export class GameUi {
         <li><b>Your nation runs itself</b>, like every other nation: it builds, recruits, makes friends and enemies. You <b>guide</b> it with <b>influence ✦</b>, which you earn every month.</li>
         <li><b>Build</b>, <b>Army</b> and <b>Wars</b> on the left let you push it: a building (✦${c.build}), a division (✦${c.recruit}), better or worse relations, an alliance, war (✦${c.declareWar}) or peace. It can say no, and tells you why.</li>
         <li><b>Right-click</b> any nation for diplomacy. <b>Brushes</b> paint land you want (War goal), land to guard (Defend) and land to grow (Develop).</li>
-        <li>Wars are won by the stronger side over months; the winner takes <b>border land</b> or <b>tribute</b>. Watch <b>World news</b> in the corner, and point at any number to see where it comes from.</li>
+        <li>In a war the stronger side <b>pushes the border pixel by pixel</b> (mountains and rivers slow it). When you're winning, you choose when to make peace; you keep what you took. Watch <b>World news</b> in the corner, and point at any number to see where it comes from.</li>
       </ol>
       <p class="gd-small">The game saves itself every year; the start screen shows Continue.</p>
       <div class="gd-actions"><button type="button" class="gp-btn primary" data-dlg="close">Got it</button></div></div>`;

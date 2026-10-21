@@ -3,6 +3,7 @@
 // where a mistake is, like the wheel and stats files.
 
 import { readModSet, type ModSet } from "../game/stats.ts";
+import { TERRAINS, Terrain } from "../map/terrain.ts";
 
 export type PushId = "build" | "recruit" | "improveRelations" | "worsenRelations" | "alliance" | "declareWar" | "offerPeace";
 export type BrushId = "warGoal" | "defend" | "develop";
@@ -31,14 +32,25 @@ export interface SimData {
   army: { trainingMonths: number; disband: number };
   ai: { buildReserve: number; warChance: number; warOdds: number; allianceAt: number; breakAllianceAt: number; maxAllies: number; allyJoinsAttack: number };
   relations: { base: number; aggression: number; sameIdeology: number; random: number; drift: number; war: number; afterPeace: number; push: number };
-  war: { scorePerMonth: number; losses: number; maxLosses: number };
+  war: {
+    scorePerMonth: number;
+    losses: number;
+    maxLosses: number;
+    pushRate: number;
+    minPush: number;
+    maxShare: number;
+    deadZone: number;
+    defendPaintCost: number;
+    /** How many pixels of sea an attack can cross to land on an enemy's coast, and what landing costs (× terrain). */
+    seaCrossing: number;
+    seaCost: number;
+    /** How much taking one pixel costs, by terrain id (unlisted terrain: 1). */
+    conquestCost: number[];
+  };
   peace: {
     winAt: number;
     minMonths: number;
     maxMonths: number;
-    landAt: number;
-    minLandShare: number;
-    maxLandShare: number;
     annexAt: number;
     annexSize: number;
     tributeAt: number;
@@ -157,8 +169,22 @@ export function parseSimData(raw: unknown): SimData {
     army: numbers("army", ["trainingMonths", "disband"]),
     ai: numbers("ai", ["buildReserve", "warChance", "warOdds", "allianceAt", "breakAllianceAt", "maxAllies", "allyJoinsAttack"]),
     relations: numbers("relations", ["base", "aggression", "sameIdeology", "random", "drift", "war", "afterPeace", "push"]),
-    war: numbers("war", ["scorePerMonth", "losses", "maxLosses"]),
-    peace: numbers("peace", ["winAt", "minMonths", "maxMonths", "landAt", "minLandShare", "maxLandShare", "annexAt", "annexSize", "tributeAt", "tributeShare", "tributeYears"]),
+    war: { ...numbers("war", ["scorePerMonth", "losses", "maxLosses", "pushRate", "minPush", "maxShare", "deadZone", "defendPaintCost", "seaCrossing", "seaCost"]), conquestCost: conquestCost(section("war").conquestCost) },
+    peace: numbers("peace", ["winAt", "minMonths", "maxMonths", "annexAt", "annexSize", "tributeAt", "tributeShare", "tributeYears"]),
     save: numbers("save", ["everyYears"]),
   };
+}
+
+/** war.conquestCost: { "Mountains": 4, … } by terrain name, as a list by terrain id (1 where unlisted). */
+function conquestCost(v: unknown): number[] {
+  if (!isObject(v)) throw new Error(`war.conquestCost must be { "Plains": 1, "Mountains": 4, … }`);
+  const out = new Array<number>(TERRAINS.length).fill(1);
+  for (const [name, cost] of Object.entries(v)) {
+    if (name === "about") continue;
+    const t = TERRAINS.find((x) => Terrain[x.id] === name);
+    if (!t) throw new Error(`war.conquestCost: "${name}" isn't a terrain (terrains: ${TERRAINS.map((x) => Terrain[x.id]).join(", ")})`);
+    if (typeof cost !== "number" || cost <= 0) throw new Error(`war.conquestCost.${name} must be a number above 0`);
+    out[t.id] = cost;
+  }
+  return out;
 }
