@@ -19,6 +19,7 @@ import { rollNation } from "../game/roller.ts";
 import { createRng, randomSeed, type Rng } from "../game/random.ts";
 import { Region, Territory, type Holding, type PlacementData, type Survey } from "../game/territory.ts";
 import type { WheelData } from "../game/wheels.ts";
+import { statSheet, surveyLand, type StatSheet, type StatsData } from "../game/stats.ts";
 import type { LandRoom } from "../game/room.ts";
 import { runWheelScreen } from "./wheel/wheelScreen.ts";
 import { closeNationPanel, landText, showNationPanel } from "./nationPanel.ts";
@@ -45,6 +46,8 @@ export interface PlacementOptions {
   requestRender: () => void;
   wheels: WheelData;
   data: PlacementData;
+  /** The stat sheet rules (public/data/eras/<era>-stats.json). */
+  stats: StatsData;
   /** Fixed seed from the address (?seed=123): the same seed and clicks give the same map. */
   seed?: number;
   /** ?wheel=skip: roll each nation instantly instead of showing the wheel. */
@@ -58,6 +61,10 @@ export class Placement {
   readonly territory: Territory;
   readonly region: Region;
   readonly nations: PlacedNation[] = [];
+  /** Every placed nation's stat sheet (by id - 1), worked out again whenever land changes. */
+  sheets: StatSheet[] = [];
+  /** How long the last stats update took (ms), for the dev checks. */
+  statsMs = 0;
   private layer: TerritoryLayer;
   private state: State = "wheel";
   /** The nation waiting to be placed. */
@@ -189,6 +196,7 @@ export class Placement {
       this.layer.reveal(holding.pixels);
       return placed;
     }
+    this.refreshStats();
     if (how === "animate" && !this.opts.reducedMotion) {
       this.state = "growing";
       // Longer for bigger nations, but never more than about two seconds.
@@ -352,6 +360,9 @@ export class Placement {
       const share = Math.round(this.territory.ownedShare(this.region) * 100);
       console.log(`Fill: ${this.nations.length} nations, ${share}% of ${this.regionName}, in ${Math.round(performance.now() - started)} ms`);
     }
+    const filled = performance.now();
+    this.refreshStats();
+    if (import.meta.env.DEV) console.log(`Stats for ${this.nations.length} nations: ${Math.round(this.statsMs)} ms (fill itself ${Math.round(filled - started)} ms)`);
     this.pending = null;
     this.state = "idle";
     this.note = "";
@@ -366,6 +377,7 @@ export class Placement {
     this.territory.clear();
     this.layer.clear();
     this.nations.length = 0;
+    this.sheets = [];
     this.shownId = 0;
     this.note = "";
     if (this.pending) {
@@ -380,6 +392,18 @@ export class Placement {
   }
 
   // ---------------------------------------------------------------- helpers
+
+  /**
+   * Works out every nation's stat sheet again: one look over the whole map for everyone's land
+   * (terrain, coasts, rivers, pieces), then each nation's numbers. Run whenever land changes.
+   */
+  refreshStats(): void {
+    const t0 = performance.now();
+    const { owner, areas } = this.territory;
+    const land = surveyLand(this.opts.map, owner, areas, this.nations.length);
+    this.sheets = this.nations.map((n, i) => statSheet(n.nation, land[i], this.opts.stats));
+    this.statsMs = performance.now() - t0;
+  }
 
   /** The room left in the region now, for the land wheel. */
   private room(): LandRoom {
@@ -458,8 +482,10 @@ export class Placement {
   /** Shows a placed nation in the corner panel, or (null) the one waiting to be placed. */
   private showPanel(placed: PlacedNation | null): void {
     if (placed) {
+      const sheet = this.sheets[placed.holding.id - 1];
       showNationPanel(placed.nation, this.opts.wheels, {
         color: placed.color,
+        stats: sheet ? { sheet, data: this.opts.stats } : undefined,
         land: { rolled: placed.holding.rolledArea, target: placed.holding.targetArea, actual: placed.holding.area },
       });
     } else if (this.pending) {

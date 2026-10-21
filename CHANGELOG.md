@@ -6,6 +6,8 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 ## Unreleased
 
 ### Changed
+- **The map info is folded away.** What's under the mouse (terrain, height, position) and
+  the controls now hide behind the ⓘ button in the top left; click it to show them.
 - **Fairer nation sizes north and south.** The biggest-looking nations were all in Europe
   and the far north because the flat map stretches land away from the equator (a pixel in
   Europe covers about half the km² of one in Africa). A nation's land is now scaled
@@ -63,6 +65,15 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
   forever. A hidden wheel now keeps its size, and the label sizing always stops.
 
 ### Added
+- **A stat sheet for every nation.** Click any nation (yours or one of Fill's) and the
+  corner panel shows its numbers: manpower, army, army quality and aggression; GDP,
+  income, upkeep, net income and treasury; population, growth, food, stability and
+  popularity; land, coast, defence, trade, naval reach and cohesion. They come from the
+  wheel results *and* the land it actually got: mountains make it hard to invade but feed
+  few people, coasts and rivers help food, trade and ships, islands scattered over the sea
+  are hard to hold together. Point at any stat to see where the number comes from. All the
+  numbers are in `public/data/eras/1500-stats.json`, so they're easy to tune. They don't
+  change over time yet (that comes with the clock).
 - **Play it online.** The game is published to GitHub Pages at
   https://franer47.github.io/little-dictators/ and updates itself whenever something is
   merged into main, so friends can try it without installing anything.

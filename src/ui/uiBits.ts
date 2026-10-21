@@ -81,8 +81,8 @@ export interface Tip {
   title: string;
   text: string;
   small?: string;
-  /** "rare" or "golden" colours the heading. */
-  kind?: "rare" | "golden";
+  /** "rare" or "golden" colours the heading; "wide" makes room for a stat's breakdown. */
+  kind?: "rare" | "golden" | "wide";
 }
 
 /** A result's tip: its name, its description (each pick's, for multi-pick wheels), and its odds. */

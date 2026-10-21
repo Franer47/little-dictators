@@ -16,6 +16,11 @@
   animation: ui-tip-in 0.12s ease-out;
 }
 
+.ui-tip.wide {
+  max-width: 380px;
+  font-size: 12.5px;
+}
+
 .ui-tip[hidden] {
   display: none;
 }

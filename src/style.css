@@ -34,13 +34,51 @@ body {
   font-size: 13px;
   line-height: 1.5;
   pointer-events: none;
-  min-width: 220px;
 }
 
 #hud .title {
   font-weight: 700;
   font-size: 15px;
   margin-bottom: 4px;
+}
+
+/* The map info (what's under the mouse) and the controls fold away behind the ⓘ button. */
+#hud .hud-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+#hud .hud-head .title {
+  margin-bottom: 0;
+}
+
+#hud .hud-toggle {
+  pointer-events: auto;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  font-size: 15px;
+  line-height: 1;
+  color: #eef2f6;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+#hud .hud-toggle:hover,
+#hud .hud-toggle[aria-expanded="true"] {
+  background: rgba(127, 180, 230, 0.3);
+}
+
+#hud-more {
+  margin-top: 4px;
+}
+
+#hud-more[hidden] {
+  display: none;
 }
 
 #hud .help {

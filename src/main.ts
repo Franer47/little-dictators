@@ -7,16 +7,33 @@ import { MapRenderer } from "./render/mapRenderer.ts";
 import { CameraControls } from "./input/cameraControls.ts";
 import { chooseMap } from "./ui/startMenu.ts";
 import { loadWheelData, type WheelData } from "./game/wheels.ts";
-import { checkNumbers, checkWeights, sampleNations } from "./game/devChecks.ts";
+import { checkNumbers, checkStats, checkWeights, sampleNations } from "./game/devChecks.ts";
+import { loadStatsData, type StatsData } from "./game/stats.ts";
 import { rollNation } from "./game/roller.ts";
 import { createRng } from "./game/random.ts";
 import { runWheelScreen } from "./ui/wheel/wheelScreen.ts";
 import { loadPlacementData, type PlacementData } from "./game/territory.ts";
 import { Placement } from "./ui/placement.ts";
+import { loadPref, savePref } from "./ui/prefs.ts";
 
 async function main(): Promise<void> {
   const canvas = document.querySelector<HTMLCanvasElement>("#map")!;
   const tileInfo = document.querySelector<HTMLDivElement>("#tile-info")!;
+  // The map info and controls are folded away until the ⓘ button opens them (remembered).
+  const hudToggle = document.querySelector<HTMLButtonElement>("#hud .hud-toggle")!;
+  const hudMore = document.querySelector<HTMLDivElement>("#hud-more")!;
+  let hudOpen = false;
+  const setHudOpen = (open: boolean): void => {
+    hudOpen = open;
+    hudMore.hidden = !open;
+    hudToggle.setAttribute("aria-expanded", String(open));
+    hudToggle.title = open ? "Hide map info and controls" : "Show map info and controls";
+  };
+  setHudOpen(loadPref<boolean>("mapInfoOpen", false));
+  hudToggle.addEventListener("click", () => {
+    setHudOpen(!hudOpen);
+    savePref("mapInfoOpen", hudOpen);
+  });
 
   // Testing shortcuts in the address: ?map=earth-1500 skips the start screen (any name in
   // public/maps/ works), ?wheel=skip rolls the nation instantly, ?seed=123 fixes the rolls.
@@ -34,8 +51,10 @@ async function main(): Promise<void> {
   const mapLoading = loadMap(mapName);
   let wheels: WheelData;
   let placementData: PlacementData;
+  let statsData: StatsData;
   try {
     [wheels, placementData] = await wheelsLoading;
+    statsData = await loadStatsData(wheels);
   } catch (e) {
     showFatalError((e as Error).message);
     return;
@@ -62,9 +81,11 @@ async function main(): Promise<void> {
   // Handy for poking at the game from the browser console while developing.
   // game.checkWeights() spins every wheel 100,000 times and compares the wins with the weights;
   // game.checkNumbers() rolls 10,000 nations and prints the spread of land, population and GDP;
-  // game.sampleNations() prints a few whole rolled nations (see src/game/devChecks.ts).
+  // game.sampleNations() prints a few whole rolled nations (see src/game/devChecks.ts);
+  // game.checkStats() prints the spread of every stat over the nations on the map (Fill first).
   const debug: Record<string, unknown> = {
     wheels,
+    statsData,
     checkWeights: () => checkWeights(wheels),
     checkNumbers: (nations?: number) => checkNumbers(wheels, nations),
     sampleNations: (count?: number) => sampleNations(wheels, count),
@@ -188,12 +209,19 @@ async function main(): Promise<void> {
     requestRender,
     wheels,
     data: placementData,
+    stats: statsData,
     seed,
     skipWheel,
     reducedMotion,
   });
   placement.begin(nation, firstColor);
-  Object.assign(debug, { nation, placement });
+  Object.assign(debug, {
+    nation,
+    placement,
+    checkStats: () => checkStats(placement!.nations, placement!.sheets, placement!.statsMs),
+    /** The stat sheet of nation `id` (1 = the first placed). */
+    sheet: (id: number) => placement!.sheets[id - 1],
+  });
 }
 
 /** Shows an error the player can read, e.g. a mistake in a data file. */
