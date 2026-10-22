@@ -44,9 +44,9 @@
   --accent-2: #c8423a;
   --panel: #142340;
   --edge: #0b1020;
-  /* Pixelify Sans: a pixel font made to be easy to read. The logo keeps Press Start 2P. */
-  --font-display: "Pixelify Sans", monospace;
-  --font-body: "Pixelify Sans", monospace;
+  /* VT323: a terminal pixel font with clearly different digits. The logo keeps Press Start 2P. */
+  --font-display: "VT323", monospace;
+  --font-body: "VT323", monospace;
   --bg: transparent; /* the pixel sky canvas is the background */
 }
 

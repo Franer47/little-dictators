@@ -6,8 +6,8 @@
 import type { Wheel } from "../../game/wheels.ts";
 import { DOOM_RED, TAU, sliceColor, sliceEdges, specialColors, wrapText, type WheelFrame, type WheelView } from "./wheelView.ts";
 
-/** The slice labels' font: Pixelify Sans, a pixel font made for legibility. */
-const LABEL_FONT = '700 {size}px "Pixelify Sans", monospace';
+/** The slice labels' font: VT323, a terminal pixel font whose digits (5, 8, 9…) are easy to tell apart. */
+const LABEL_FONT = '400 {size}px "VT323", monospace';
 
 /** The retro palette: a few earthy map colours plus some bright accents. */
 export const RETRO_PALETTE = {
