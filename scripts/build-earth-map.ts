@@ -3,11 +3,12 @@
 // Inputs:
 // - Natural Earth land polygons, 1:10m or 1:50m depending on the map size (via the
 //   world-atlas package): the exact shape of the coastlines, and Greenland's outline for ice.
-// - NOAA ETOPO1 elevation (data/raw/, downloaded automatically the first time): how high
-//   the land is and how deep the sea is. Used to split land into plains / highlands /
-//   mountains and for the shaded look.
-// - Natural Earth 1:50m lakes and river lines (data/raw/, downloaded the first time). Which
-//   lakes and rivers go on the map is set in scripts/earth-water.json.
+// - NOAA ETOPO1 elevation (data/raw/, downloaded automatically the first time), every 5 or
+//   (for the big map) every 2 arc-minutes: how high the land is and how deep the sea is. Used
+//   to split land into plains / highlands / mountains and for the shaded look.
+// - Natural Earth 1:50m or (for the big map) 1:10m lakes and river lines (data/raw/,
+//   downloaded the first time). Which lakes and rivers go on the map is set in
+//   scripts/earth-water.json.
 //
 // Outputs (in public/maps/), for each size in MAPS below (e.g. "earth", "earth-1500"):
 // - <name>.png: the terrain data, one exact colour per terrain type (see src/map/terrain.ts).
@@ -19,7 +20,7 @@ import { createRequire } from "node:module";
 import { PNG } from "pngjs";
 import { feature } from "topojson-client";
 import type { Topology, GeometryCollection } from "topojson-specification";
-import type { FeatureCollection, Geometry, LineString, MultiLineString, MultiPolygon, Polygon, Position } from "geojson";
+import type { Feature, FeatureCollection, Geometry, LineString, MultiLineString, MultiPolygon, Polygon, Position } from "geojson";
 import { TERRAINS, Terrain } from "../src/map/terrain.ts";
 import { lonLatToPixel, pixelToLonLat, projectedHeight, type MapProjection } from "../src/map/projection.ts";
 
@@ -40,16 +41,33 @@ interface MapSize {
    * near the poles (where the map is stretched) come out smoother than the pixels.
    */
   coastlines: "50m" | "10m";
+  /**
+   * How fine the elevation data is: ETOPO1 every 5th arc-minute (about 9 km) or every 2nd
+   * (about 4 km). 5 is plenty up to ~2000 px; on a 6000-px map a pixel is only ~3.6
+   * arc-minutes wide, so the 5-minute grid would come out as blurry upscaled patches.
+   */
+  elevation: "5min" | "2min";
+  /** Which Natural Earth lakes and rivers: 1:50m, or the more detailed 1:10m for big maps. */
+  water: "50m" | "10m";
+  /**
+   * Shallow water reaches out from land in a circle instead of a square. The square is fine
+   * at a radius of 2–3 pixels, but at the big map's 8 it shows as boxes around small islands.
+   * (The smaller maps keep the square, so they stay exactly as they were.)
+   */
+  roundShallows?: boolean;
 }
 
 /**
  * The maps to build, all with the same rules; only the size differs (the height follows
  * from the width). "earth" is the one the game loads. To add a size, add a line.
  * earth-1500 keeps the 50m coastlines it was made with, so it stays the same map.
+ * To build only some of them: npm run build:map -- earth-6000
  */
 const MAPS: MapSize[] = [
-  { name: "earth", width: 2000, coastlines: "10m" },
-  { name: "earth-1500", width: 1500, coastlines: "50m" },
+  { name: "earth", width: 2000, coastlines: "10m", elevation: "5min", water: "50m" },
+  { name: "earth-1500", width: 1500, coastlines: "50m", elevation: "5min", water: "50m" },
+  // The detailed test map, for small countries. About 20 million pixels: slower to load and play.
+  { name: "earth-6000", width: 6000, coastlines: "10m", elevation: "2min", water: "10m", roundShallows: true },
 ];
 
 /**
@@ -109,6 +127,16 @@ const SNOW_EDGE_NOISE = 0.8;
 const ETOPO_FILE = "data/raw/etopo1-5min.asc";
 const ETOPO_URL =
   "https://coastwatch.pfeg.noaa.gov/erddap/griddap/etopo180.esriAscii?altitude%5B(-90):5:(90)%5D%5B(-180):5:(180)%5D";
+// The same data every 2nd arc-minute, for the big map: about 330 MB, so it comes in six bands
+// of 30° latitude (south to north), each its own file.
+const ETOPO_2MIN_BANDS = 6;
+const etopo2minFile = (band: number): string => `data/raw/etopo1-2min-${band}.asc`;
+function etopo2minUrl(band: number): string {
+  const south = -90 + band * 30;
+  // Each band stops one sample (2 arc-minutes) short of the next one's first row; the last reaches 90°N.
+  const north = band === ETOPO_2MIN_BANDS - 1 ? 90 : south + 30 - 2 / 60;
+  return `https://coastwatch.pfeg.noaa.gov/erddap/griddap/etopo180.esriAscii?altitude%5B(${south}):2:(${north.toFixed(7)})%5D%5B(-180):2:(180)%5D`;
+}
 
 interface Grid {
   cols: number;
@@ -125,16 +153,46 @@ interface Grid {
 async function download(url: string, file: string, what: string): Promise<void> {
   if (existsSync(file)) return;
   console.log(`Downloading ${what} to ${file} (once)...`);
-  const res = await fetch(url);
+  let res = await fetch(url);
+  // NOAA's server is sometimes busy (503): try again a few times before giving up.
+  for (let tries = 1; res.status === 503 && tries < 5; tries++) {
+    console.log(`  Server busy, trying again in ${tries * 10} s...`);
+    await new Promise((r) => setTimeout(r, tries * 10000));
+    res = await fetch(url);
+  }
   if (!res.ok) throw new Error(`Download failed (${res.status}). Get it by hand from:\n${url}\nand save it as ${file}`);
   mkdirSync("data/raw", { recursive: true });
   writeFileSync(file, Buffer.from(await res.arrayBuffer()));
 }
 
-async function loadEtopo(): Promise<Grid> {
-  await download(ETOPO_URL, ETOPO_FILE, "elevation data (about 50 MB)");
+async function loadEtopo(detail: MapSize["elevation"]): Promise<Grid> {
+  if (detail === "5min") {
+    await download(ETOPO_URL, ETOPO_FILE, "elevation data (about 50 MB)");
+    return readAsciiGrid(ETOPO_FILE);
+  }
+  // Stack the bands, north first (so the last band, the northernmost, goes on top).
+  const bands: Grid[] = [];
+  for (let band = ETOPO_2MIN_BANDS - 1; band >= 0; band--) {
+    await download(etopo2minUrl(band), etopo2minFile(band), `detailed elevation data, part ${ETOPO_2MIN_BANDS - band} of ${ETOPO_2MIN_BANDS} (about 55 MB)`);
+    bands.push(readAsciiGrid(etopo2minFile(band)));
+  }
+  const { cols, cell, lon0, lat0 } = bands[0];
+  const rows = bands.reduce((sum, b) => sum + b.rows, 0);
+  const values = new Int16Array(cols * rows);
+  let offset = 0;
+  for (const b of bands) {
+    if (b.cols !== cols) throw new Error(`Elevation bands don't match: ${b.cols} columns instead of ${cols}`);
+    values.set(b.values, offset);
+    offset += b.values.length;
+  }
+  const lastRowLat = lat0 - (rows - 1) * cell;
+  if (Math.abs(lastRowLat + 90) > 1e-6) throw new Error(`Elevation bands don't line up: the last row is at ${lastRowLat}°, not -90°`);
+  return { cols, rows, cell, lon0, lat0, values };
+}
+
+function readAsciiGrid(file: string): Grid {
   // ESRI ASCII grid: 6 header lines ("ncols 4321" ...), then rows of numbers, north first.
-  const text = readFileSync(ETOPO_FILE, "latin1");
+  const text = readFileSync(file, "latin1");
   const header: Record<string, number> = {};
   let pos = 0;
   for (let i = 0; i < 6; i++) {
@@ -160,7 +218,7 @@ async function loadEtopo(): Promise<Grid> {
     }
   }
   if (inNum) values[n++] = neg ? -cur : cur;
-  if (n !== cols * rows) throw new Error(`${ETOPO_FILE}: expected ${cols * rows} values, got ${n}`);
+  if (n !== cols * rows) throw new Error(`${file}: expected ${cols * rows} values, got ${n}`);
   return { cols, rows, cell, lon0: header.xllcenter, lat0: header.yllcenter + (rows - 1) * cell, values };
 }
 
@@ -236,18 +294,20 @@ const iceRings = (detail: MapSize["coastlines"]): Position[][] =>
 // Natural Earth vector data, pinned to release v5.1.2 so a rebuild always gets the same
 // shapes. Public domain. Each file is under 1 MB.
 const NATURAL_EARTH_URL = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson";
-const LAKES_FILE = "data/raw/ne_50m_lakes.geojson";
-const RIVERS_FILE = "data/raw/ne_50m_rivers_lake_centerlines.geojson";
+const lakesFile = (detail: MapSize["water"]): string => `data/raw/ne_${detail}_lakes.geojson`;
+const riversFile = (detail: MapSize["water"]): string => `data/raw/ne_${detail}_rivers_lake_centerlines.geojson`;
 
+interface RiverConfig {
+  name: string;
+  parts: string[];
+  bbox?: [west: number, south: number, east: number, north: number];
+  dropLines?: Position[];
+  extraLines?: Position[][];
+}
 interface WaterConfig {
   lakes: { minAreaKm2: number; kinds: string[]; alsoInclude: string[]; exclude: string[] };
-  rivers: {
-    name: string;
-    parts: string[];
-    bbox?: [west: number, south: number, east: number, north: number];
-    dropLines?: Position[];
-    extraLines?: Position[][];
-  }[];
+  /** "10m": settings that replace the river's own when a map uses the 1:10m rivers (the lines differ). */
+  rivers: (RiverConfig & { "10m"?: Partial<Omit<RiverConfig, "name">> })[];
 }
 const water: WaterConfig = JSON.parse(readFileSync("scripts/earth-water.json", "utf8"));
 
@@ -270,19 +330,22 @@ function ringAreaKm2(ring: Position[]): number {
 // Lakes are ordinary water (Ocean / Shallow water, by the same rule as the sea). Natural
 // Earth's land polygons cover the lakes, so cut them out of the land. Islands in a lake
 // are holes in its polygon, so they stay land.
-const lakeRings: Position[][] = [];
-const lakeNames: string[] = [];
-for (const f of (await loadNaturalEarth<Polygon | MultiPolygon>(LAKES_FILE, "Natural Earth lakes")).features) {
-  const name = String(f.properties?.name);
-  const polys = f.geometry.type === "Polygon" ? [f.geometry.coordinates] : f.geometry.coordinates;
-  const area = polys.reduce((sum, [outer, ...holes]) => sum + ringAreaKm2(outer) - holes.reduce((s, h) => s + ringAreaKm2(h), 0), 0);
-  const { minAreaKm2, kinds, alsoInclude, exclude } = water.lakes;
-  const big = area >= minAreaKm2 && kinds.includes(f.properties?.featurecla);
-  if ((!big && !alsoInclude.includes(name)) || exclude.includes(name) || lakeNames.includes(name)) continue;
-  lakeNames.push(name);
-  for (const poly of polys) lakeRings.push(...poly);
+async function loadLakeRings(detail: MapSize["water"]): Promise<Position[][]> {
+  const lakeRings: Position[][] = [];
+  const lakeNames: string[] = [];
+  for (const f of (await loadNaturalEarth<Polygon | MultiPolygon>(lakesFile(detail), `Natural Earth ${detail} lakes`)).features) {
+    const name = String(f.properties?.name);
+    const polys = f.geometry.type === "Polygon" ? [f.geometry.coordinates] : f.geometry.coordinates;
+    const area = polys.reduce((sum, [outer, ...holes]) => sum + ringAreaKm2(outer) - holes.reduce((s, h) => s + ringAreaKm2(h), 0), 0);
+    const { minAreaKm2, kinds, alsoInclude, exclude } = water.lakes;
+    const big = area >= minAreaKm2 && kinds.includes(f.properties?.featurecla);
+    if ((!big && !alsoInclude.includes(name)) || exclude.includes(name) || lakeNames.includes(name)) continue;
+    lakeNames.push(name);
+    for (const poly of polys) lakeRings.push(...poly);
+  }
+  console.log(`Lakes, ${detail} (${lakeNames.length}): ${lakeNames.join(", ")}`);
+  return lakeRings;
 }
-console.log(`Lakes (${lakeNames.length}): ${lakeNames.join(", ")}`);
 
 /** Latitude of the tree line at a longitude, interpolated from TREE_LINE. */
 function treeLineLat(lon: number): number {
@@ -303,13 +366,15 @@ function hash(cx: number, cy: number): number {
   return ((h ^ (h >>> 16)) >>> 0) / 2147483648 - 1;
 }
 
-// --- Load the data once; every map size is built from it ---------------------------
-const etopo = await loadEtopo();
-const riverFeatures = (await loadNaturalEarth<LineString | MultiLineString>(RIVERS_FILE, "Natural Earth rivers")).features;
-
 // --- Build one map ---------------------------------------------------------------------
-function buildMap({ name, width, coastlines }: MapSize): void {
-  console.log(`\n--- ${name}: ${width} px wide, ${coastlines} coastlines ---`);
+interface SourceData {
+  etopo: Grid;
+  lakeRings: Position[][];
+  riverFeatures: Feature<LineString | MultiLineString>[];
+}
+
+function buildMap({ name, width, coastlines, elevation: elevationDetail, water: waterDetail, roundShallows }: MapSize, { etopo, lakeRings, riverFeatures }: SourceData): void {
+  console.log(`\n--- ${name}: ${width} px wide, ${coastlines} coastlines, ${elevationDetail} elevation, ${waterDetail} lakes and rivers ---`);
   const projection: MapProjection = {
     projection: "patterson",
     width,
@@ -422,17 +487,51 @@ function buildMap({ name, width, coastlines }: MapSize): void {
   }
 
   // --- Assign terrain -------------------------------------------------------------
+  // Near land = any land within shallowRadius pixels: in a circle (roundShallows), or in a
+  // square, worked out for the whole map in two passes (each row, then each column), which
+  // gives the same square much faster on big maps than looking at every pixel of it.
   const shallowRadius = Math.round(px(SHALLOW_RADIUS));
-  function nearLand(x: number, y: number): boolean {
+  const nearLandMask = new Uint8Array(width * height);
+  if (roundShallows) {
+    // A circle: stamp it around every land pixel on the coast (one with a water pixel among
+    // its 8 neighbours). Water near inland pixels is always nearer to some coast pixel.
+    const disc: [number, number][] = [];
     for (let dy = -shallowRadius; dy <= shallowRadius; dy++) {
-      for (let dx = -shallowRadius; dx <= shallowRadius; dx++) {
-        const nx = (x + dx + width) % width; // the map wraps east–west
-        const ny = y + dy;
-        if (ny >= 0 && ny < height && isLand[ny * width + nx]) return true;
+      for (let dx = -shallowRadius; dx <= shallowRadius; dx++) if (dx * dx + dy * dy <= shallowRadius * (shallowRadius + 1)) disc.push([dx, dy]);
+    }
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (!isLand[y * width + x]) continue;
+        let coast = false;
+        for (let dy = -1; dy <= 1 && !coast; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const ny = y + dy;
+            if (ny >= 0 && ny < height && !isLand[ny * width + ((x + dx + width) % width)]) coast = true;
+          }
+        }
+        if (!coast) continue;
+        for (const [dx, dy] of disc) {
+          const ny = y + dy;
+          if (ny >= 0 && ny < height) nearLandMask[ny * width + ((x + dx + width) % width)] = 1; // the map wraps east–west
+        }
       }
     }
-    return false;
+  } else {
+    const rowNear = new Uint8Array(width * height);
+    for (let y = 0; y < height; y++) {
+      const row = y * width;
+      for (let x = 0; x < width; x++) {
+        if (!isLand[row + x]) continue;
+        for (let dx = -shallowRadius; dx <= shallowRadius; dx++) rowNear[row + ((x + dx + width) % width)] = 1; // the map wraps east–west
+      }
+    }
+    for (let i = 0; i < rowNear.length; i++) {
+      if (!rowNear[i]) continue;
+      const y = Math.floor(i / width);
+      for (let dy = Math.max(-shallowRadius, -y); dy <= shallowRadius && y + dy < height; dy++) nearLandMask[i + dy * width] = 1;
+    }
   }
+  const nearLand = (x: number, y: number): boolean => nearLandMask[y * width + x] === 1;
 
   /**
    * Smooth noise in -1..1 (blended random values on a grid of `cell`-pixel squares). The
@@ -629,7 +728,8 @@ function buildMap({ name, width, coastlines }: MapSize): void {
     ends: Position[];
   }
 
-  const rivers: River[] = water.rivers.map((cfg) => {
+  const rivers: River[] = water.rivers.map(({ "10m": at10m, ...base }) => {
+    const cfg: RiverConfig = waterDetail === "10m" ? { ...base, ...at10m } : base;
     const lines: Position[][] = [];
     const inBox = ([lon, lat]: Position): boolean =>
       !cfg.bbox || (lon >= cfg.bbox[0] && lat >= cfg.bbox[1] && lon <= cfg.bbox[2] && lat <= cfg.bbox[3]);
@@ -736,6 +836,20 @@ function buildMap({ name, width, coastlines }: MapSize): void {
         console.warn(`River ${river.name}: mouth at ${end.map((v) => v.toFixed(2))} doesn't reach water`);
       }
     }
+  }
+
+  // How many separate pieces each river is in. Lakes and the sea split a river (the Nile
+  // through Lake Victoria, a delta's islands), so a few pieces are normal; many more than on
+  // the other maps can mean a gap in the data too wide to join, or a piece left out.
+  for (const river of rivers) {
+    const left = new Set(river.pixels);
+    let pieces = 0;
+    for (const p of river.pixels) {
+      if (!left.has(p)) continue;
+      pieces++;
+      for (const q of riverPiece(river, p)) left.delete(q);
+    }
+    if (pieces > 1) console.log(`River ${river.name}: in ${pieces} pieces`);
   }
 
   // A source right next to a different river (the Danube's starts ~25 km from the Rhine,
@@ -975,4 +1089,21 @@ function buildMap({ name, width, coastlines }: MapSize): void {
   console.log(`Pixels: ${counts.join(", ")}`);
 }
 
-for (const map of MAPS) buildMap(map);
+// --- Load the data (once per detail level) and build the maps ---------------------------
+const only = process.argv.slice(2);
+const unknown = only.filter((n) => !MAPS.some((m) => m.name === n));
+if (unknown.length) throw new Error(`No map called ${unknown.join(", ")}. The maps are: ${MAPS.map((m) => m.name).join(", ")}`);
+const once = <T>(load: (key: string) => Promise<T>): ((key: string) => Promise<T>) => {
+  const cache = new Map<string, Promise<T>>();
+  return (key) => {
+    if (!cache.has(key)) cache.set(key, load(key));
+    return cache.get(key)!;
+  };
+};
+const etopoAt = once((d) => loadEtopo(d as MapSize["elevation"]));
+const lakesAt = once((d) => loadLakeRings(d as MapSize["water"]));
+const riversAt = once(async (d) => (await loadNaturalEarth<LineString | MultiLineString>(riversFile(d as MapSize["water"]), `Natural Earth ${d} rivers`)).features);
+for (const map of MAPS) {
+  if (only.length && !only.includes(map.name)) continue;
+  buildMap(map, { etopo: await etopoAt(map.elevation), lakeRings: await lakesAt(map.water), riverFeatures: await riversAt(map.water) });
+}

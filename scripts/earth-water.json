@@ -10,7 +10,9 @@
     "  dropLines leaves out the pieces that start or end at one of these [lon, lat] points (e.g. side branches of a delta).",
     "  extraLines adds hand-drawn lines as [[lon, lat], ...], for stretches Natural Earth doesn't have (or that its",
     "  coastline turns into specks of water, like the Amazon and St. Lawrence estuaries).",
-    "A river whose mouth stops short of the sea, a big lake or another river is joined to the nearest one automatically."
+    "A river whose mouth stops short of the sea, a big lake or another river is joined to the nearest one automatically.",
+    "The detailed map (earth-6000) uses the more detailed Natural Earth 1:10m lakes and rivers instead. Its lines differ, so a river",
+    "  can have a '10m' entry with settings (parts, bbox, dropLines, extraLines) that replace its own ones for that map only."
   ],
   "lakes": {
     "minAreaKm2": 5000,
@@ -34,7 +36,7 @@
       "parts": ["St. Lawrence"],
       "extraLines": [[[-74.71, 45.0], [-74.0, 45.25], [-73.5, 45.55], [-73.1, 46.0], [-72.55, 46.33], [-71.85, 46.6], [-71.2, 46.82], [-70.6, 47.15], [-70.0, 47.6], [-69.4, 48.1], [-68.6, 48.6]]]
     },
-    { "name": "Mackenzie", "parts": ["Mackenzie"] },
+    { "name": "Mackenzie", "parts": ["Mackenzie"], "10m": { "bbox": [-140, 55, -100, 72] } },
     { "name": "Yukon", "parts": ["Yukon"] },
     { "name": "Columbia", "parts": ["Columbia"] },
     { "name": "Colorado", "parts": ["Colorado"], "bbox": [-125, 25, -100, 45] },
@@ -58,7 +60,12 @@
     { "name": "Yellow River", "parts": ["Huang"] },
     { "name": "Mekong", "parts": ["Mekong", "Lancang"] },
     { "name": "Ganges", "parts": ["Ganges"], "dropLines": [[89.3, 22.62], [88.44, 22.99], [89.99, 22.47]] },
-    { "name": "Brahmaputra", "parts": ["Brahmaputra", "Dihang", "Yarlung", "Maquan"], "dropLines": [[90.27, 23.46], [90.56, 23.54]] },
+    {
+      "name": "Brahmaputra",
+      "parts": ["Brahmaputra", "Dihang", "Yarlung", "Maquan"],
+      "dropLines": [[90.27, 23.46], [90.56, 23.54]],
+      "10m": { "dropLines": [[89.76, 24.27]] }
+    },
     { "name": "Indus", "parts": ["Indus", "Shiquan"] },
     { "name": "Tigris", "parts": ["Tigris", "Dicle", "Shatt al Arab"] },
     { "name": "Euphrates", "parts": ["Euphrates", "Al Furat", "Firat"] },

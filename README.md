@@ -636,8 +636,9 @@ The builder makes the same map in more than one size, from the same data and rul
 |---|---|---|---|
 | `earth` | 2000 × 1111 | Natural Earth 1:10m | The main map: the game loads this one. |
 | `earth-1500` | 1500 × 833 | Natural Earth 1:50m | The earlier, smaller map, kept for a future map-size option. |
+| `earth-6000` | 6000 × 3334 | Natural Earth 1:10m | **Test map** ("Earth (detailed, slow)"): 9× the pixels, so small countries get real shapes instead of a few squares. Finer elevation (every 2 arc-minutes) and the 1:10m lakes and rivers. |
 
-Pick either one on the start screen. The list is `MAP_CHOICES` in `src/ui/startMenu.ts`.
+Pick one on the start screen. The list is `MAP_CHOICES` in `src/ui/startMenu.ts`.
 For quick testing you can also skip the start screen by naming a map in the address, e.g.
 <http://localhost:5173/?map=earth-1500> (any map in `public/maps/` works this way).
 
@@ -647,6 +648,24 @@ the snow edge's wiggles, how far a river mouth may be joined to the sea…) were
 the 1500 map and are scaled to each size so they cover the same distance on the ground,
 and the shading is scaled the same way, so every size looks alike. Rivers stay exactly
 1 pixel wide at every size.
+
+**The detailed map (`earth-6000`)** is about 20 million pixels. It's a 30 MB download (the
+heightmap is 29 MB of it, the terrain 1 MB) and the browser tab uses about 1.1 GB of memory,
+so it's slower everywhere:
+
+| On a fast desktop (Chrome) | `earth` (2000) | `earth-6000` |
+|---|---|---|
+| Loading the map (local, after download) | 0.15 s | 1.0 s, + 0.8 s to paint |
+| Fill the world (~880 nations) | 3 s | 21 s |
+| A month passing | ~25 ms; ~100 ms every third month | ~30 ms; ~200 ms and ~350 ms on two months out of three |
+
+The rules for growing nations that are measured in pixels (how big a hole gets filled in,
+how far land may cross the sea, the size of the random patches, how much a river holds land
+back, how far the leftovers spread at the end of a fill) were tuned on the 2000 map; on a
+wider map they're scaled up so they cover the same ground (`pixelScale` in
+`src/game/territory.ts`). On the 2000 and 1500 maps nothing changes. The war and army
+rules aren't scaled yet: on the detailed map conquest is slower over the same ground, the
+brushes are smaller and painting costs more, and division flags only show further zoomed in.
 
 Each map is three files in `public/maps/` (here for `earth`; `earth-1500` has the same three):
 
@@ -660,7 +679,7 @@ Terrain comes from real elevation, averaged over each pixel:
 
 | Terrain | Rule |
 |---|---|
-| Ocean / Shallow water | Water (the sea and big lakes); shallow if within about 50 km of land (2 pixels on the 1500 map, 3 on the 2000 map) |
+| Ocean / Shallow water | Water (the sea and big lakes); shallow if within about 50 km of land (2 pixels on the 1500 map, 3 on the 2000 map, 8 on the 6000 map, measured as a circle there) |
 | River | Major rivers: a line exactly 1 pixel wide (see below). Beats every land type except Ice. |
 | Plains | Land below 700 m |
 | Highlands | Land from 700 m to 2000 m |
@@ -691,7 +710,10 @@ unlike the sea, armies will be able to cross it (`crossableByArmies` in
 Which lakes and rivers are used is set in `scripts/earth-water.json`: the lake size
 cutoff, and for each river the Natural Earth names of its pieces (the Yangtze is
 "Yangtze", "Chang Jiang", "Jinsha"…), plus a few hand fixes: `dropLines` to leave out side
-branches of a delta, `extraLines` to draw stretches the data is missing. Edit it and run
+branches of a delta, `extraLines` to draw stretches the data is missing. The detailed map
+uses the 1:10m lakes and rivers, whose lines differ, so a river can have a `"10m"` entry
+with settings that replace its own ones for that map only (the 1:10m data has a second
+Mackenzie, in Australia, and splits the Brahmaputra's delta differently). Edit it and run
 `npm run build:map` again.
 
 ### Regenerating it
@@ -700,21 +722,26 @@ branches of a delta, `extraLines` to draw stretches the data is missing. Edit it
 npm run build:map
 ```
 
-This builds every size (`earth` and `earth-1500`) in a few seconds. It stops with an
-error if any river ends up touching another river or the sea only at a corner.
+This builds every size (`earth`, `earth-1500` and `earth-6000`): about a minute each for
+the small ones and a few minutes for `earth-6000`. To build only some, name them:
+`npm run build:map -- earth-6000`. It stops with an error if any river ends up touching
+another river or the sea only at a corner.
 
 The first run downloads the elevation data (about 50 MB) into `data/raw/etopo1-5min.asc`,
 and the Natural Earth lakes and rivers (under 1 MB each) into `data/raw/ne_50m_*.geojson`.
 If the download fails, get it by hand from
 [this NOAA ERDDAP link](https://coastwatch.pfeg.noaa.gov/erddap/griddap/etopo180.esriAscii?altitude%5B(-90):5:(90)%5D%5B(-180):5:(180)%5D)
 (ETOPO1 Ice Surface, every 5th arc-minute, "ESRI ASCII" format) and save it under that name.
+For `earth-6000` it also downloads the same data every 2nd arc-minute (about 330 MB, in six
+bands of 30° latitude, `data/raw/etopo1-2min-0.asc` to `-5.asc`; the error message gives the
+link if one fails) and the 1:10m lakes and rivers (a few MB).
 
 ### Data sources
 
 - Coastlines and Greenland: [Natural Earth](https://www.naturalearthdata.com/) 1:10m
-  (the 2000 map) and 1:50m (the 1500 map), public domain, via the `world-atlas` package.
-- Lakes and rivers: [Natural Earth](https://www.naturalearthdata.com/) 1:50m "Lakes" and
-  "Rivers + lake centerlines" (public domain), version 5.1.2, downloaded from the
+  (the 2000 and 6000 maps) and 1:50m (the 1500 map), public domain, via the `world-atlas` package.
+- Lakes and rivers: [Natural Earth](https://www.naturalearthdata.com/) 1:50m (1:10m for the
+  6000 map) "Lakes" and "Rivers + lake centerlines" (public domain), version 5.1.2, downloaded from the
   [natural-earth-vector](https://github.com/nvkelso/natural-earth-vector) repository.
 - Elevation and sea depth: NOAA **ETOPO1** 1 Arc-Minute Global Relief Model, Ice Surface
   version (U.S. Government work, free to use and redistribute), served by NOAA's

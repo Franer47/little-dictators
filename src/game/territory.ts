@@ -214,6 +214,8 @@ export interface Holding {
 
 /** The id test growths use while looking for a spot (never a real nation's). */
 const TEST_ID = 65535;
+/** The map width the growth rules (data/placement.json) were tuned on. */
+const TUNED_WIDTH = 2000;
 const SIDES: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
 /** The ownership grid: which nation owns each pixel. */
@@ -231,7 +233,8 @@ export class Territory {
   private stamp = 0;
   // Reused by survey() for the distance-from-nations field.
   private boxDist = new Int32Array(0);
-  private boxQueue = new Int32Array(0);
+  // Reused by absorbLeftovers() (it runs a few times in a row at the end of a fill).
+  private absorbBuffers = { steps: new Int16Array(0), from: new Uint16Array(0), queue: new Int32Array(0) };
   // Reused by grow(): how many sea pixels in a row the best path to a pixel crossed, and
   // whether that path came ashore from the sea.
   private seaRun: Uint8Array;
@@ -240,6 +243,14 @@ export class Territory {
   private pocketArea: Float32Array;
   /** The area of a pixel at the equator (the biggest), km². */
   private readonly biggestPixel: number;
+  /**
+   * How many of this map's pixels make one pixel of the 2000-wide map the rules were tuned
+   * on (3 on the 6000-wide map). Rules measured in pixels (hole size, sea crossing, the
+   * wobble's patches, how dear a river is to cross) are scaled by it, so they cover the same
+   * ground on any map. 1 on the main map, where nothing changes (and on the smaller maps,
+   * which keep the rules as they are).
+   */
+  readonly pixelScale: number;
 
   constructor(
     readonly map: GameMap,
@@ -254,9 +265,12 @@ export class Territory {
     this.bySea = new Uint8Array(size);
     this.areas = rowAreas(map);
     this.biggestPixel = Math.max(...this.areas);
+    this.pixelScale = Math.max(1, map.width / TUNED_WIDTH);
     for (const [name, cost] of Object.entries(rules.cost)) {
       if (typeof cost === "number" && cost > 0) this.cost[Terrain[name as keyof typeof Terrain]] = cost;
     }
+    // A river is 1 pixel wide on any map, so on a finer map it takes more of them to make the same barrier.
+    if (this.pixelScale !== 1) this.cost[Terrain.River] *= this.pixelScale;
   }
 
   /**
@@ -268,6 +282,11 @@ export class Territory {
   targetFor(rolled: number, y: number): number {
     const balance = this.rules.latitudeBalance ?? 0;
     return balance > 0 ? rolled * (this.areas[y] / this.biggestPixel) ** balance : rolled;
+  }
+
+  /** growth.holeSize (pixels of the 2000-wide map) in this map's pixels: an area, so scaled twice. */
+  private get holeSize(): number {
+    return Math.round(this.rules.holeSize * this.pixelScale * this.pixelScale);
   }
 
   /** True if this kind of land can ever be owned (not sea, lakes or ice). */
@@ -362,9 +381,11 @@ export class Territory {
     const y1 = Math.min(height - 1, region.box.y1 + maxSteps);
     const bw = x1 - x0 + 1;
     const bh = y1 - y0 + 1;
-    const steps = new Int16Array(bw * bh).fill(-1);
-    const from = new Uint16Array(bw * bh);
-    const queue = new Int32Array(bw * bh);
+    if (this.absorbBuffers.steps.length < bw * bh) {
+      this.absorbBuffers = { steps: new Int16Array(bw * bh), from: new Uint16Array(bw * bh), queue: new Int32Array(bw * bh) };
+    }
+    const { steps, from, queue } = this.absorbBuffers;
+    steps.fill(-1, 0, bw * bh);
     let head = 0;
     let tail = 0;
     for (let y = y0; y <= y1; y++) {
@@ -549,8 +570,11 @@ export class Territory {
     left = 0;
     for (const i of region.land) if (owner[i] === 0) left += areas[(i / width) | 0];
     const room = { left, taken: total > 0 ? 1 - left / total : 0, biggestGap };
-    const free = Array.from(region.land).filter((i) => seen[i] === good);
-    const shore = Array.from(region.shore).filter((i) => seen[i] === good);
+    // (Plain loops: copying the region's millions of land pixels into an array first was slow on big maps.)
+    const free: number[] = [];
+    for (const i of region.land) if (seen[i] === good) free.push(i);
+    const shore: number[] = [];
+    for (const i of region.shore) if (seen[i] === good) shore.push(i);
     if (!this.holdings.length) return { room, free, shore, farFree: free, farShore: shore };
 
     // 2. Distance (in steps) from the nearest owned pixel, inside the region's box.
@@ -559,32 +583,39 @@ export class Territory {
     const bh = y1 - y0 + 1;
     if (this.boxDist.length < bw * bh) {
       this.boxDist = new Int32Array(bw * bh);
-      this.boxQueue = new Int32Array(bw * bh);
     }
+    // Steps between side neighbours with nothing in the way are just |dx| + |dy| to the
+    // nearest owned pixel, so two sweeps over the box (down and right, then up and left) find
+    // them: the same numbers as walking out from every owned pixel step by step, much faster.
     const dist = this.boxDist;
-    const queue = this.boxQueue;
-    dist.fill(-1, 0, bw * bh);
-    let head = 0;
-    let tail = 0;
+    const FAR = 0x3fffffff;
+    let anyOwned = false;
     for (let y = y0; y <= y1; y++) {
-      for (let x = x0; x <= x1; x++) {
-        if (owner[y * width + x] !== 0) {
-          const b = (y - y0) * bw + (x - x0);
+      const b0 = (y - y0) * bw;
+      const row = y * width + x0;
+      for (let bx = 0; bx < bw; bx++) {
+        const b = b0 + bx;
+        if (owner[row + bx] !== 0) {
           dist[b] = 0;
-          queue[tail++] = b;
+          anyOwned = true;
+          continue;
         }
+        let d = FAR;
+        if (bx > 0 && dist[b - 1] + 1 < d) d = dist[b - 1] + 1;
+        if (y > y0 && dist[b - bw] + 1 < d) d = dist[b - bw] + 1;
+        dist[b] = d;
       }
     }
-    while (head < tail) {
-      const b = queue[head++];
+    for (let b = bw * bh - 1; b >= 0; b--) {
+      let d = dist[b];
+      if (d === 0) continue;
       const bx = b % bw;
-      const by = (b - bx) / bw;
-      const d = dist[b] + 1;
-      if (bx > 0 && dist[b - 1] < 0) (dist[b - 1] = d), (queue[tail++] = b - 1);
-      if (bx < bw - 1 && dist[b + 1] < 0) (dist[b + 1] = d), (queue[tail++] = b + 1);
-      if (by > 0 && dist[b - bw] < 0) (dist[b - bw] = d), (queue[tail++] = b - bw);
-      if (by < bh - 1 && dist[b + bw] < 0) (dist[b + bw] = d), (queue[tail++] = b + bw);
+      if (bx < bw - 1 && dist[b + 1] + 1 < d) d = dist[b + 1] + 1;
+      if (b + bw < bw * bh && dist[b + bw] + 1 < d) d = dist[b + bw] + 1;
+      dist[b] = d;
     }
+    // Nobody in the box at all: no distances (as if not reached).
+    if (!anyOwned) dist.fill(-1, 0, bw * bh);
     const far = (list: number[]): number[] => {
       const distOf = (i: number): number => {
         const x = i % width;
@@ -711,12 +742,12 @@ export class Territory {
       this.stamp = 1;
     }
     const stamp = this.stamp;
-    const noise = wobbleField(createRng(seed), rules.wobble, 8);
+    const noise = wobbleField(createRng(seed), rules.wobble, 8 * this.pixelScale);
     const takeable = (i: number): boolean => owner[i] === 0 && cost[terrain[i]] < Infinity;
     const wrapX = (x: number): number => (x < 0 ? x + width : x >= width ? x - width : x);
     const { seaRun, bySea } = this;
     const seaCost = rules.seaCrossing?.cost ?? 0;
-    const maxSea = seaCost > 0 ? Math.min(255, rules.seaCrossing?.maxWidth ?? 0) : 0;
+    const maxSea = seaCost > 0 ? Math.min(255, Math.round((rules.seaCrossing?.maxWidth ?? 0) * this.pixelScale)) : 0;
     /** Sea (or lake) that growth may cross but never own. */
     const isSea = (i: number): boolean => terrain[i] === Terrain.Ocean || terrain[i] === Terrain.ShallowWater;
     const heap = new MinHeap();
@@ -834,7 +865,7 @@ export class Territory {
 
     // Around pixel c, without c itself: how many separate parts of the nation there are that are
     // big (more than `partLimit` pixels) or hold the start. Small parts would just fall off.
-    const partLimit = Math.max(4, this.rules.holeSize);
+    const partLimit = Math.max(4, this.holeSize);
     const bigParts = (c: number): number => {
       const cx = c % width;
       const cy = (c - cx) / width;
@@ -907,7 +938,7 @@ export class Territory {
     // 2. Fill holes: a free pocket of land touching only this nation (and water) is taken.
     const filled: number[] = [];
     const checked = new Set<number>();
-    const limit = this.rules.holeSize;
+    const limit = this.holeSize;
     if (limit <= 0) return filled;
     let room = Math.max(targetArea * 0.1, this.areas[sy]);
     const free = (j: number): boolean => j >= 0 && owner[j] === 0 && cost[terrain[j]] < Infinity;

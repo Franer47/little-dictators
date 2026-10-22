@@ -17,6 +17,7 @@ import type { GameMap } from "../map/gameMap.ts";
 import type { Nation, WheelOutcome } from "./nation.ts";
 import { compactNumber } from "./numbers.ts";
 import { createRng } from "./random.ts";
+import { scratch } from "./scratch.ts";
 import type { DivisionRules } from "./army.ts";
 import type { Wheel, WheelData } from "./wheels.ts";
 
@@ -384,7 +385,6 @@ export interface LandFacts {
   compactness: number;
 }
 
-const SIDES: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const T = TERRAINS.length;
 
 /**
@@ -429,15 +429,15 @@ export function surveyLand(map: GameMap, owner: Uint16Array, areas: Float64Array
       terrainKm[id * T + t] += a;
       let coast = false;
       let river = t === Terrain.River;
-      for (const [dx, dy] of SIDES) {
-        const ny = y + dy;
-        if (ny < 0 || ny >= height) continue;
-        let nx = x + dx;
-        if (nx < 0 || nx >= width) {
-          if (!wraps) continue;
-          nx = (nx + width) % width;
-        }
-        const j = ny * width + nx;
+      // The 4 side neighbours (right, left, down, up); -1 = off the map.
+      // Written out rather than looped: this runs for every owned pixel, 20 million on the big map.
+      const right = x + 1 < width ? i + 1 : wraps ? row : -1;
+      const left = x > 0 ? i - 1 : wraps ? row + width - 1 : -1;
+      const down = y + 1 < height ? i + width : -1;
+      const up = y > 0 ? i - width : -1;
+      for (let s = 0; s < 4; s++) {
+        const j = s === 0 ? right : s === 1 ? left : s === 2 ? down : up;
+        if (j < 0) continue;
         const nt = terrain[j];
         if (nt === Terrain.River) river = true;
         if (owner[j] === id) continue;
@@ -469,8 +469,8 @@ export function surveyLand(map: GameMap, owner: Uint16Array, areas: Float64Array
   // Pieces: flood each unvisited patch of one nation's land (4 sides, across the seam).
   const pieces = new Float64Array(n);
   const mainKm = new Float64Array(n);
-  const seen = new Uint8Array(width * height);
-  const stack = new Int32Array(width * height);
+  const { seen, stack } = scratch(width * height);
+  seen.fill(0);
   for (let start = 0; start < owner.length; start++) {
     const id = owner[start];
     if (id === 0 || id >= n || seen[start]) continue;
@@ -483,16 +483,15 @@ export function surveyLand(map: GameMap, owner: Uint16Array, areas: Float64Array
       const x = i % width;
       const y = (i - x) / width;
       pieceKm += areas[y];
-      for (const [dx, dy] of SIDES) {
-        const ny = y + dy;
-        if (ny < 0 || ny >= height) continue;
-        let nx = x + dx;
-        if (nx < 0 || nx >= width) {
-          if (!wraps) continue;
-          nx = (nx + width) % width;
-        }
-        const j = ny * width + nx;
-        if (seen[j] || owner[j] !== id) continue;
+      const row = i - x;
+      for (let s = 0; s < 4; s++) {
+        // Right, left, down, up (as above).
+        const j =
+          s === 0 ? (x + 1 < width ? i + 1 : wraps ? row : -1)
+          : s === 1 ? (x > 0 ? i - 1 : wraps ? row + width - 1 : -1)
+          : s === 2 ? (y + 1 < height ? i + width : -1)
+          : y > 0 ? i - width : -1;
+        if (j < 0 || seen[j] || owner[j] !== id) continue;
         seen[j] = 1;
         stack[top++] = j;
       }
