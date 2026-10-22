@@ -47,6 +47,10 @@ export interface NationLive {
   divisions: DivisionLive[];
   /** Tribute this nation pays: to whom, how much a year, for how many more years. */
   tributes: { to: number; amount: number; yearsLeft: number }[];
+  /** Divisions ordered but not raised yet (raised a few a month when it has the men and money). */
+  recruitQueue?: number;
+  /** Buildings ordered but not started yet (started when it can afford them), by building id. */
+  buildQueue?: string[];
   /** The month (0–11) it thinks in each year. */
   thinkMonth: number;
 }
@@ -440,6 +444,11 @@ export class World {
       }
     });
 
+    // Ordered divisions and buildings.
+    this.live.forEach((l, i) => {
+      if (l.alive && (l.recruitQueue || l.buildQueue?.length)) this.workQueues(i + 1);
+    });
+
     // The player's influence.
     if (mine && this.alive(mine)) {
       const s = this.sheets[mine - 1];
@@ -519,13 +528,135 @@ export class World {
   /** Whether nation `id` can start the next level of `b` now ("" = yes, else why not). */
   whyCantBuild(id: number, b: BuildingSpec): string {
     const l = this.live[id - 1];
-    const level = (l.buildings[b.id] ?? 0) + l.building.filter((x) => x.id === b.id).length;
-    if (level >= b.maxLevel) return `${b.name} is already at the top level (${b.maxLevel}).`;
-    if (b.needs === "coast" && !this.land[id - 1].coastPixels) return `${b.name} needs a coast.`;
-    if (l.building.length >= 2) return "It's already building two things; it waits for one to finish.";
-    const cost = this.buildCost(id, b);
-    if (l.treasury < cost) return `It can't afford it: it costs ${money(cost)} and the treasury has ${money(l.treasury)}.`;
+    switch (this.buildBlock(id, b)) {
+      case "max":
+        return `${b.name} is already at the top level (${b.maxLevel}).`;
+      case "coast":
+        return `${b.name} needs a coast.`;
+      case "busy":
+        return "It's already building two things; it waits for one to finish.";
+      case "money":
+        return `It can't afford it: it costs ${money(this.buildCost(id, b))} and the treasury has ${money(l.treasury)}.`;
+      default:
+        return "";
+    }
+  }
+
+  /** What stops a building now: "max" or "coast" (never), "busy" or "money" (later), or "" (nothing). */
+  buildBlock(id: number, b: BuildingSpec, queued = 0): "max" | "coast" | "busy" | "money" | "" {
+    const l = this.live[id - 1];
+    const level = (l.buildings[b.id] ?? 0) + l.building.filter((x) => x.id === b.id).length + queued;
+    if (level >= b.maxLevel) return "max";
+    if (b.needs === "coast" && !this.land[id - 1]?.coastPixels) return "coast";
+    if (l.building.length >= 2) return "busy";
+    if (l.treasury < this.buildCost(id, b)) return "money";
     return "";
+  }
+
+  /**
+   * Gives these pixels to nation `to` (conquest, a peace), with what's on them: each former owner
+   * hands over the same share of its people as of its land, and the buildings standing there
+   * (and its treasury, if all its land is taken). Buildings still being built there are lost.
+   */
+  transferLand(pixels: readonly number[], to: number): void {
+    const { territory, map } = this.opts;
+    const kmFrom = new Map<number, number>();
+    for (const i of pixels) {
+      const o = territory.owner[i];
+      if (o && o !== to) kmFrom.set(o, (kmFrom.get(o) ?? 0) + territory.areas[(i / map.width) | 0]);
+    }
+    const before = new Map<number, number>();
+    for (const o of kmFrom.keys()) before.set(o, territory.holding(o)?.area ?? 0);
+    territory.transfer(pixels, to);
+    const taken = new Set(pixels);
+    const lt = this.live[to - 1];
+    for (const [from, km] of kmFrom) {
+      const lf = this.live[from - 1];
+      if (!lf || !lt) continue;
+      const share = Math.min(1, km / Math.max(1e-9, before.get(from) ?? 0));
+      const people = lf.population * share;
+      lf.population -= people;
+      lt.population += people;
+      const keep: NationLive["sites"] = [];
+      for (const site of lf.sites) {
+        if (!taken.has(site.at)) {
+          keep.push(site);
+          continue;
+        }
+        lf.buildings[site.id] = Math.max(0, (lf.buildings[site.id] ?? 0) - 1);
+        const spec = this.buildingSpec(site.id);
+        if (spec && (lt.buildings[site.id] ?? 0) < spec.maxLevel) {
+          lt.buildings[site.id] = (lt.buildings[site.id] ?? 0) + 1;
+          lt.sites.push(site);
+        }
+      }
+      lf.sites = keep;
+      lf.building = lf.building.filter((b) => !taken.has(b.at));
+      // All of it taken: its treasury goes too.
+      if (share >= 0.999 && lf.treasury > 0) {
+        lt.treasury += lf.treasury;
+        lf.treasury = 0;
+      }
+      this.dirty.add(from);
+    }
+    this.dirty.add(to);
+  }
+
+  /**
+   * Works through a nation's queues: raises up to 'queuePerMonth' ordered divisions while it has
+   * the men, the money and the calm, and starts ordered buildings when it can afford them.
+   */
+  private workQueues(id: number): void {
+    const l = this.live[id - 1];
+    const s = this.sheets[id - 1];
+    if (!l?.alive || !s) return;
+    const rules = this.opts.stats.divisions;
+    if (l.recruitQueue) {
+      const cost = rules.size * s.factors.soldierCost.value;
+      let army = s.stats.army.value;
+      let net = s.stats.net.value;
+      for (let n = 0; n < this.sim.army.queuePerMonth && l.recruitQueue > 0; n++) {
+        if (this.recruitBlock(id, army, net) !== "") break;
+        l.divisions.push({ troops: rules.size, training: this.sim.army.trainingMonths });
+        l.recruitQueue--;
+        army += rules.size;
+        net -= cost;
+        this.dirty.add(id);
+      }
+    }
+    while (l.buildQueue?.length) {
+      const b = this.buildingSpec(l.buildQueue[0]);
+      const block = b ? this.buildBlock(id, b) : "max";
+      if (block === "max" || block === "coast") {
+        l.buildQueue.shift(); // can never be built: drop it
+        continue;
+      }
+      if (block) break; // busy or short of money: wait
+      this.startBuilding(id, b!);
+      l.buildQueue.shift();
+    }
+  }
+
+  /** What stops raising one more division now ("" = nothing), given the army and net income so far. */
+  recruitBlock(id: number, army?: number, net?: number): "" | "unstable" | "men" | "money" {
+    const s = this.sheets[id - 1];
+    const rules = this.opts.stats.divisions;
+    const cost = rules.size * s.factors.soldierCost.value;
+    if (s.stats.stability.value < rules.minStability) return "unstable";
+    if ((army ?? s.stats.army.value) + rules.size > s.stats.manpower.value) return "men";
+    if ((net ?? s.stats.net.value) - cost < 0) return "money";
+    return "";
+  }
+
+  /** The recruiting queue's state in words, for the Army section. */
+  queueText(id: number): string {
+    const l = this.live[id - 1];
+    const waiting = l?.recruitQueue ?? 0;
+    if (!waiting) return "";
+    const why = { unstable: "the state is too unstable", men: "it has no more men to call up", money: "it can't pay for more soldiers", "": "" }[this.recruitBlock(id)];
+    return why
+      ? `${waiting} ordered, waiting: ${why}.`
+      : `${waiting} ordered: up to ${this.sim.army.queuePerMonth} are raised each month.`;
   }
 
   /** Starts building the next level of `b` (pays for it now). Assumes whyCantBuild said yes. */
@@ -564,17 +695,71 @@ export class World {
     const id = this.mineId;
     const b = this.buildingSpec(buildingId);
     if (!id || !b || !this.alive(id)) return { ok: false, reason: "You have no nation to push." };
-    const why = this.whyCantBuild(id, b);
-    if (why) return { ok: false, reason: `Refused: ${why.charAt(0).toLowerCase()}${why.slice(1)}` };
+    const l = this.live[id - 1];
+    const queued = (l.buildQueue ?? []).filter((x) => x === b.id).length;
+    const block = this.buildBlock(id, b, queued);
+    if (block === "max" || block === "coast") {
+      const now = this.buildBlock(id, b);
+      const why = now === "max" || now === "coast" ? this.whyCantBuild(id, b) : `${b.name} would pass the top level (${b.maxLevel}), counting the ones in the queue.`;
+      return { ok: false, reason: `Refused: ${why.charAt(0).toLowerCase()}${why.slice(1)}` };
+    }
     const unpaid = this.pay("build");
     if (unpaid) return { ok: false, reason: unpaid };
+    // Can't start yet (short of money, or already building two things): it goes in the queue.
+    if (block || l.buildQueue?.length) {
+      (l.buildQueue ??= []).push(b.id);
+      const why = block === "busy" ? "it's building two things" : block === "money" ? `it needs ${money(this.buildCost(id, b))}` : "others are ahead of it";
+      return { ok: true, reason: `Ordered: a ${b.name} is in the queue (number ${l.buildQueue.length}); it starts as soon as it can (now ${why}).` };
+    }
     const cost = this.buildCost(id, b);
     this.startBuilding(id, b);
     this.recompute();
     return { ok: true, reason: `Agreed: building a ${b.name} for ${money(cost)}, ready in ${b.months} months.` };
   }
 
-  /** Push your nation to raise a new division (or `grow` an existing one). */
+  /**
+   * Orders `count` new divisions (influence per division). They go in the queue and are raised a
+   * few a month while the nation has the men, the money and the calm.
+   */
+  orderDivisions(count: number): Decision {
+    const id = this.mineId;
+    if (!id || !this.alive(id)) return { ok: false, reason: "You have no nation to push." };
+    const each = this.sim.influence.costs.recruit;
+    const affordable = each > 0 ? Math.floor(this.influence / each) : count;
+    const n = Math.min(count, affordable);
+    if (n <= 0) return { ok: false, reason: `Not enough influence: each division costs ${each}, you have ${Math.floor(this.influence)}.` };
+    this.influence -= n * each;
+    const l = this.live[id - 1];
+    l.recruitQueue = (l.recruitQueue ?? 0) + n;
+    this.workQueues(id);
+    this.recompute();
+    const short = n < count ? ` (you could pay for ${n} of ${count})` : "";
+    return { ok: true, reason: `Ordered ${n} ${n === 1 ? "division" : "divisions"}${short} for ✦${n * each}. ${this.queueText(id) || "All raised: they train for a few months."}` };
+  }
+
+  /** Cancels the divisions still waiting in the queue; their influence comes back. */
+  clearRecruitQueue(): Decision {
+    const id = this.mineId;
+    const l = this.live[id - 1];
+    const n = l?.recruitQueue ?? 0;
+    if (!n) return { ok: false, reason: "Nothing is waiting." };
+    l.recruitQueue = 0;
+    this.influence = Math.min(this.sim.influence.max, this.influence + n * this.sim.influence.costs.recruit);
+    return { ok: true, reason: `Cancelled ${n} waiting divisions; ✦${n * this.sim.influence.costs.recruit} back.` };
+  }
+
+  /** Cancels the buildings still waiting; their influence comes back. */
+  clearBuildQueue(): Decision {
+    const id = this.mineId;
+    const l = this.live[id - 1];
+    const n = l?.buildQueue?.length ?? 0;
+    if (!n) return { ok: false, reason: "Nothing is waiting." };
+    l.buildQueue = [];
+    this.influence = Math.min(this.sim.influence.max, this.influence + n * this.sim.influence.costs.build);
+    return { ok: true, reason: `Cancelled ${n} waiting buildings; ✦${n * this.sim.influence.costs.build} back.` };
+  }
+
+  /** Push your nation to raise a new division now (or `grow` an existing one). */
   pushRecruit(grow?: number): Decision {
     const id = this.mineId;
     if (!id || !this.alive(id)) return { ok: false, reason: "You have no nation to push." };

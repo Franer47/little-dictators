@@ -1,5 +1,5 @@
 // The Army section: a nation's divisions (its flags on the map), their troops, and for your
-// own nation two requests: a new division, or a bigger one. Your nation decides at once
+// own nation its requests: order new divisions (1, 5, 25 or 100 into a queue), or a bigger one. Your nation decides at once
 // (src/game/army.ts, decideRequest) and says why. Other nations' armies can be looked at only.
 
 import "./armyPanel.css";
@@ -20,11 +20,14 @@ export interface ArmyPanelInfo {
   rules: DivisionRules;
   /** The selected division's index, if any. */
   selected: number | null;
+  /** Divisions ordered and still waiting, and why (empty when none). */
+  queue?: { waiting: number; text: string };
   /** The nation's answer to the last request. */
   message: { ok: boolean; text: string } | null;
   suffixes: string[];
   onSelect(index: number): void;
-  onNew(): void;
+  onOrder(count: number): void;
+  onClearQueue(): void;
   onBigger(index: number): void;
   onClose(): void;
 }
@@ -46,7 +49,8 @@ function setUp(): void {
     if (!el) return;
     const act = el.dataset.act;
     if (act === "close") info.onClose();
-    else if (act === "new") info.onNew();
+    else if (act === "order") info.onOrder(Number(el.dataset.count));
+    else if (act === "clear") info.onClearQueue();
     else if (act === "bigger" && info.selected !== null) info.onBigger(info.selected);
     else if (act === "select") info.onSelect(Number(el.dataset.index));
   });
@@ -81,12 +85,21 @@ export function showArmyPanel(next: ArmyPanelInfo | null): void {
     )
     .join("");
   const canGrow = sel && sel.troops + rules.growBy <= rules.maxSize;
+  const each = next.influenceCost ?? 0;
+  const orders = [1, 5, 25, 100]
+    .map((c) => `<button type="button" class="ap-btn${c === 1 ? " primary" : ""}" data-act="order" data-count="${c}" title="Order ${c} new ${c === 1 ? "division" : "divisions"} of ${n(rules.size)} troops${each ? ` for ✦${c * each}` : ""}">${c === 1 ? icon("swords") : ""}+${c} <small>${each ? `✦${c * each}` : ""}</small></button>`)
+    .join("");
+  const queue = next.queue?.waiting
+    ? `<div class="ap-queue"><span>${icon("clock")}</span><p></p><button type="button" class="ap-btn small" data-act="clear" title="Cancel the divisions still waiting (the influence comes back)">Clear</button></div>`
+    : "";
   const requests = next.mine
-    ? `<div class="ap-actions">
-        <button type="button" class="ap-btn primary" data-act="new">${icon("swords")}New division <small>+${n(rules.size)}${next.influenceCost ? ` · ✦${next.influenceCost}` : ""}</small></button>
-        <button type="button" class="ap-btn" data-act="bigger" ${canGrow ? "" : "disabled"} title="${sel ? (canGrow ? `Add ${n(rules.growBy)} troops to the ${ordinal(sel.index + 1)} Division` : `A division can't be bigger than ${n(rules.maxSize)}`) : "Pick a division first"}">${icon("trend")}Bigger <small>+${n(rules.growBy)}${next.influenceCost ? ` · ✦${next.influenceCost}` : ""}</small></button>
+    ? `<div class="ap-kicker ap-section">Order divisions <small>(${n(rules.size)} troops each)</small></div>
+      <div class="ap-actions">${orders}</div>
+      ${queue}
+      <div class="ap-actions">
+        <button type="button" class="ap-btn" data-act="bigger" ${canGrow ? "" : "disabled"} title="${sel ? (canGrow ? `Add ${n(rules.growBy)} troops to the ${ordinal(sel.index + 1)} Division` : `A division can't be bigger than ${n(rules.maxSize)}`) : "Pick a division first"}">${icon("trend")}Bigger division <small>+${n(rules.growBy)}${each ? ` · ✦${each}` : ""}</small></button>
       </div>
-      <p class="ap-hint">You can only ask, with influence. Your nation agrees if it has the men, the money and the calm to do it; new soldiers train for a few months first (striped flags). It also recruits on its own once a year.</p>`
+      <p class="ap-hint">Ordered divisions wait in a queue: your nation raises a few each month while it has the men, the money and the calm, and they train for a few months first (striped flags). It also recruits on its own once a year.</p>`
     : `<p class="ap-hint">You can look at other nations' armies, but only ask your own.</p>`;
   panel.innerHTML = `
     <header>
@@ -106,6 +119,8 @@ export function showArmyPanel(next: ArmyPanelInfo | null): void {
     ${requests}
     <div class="ap-divs">${chips || '<p class="ap-hint">No divisions: the army is smaller than half a division.</p>'}</div>`;
   panel.querySelector(".ap-name")!.textContent = next.name;
+  const q = panel.querySelector(".ap-queue p");
+  if (q && next.queue) q.textContent = next.queue.text;
   const msg = panel.querySelector(".ap-message");
   if (msg && next.message) msg.textContent = next.message.text;
   panel.hidden = false;

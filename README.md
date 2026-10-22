@@ -334,16 +334,19 @@ merge into one with their total, and zooming in further shows every division.
 
 Click a flag (or **Army** in the top strip) to open that nation's **Army section**: its
 troops, divisions, manpower, yearly cost and quality, and a list of its divisions. While it's
-open, that nation's flags show from further out too. For **your own** nation you can ask for:
+open, that nation's flags show from further out too. For **your own** nation you can:
 
-- **New division** (+400 troops), or
-- **Bigger** (+400 troops to the division you picked, up to 4,000).
+- **Order divisions**: **+1**, **+5**, **+25** or **+100** new divisions of 400 troops
+  (✦1 each). They go into a **queue**, and your nation raises up to 4 a month on its own,
+  whenever it can. The Army section shows how many are waiting and why (**Clear** cancels
+  them and gives the influence back).
+- **Bigger division** (+400 troops to the division you picked, up to 4,000; ✦1). Your nation
+  decides at once and says why.
 
-Each ask costs influence (✦4; see "Playing" below), and your nation decides at once and says
-why. It refuses if it's too unstable (stability under 25), hasn't got the men (more than its
-manpower) or can't pay (its net income would go below zero). If it agrees, the new troops are
-added to its army and upkeep, and the flag is striped while they're **in training** (six
-months; they don't fight until then). Nations also raise and break up divisions on their own
+A division is only raised while your nation is stable enough (stability 25 or more), has the
+men (its army stays within its manpower) and can pay (its net income stays above zero);
+otherwise the queue waits. New troops are added to its army and upkeep, and the flag is
+striped while they're **in training** (six months; they don't fight until then). Nations also raise and break up divisions on their own
 once a year, and lose troops in wars. Other nations' armies you can look at but not change.
 The numbers are in `"divisions"` in `public/data/eras/1500-stats.json` and `"army"` in
 `1500-sim.json`.
@@ -406,9 +409,12 @@ The menu on the left:
 - **Build**: eight buildings (Farm, Market, Workshop, Fort, Barracks, Port, School,
   Temple), each with 5 levels. A level costs a year of income for level 1, two years for
   level 2 and so on, takes months to build, and gives stats (e.g. Farm +8% farming and +3%
-  birth rate per level). Pushing a building costs ✦6.
-- **Army**: your divisions; push for a new one or a bigger one (✦4). New soldiers train for
-  six months first (striped flags).
+  birth rate per level). Pushing a building costs ✦6. Two can be built at once; if your
+  nation is busy or short of money, the building goes into a **queue** and starts by itself
+  later (**Clear** cancels the queue and gives the influence back).
+- **Army**: your divisions; order 1, 5, 25 or 100 new ones (✦1 each) into a queue that's
+  raised a few a month, or make one bigger. New soldiers train for six months first (striped
+  flags).
 - **Wars**: your wars (with the war score), your allies and your neighbours, each with ＋
   / − relations, Ally and War buttons. **Right-click** any nation on the map for the same
   choices.
@@ -425,7 +431,10 @@ bigger its edge, the more pixels it takes, and you can watch the border creep fo
 the month. Terrain slows it down (a mountain pixel costs four times a plain, highlands and
 snow twice, rivers three times, landing across the sea twice), your **Defend** paint makes
 land twice as hard to take, and your **War goal** paint is taken first. A nation fighting on
-several fronts splits its army between them. Conquered land is yours at once.
+several fronts splits its army between them. Conquered land is yours at once, **with what's
+on it**: the same share of the loser's people as of its land, and the buildings standing there
+(buildings still being built there are lost). Take all of a nation's land and you get its
+treasury too.
 
 Computer nations make peace when one side is clearly winning (score 50) or after four years.
 **When your nation is winning, you decide**: your armies keep conquering until you press

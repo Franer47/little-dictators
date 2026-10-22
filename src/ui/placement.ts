@@ -735,12 +735,12 @@ export class Placement {
       return;
     }
     const rules = this.opts.stats.divisions;
-    const ask = (grow?: number): void => {
-      const answer = this.world.pushRecruit(grow);
-      this.army.message = { ok: answer.ok, text: answer.reason };
+    const answer = (d: { ok: boolean; reason: string }): void => {
+      this.army.message = { ok: d.ok, text: d.reason };
       this.afterPush();
       this.renderArmy();
     };
+    const ask = (grow?: number): void => answer(this.world.pushRecruit(grow));
     showArmyPanel({
       name: placed.nation.name,
       color: placed.color,
@@ -759,7 +759,9 @@ export class Placement {
         this.renderArmy();
         this.opts.requestRender();
       },
-      onNew: () => ask(),
+      queue: placed.mine ? { waiting: this.world.live[id - 1]?.recruitQueue ?? 0, text: this.world.queueText(id) } : undefined,
+      onOrder: (count) => answer(this.world.orderDivisions(count)),
+      onClearQueue: () => answer(this.world.clearRecruitQueue()),
       onBigger: (index) => {
         ask(index);
         if (this.army.message?.ok) this.army.message.text = this.army.message.text.replace("more soldiers", `more soldiers for the ${ordinal(index + 1)} Division`);

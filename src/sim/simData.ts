@@ -29,7 +29,7 @@ export interface SimData {
   brushes: { cost: Record<BrushId, number>; eraseRefund: number; sizes: number[] };
   buildings: BuildingSpec[];
   growth: { developmentPerYear: number; perSchool: number; debt: ModSet };
-  army: { trainingMonths: number; disband: number };
+  army: { trainingMonths: number; disband: number; queuePerMonth: number };
   ai: { buildReserve: number; warChance: number; warOdds: number; allianceAt: number; breakAllianceAt: number; maxAllies: number; allyJoinsAttack: number };
   relations: { base: number; aggression: number; sameIdeology: number; random: number; drift: number; war: number; afterPeace: number; push: number };
   war: {
@@ -166,7 +166,7 @@ export function parseSimData(raw: unknown): SimData {
     brushes,
     buildings,
     growth,
-    army: numbers("army", ["trainingMonths", "disband"]),
+    army: numbers("army", ["trainingMonths", "disband", "queuePerMonth"]),
     ai: numbers("ai", ["buildReserve", "warChance", "warOdds", "allianceAt", "breakAllianceAt", "maxAllies", "allyJoinsAttack"]),
     relations: numbers("relations", ["base", "aggression", "sameIdeology", "random", "drift", "war", "afterPeace", "push"]),
     war: { ...numbers("war", ["scorePerMonth", "losses", "maxLosses", "pushRate", "minPush", "maxShare", "deadZone", "defendPaintCost", "seaCrossing", "seaCost"]), conquestCost: conquestCost(section("war").conquestCost) },
