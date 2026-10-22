@@ -930,11 +930,14 @@ export function findNeighbours(map: GameMap, owner: Uint16Array, count: number):
       if (!a || a > count) continue;
       const right = x + 1 < width ? owner[y * width + x + 1] : map.wraps ? owner[y * width] : 0;
       const down = y + 1 < height ? owner[(y + 1) * width + x] : 0;
-      for (const b of [right, down]) {
-        if (b && b !== a && b <= count) {
-          sets[a - 1].add(b);
-          sets[b - 1].add(a);
-        }
+      // (Two plain checks, not a loop over [right, down]: that made an array for every owned pixel.)
+      if (right && right !== a && right <= count) {
+        sets[a - 1].add(right);
+        sets[right - 1].add(a);
+      }
+      if (down && down !== a && down <= count) {
+        sets[a - 1].add(down);
+        sets[down - 1].add(a);
       }
     }
   }

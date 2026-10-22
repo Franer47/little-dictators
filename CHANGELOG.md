@@ -6,6 +6,16 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 ## Unreleased
 
 ### Added
+- **A detailed test map:** "Earth (detailed, slow)" on the start screen, 6000 pixels wide (9×
+  the pixels of the main map), so small countries get real shapes instead of a handful of
+  squares. Built with the same rules from finer data: elevation every 2 arc-minutes and the
+  more detailed lakes and rivers. It's a 30 MB download, Fill takes about 20 seconds, and
+  every few months the game pauses for a third of a second while it looks over the land. The
+  main map plays exactly as before. The growth rules measured in pixels are scaled to the
+  bigger map; wars, armies and brushes aren't yet, so there conquest is slower and the brushes
+  smaller.
+- Faster on every map: the stat survey and name placement that look over the whole map, Fill
+  (its look at the free land), and brush painting (only the painted part of the map is redrawn).
 - **Queues:** order 1, 5, 25 or 100 divisions at once from the Army section. They wait in a
   queue and your nation raises up to 4 a month whenever it has the men, the money and the
   calm. Buildings you can't start yet (short of money, or two already being built) go into a

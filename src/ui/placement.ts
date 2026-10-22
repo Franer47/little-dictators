@@ -454,7 +454,8 @@ export class Placement {
     // no limit for far-off islands (e.g. Jan Mayen), which go to the nearest nation.
     if (absorbSteps > 0) {
       for (let round = 0; round <= 10; round++) {
-        const gained = this.territory.absorbLeftovers(this.region, round < 10 ? absorbSteps : 30000);
+        // (absorbSteps are pixels of the main map: as many more on a finer map.)
+        const gained = this.territory.absorbLeftovers(this.region, round < 10 ? Math.round(absorbSteps * this.territory.pixelScale) : 30000);
         for (const [, pixels] of gained) this.layer.reveal(pixels);
         if (!gained.size && round < 10) round = 9; // nothing more nearby: go to the last pass
       }
@@ -569,9 +570,13 @@ export class Placement {
     }
     // Names and flag positions follow the land: worked out again every few months (they take a
     // look over the whole map), or at once when your own land changed.
+    // On a big map (the 6000-wide one) that look takes a few hundred ms, as does the stat
+    // survey the month itself does every third month, so there it comes the month after, not
+    // in the same frame.
     const mine = this.world.mineId;
     const mineChanged = r.changedPixels.some((i) => this.territory.owner[i] === mine) || r.events.some((e) => e.kind === "peace" && e.nations.includes(mine));
-    if (this.mapDirty && (mineChanged || this.world.month % 3 === 0)) {
+    const refreshMonth = this.territory.pixelScale > 1 ? 1 : 0;
+    if (this.mapDirty && (mineChanged || this.world.month % 3 === refreshMonth)) {
       this.mapDirty = false;
       this.refreshMap();
       this.updateList();

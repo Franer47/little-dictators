@@ -1,6 +1,6 @@
 // The player's brush paint on the map: war goals (red stripes), land to defend (blue) and land
-// to develop (green). One image the size of the map, repainted only where paint changed, drawn
-// over the nations' colours.
+// to develop (green). One image the size of the map, repainted only where paint changed (and
+// only that rectangle is copied to the image), drawn over the nations' colours.
 
 import type { GameMap } from "../map/gameMap.ts";
 import type { MapOverlay, MapView } from "./mapRenderer.ts";
@@ -17,7 +17,8 @@ export class PaintLayer implements MapOverlay {
   readonly image: OffscreenCanvas;
   private ctx: OffscreenCanvasRenderingContext2D;
   private pixels: ImageData;
-  private dirty = false;
+  /** The rectangle of pixels changed since the image was last updated, or null. */
+  private dirty: { x0: number; y0: number; x1: number; y1: number } | null = null;
   visible = true;
 
   constructor(
@@ -37,13 +38,22 @@ export class PaintLayer implements MapOverlay {
 
   redrawAll(): void {
     for (let i = 0; i < this.paint.length; i++) this.color(i);
-    this.dirty = true;
+    this.dirty = { x0: 0, y0: 0, x1: this.map.width - 1, y1: this.map.height - 1 };
   }
 
   /** Repaints these pixels from the paint grid. */
   update(indices: readonly number[]): void {
-    for (const i of indices) this.color(i);
-    if (indices.length) this.dirty = true;
+    const { width } = this.map;
+    for (const i of indices) {
+      this.color(i);
+      const x = i % width;
+      const y = (i - x) / width;
+      const d = (this.dirty ??= { x0: x, y0: y, x1: x, y1: y });
+      if (x < d.x0) d.x0 = x;
+      if (x > d.x1) d.x1 = x;
+      if (y < d.y0) d.y0 = y;
+      if (y > d.y1) d.y1 = y;
+    }
   }
 
   private color(i: number): void {
@@ -61,9 +71,10 @@ export class PaintLayer implements MapOverlay {
 
   draw(ctx: CanvasRenderingContext2D, v: MapView): void {
     if (!this.visible) return;
-    if (this.dirty) {
-      this.ctx.putImageData(this.pixels, 0, 0);
-      this.dirty = false;
+    const d = this.dirty;
+    if (d) {
+      this.ctx.putImageData(this.pixels, 0, 0, d.x0, d.y0, d.x1 - d.x0 + 1, d.y1 - d.y0 + 1);
+      this.dirty = null;
     }
     ctx.save();
     ctx.imageSmoothingEnabled = false;

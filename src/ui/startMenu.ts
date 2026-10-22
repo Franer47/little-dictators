@@ -11,6 +11,7 @@ export interface MapChoice {
 export const MAP_CHOICES: MapChoice[] = [
   { name: "earth", label: "Earth", note: "The main map" },
   { name: "earth-1500", label: "Earth (small)", note: "Smaller and faster" },
+  { name: "earth-6000", label: "Earth (detailed, slow)", note: "Test map: 9× the pixels, for small countries" },
 ];
 
 /**

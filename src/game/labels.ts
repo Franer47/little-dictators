@@ -3,6 +3,7 @@
 // Paradox map). Plain math on the ownership grid; src/render/labelLayer.ts draws them.
 
 import type { GameMap } from "../map/gameMap.ts";
+import { scratch } from "./scratch.ts";
 
 export interface LabelSpot {
   /** Middle of the land, in map pixels (x may be outside 0..width on a nation across the seam). */
@@ -15,15 +16,14 @@ export interface LabelSpot {
   thickness: number;
 }
 
-const SIDES: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
 /** One label spot per nation 1..count (index id - 1; null for a nation with no land). */
 export function labelSpots(map: GameMap, owner: Uint16Array, count: number): (LabelSpot | null)[] {
   const { width, height } = map;
   const n = count + 1;
   const best: (LabelSpot & { size: number })[] = new Array(n);
-  const seen = new Uint8Array(width * height);
-  const stack = new Int32Array(width * height);
+  const { seen, stack } = scratch(width * height);
+  seen.fill(0);
   const half = width / 2;
   for (let startPixel = 0; startPixel < owner.length; startPixel++) {
     const id = owner[startPixel];
@@ -51,16 +51,15 @@ export function labelSpots(map: GameMap, owner: Uint16Array, count: number): (La
       sxx += dx * dx;
       syy += y * y;
       sxy += dx * y;
-      for (const [ox, oy] of SIDES) {
-        const ny = y + oy;
-        if (ny < 0 || ny >= height) continue;
-        let nx = x + ox;
-        if (nx < 0 || nx >= width) {
-          if (!map.wraps) continue;
-          nx = (nx + width) % width;
-        }
-        const j = ny * width + nx;
-        if (seen[j] || owner[j] !== id) continue;
+      const row = i - x;
+      for (let s = 0; s < 4; s++) {
+        // The 4 side neighbours (right, left, down, up), written out for speed; -1 = off the map.
+        const j =
+          s === 0 ? (x + 1 < width ? i + 1 : map.wraps ? row : -1)
+          : s === 1 ? (x > 0 ? i - 1 : map.wraps ? row + width - 1 : -1)
+          : s === 2 ? (y + 1 < height ? i + width : -1)
+          : y > 0 ? i - width : -1;
+        if (j < 0 || seen[j] || owner[j] !== id) continue;
         seen[j] = 1;
         stack[top++] = j;
       }
