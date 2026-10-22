@@ -151,7 +151,28 @@ body.has-strip #nation-list {
   font-size: 13.5px;
 }
 
+/* Live numbers keep a fixed width (sized for the widest value), aligned right, so their
+   neighbours never move when they tick. */
+.nb-value [data-count] {
+  display: inline-block;
+  text-align: right;
+}
+
+.nb-value [data-fmt="money"] {
+  min-width: 7ch;
+}
+
+.nb-value [data-fmt="num"] {
+  min-width: 5.5ch;
+}
+
+.nb-value [data-fmt="int"] {
+  min-width: 3ch;
+}
+
 .nb-delta {
+  display: inline-block;
+  min-width: 10ch;
   font-size: 11px;
   font-weight: 600;
   white-space: nowrap;
@@ -166,6 +187,8 @@ body.has-strip #nation-list {
 }
 
 .nb-sub {
+  display: inline-block;
+  min-width: 7ch;
   font-size: 11px;
   color: rgba(241, 232, 212, 0.5);
 }

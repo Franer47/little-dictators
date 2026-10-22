@@ -1,14 +1,18 @@
-// Wars with front lines (milestone 5, first version). Every month:
-// - each side's armies clash: both lose troops, and the war score moves toward the stronger side;
-// - along every front (each pair of enemies whose land touches) the stronger of the two pushes
-//   into the other's land, pixel by pixel: the bigger its edge, the further. Terrain slows it
-//   (mountains, highlands, rivers cost more), and so does the player's "Defend" paint; the
-//   player's "War goal" paint is taken first. Conquered land belongs to the conqueror at once.
+// Wars with front lines (milestone 5). Every month:
+// - each side's armies clash: the war score moves toward the stronger side, and the armies on
+//   the fronts lose troops (fewer when they dig in, see armies.ts);
+// - along every front (each pair of enemies) the armies there fight: a side whose attacking
+//   armies beat the other's defence pushes into its land, pixel by pixel: the bigger its edge,
+//   the further. Terrain slows it (mountains, highlands, rivers cost more), and so does the
+//   player's "Defend" paint; the player's "War goal" paint is taken first. Conquered land
+//   belongs to the conqueror at once.
 // When one side is clearly winning (or the war drags on too long) peace is signed: everyone
 // keeps what they hold, and the winner may also get tribute, or all of a small loser.
 // The numbers are in public/data/eras/<era>-sim.json ("war", "peace").
 
 import { Terrain } from "../map/terrain.ts";
+import { frontPower } from "./armies.ts";
+import { stabilityEvent } from "./stability.ts";
 import type { War, World } from "./world.ts";
 
 export interface PeaceTerms {
@@ -67,18 +71,13 @@ const SIDES: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 /** One month of every war: battles, losses, war score, the fronts moving, and peace where it's due. */
 export function fightWars(w: World): void {
   const rules = w.sim.war;
+  // Troops each nation lost this month (shared out over its battles, for the map).
+  const lost = new Map<number, number>();
   const peace = w.sim.peace;
-  // How many enemies each nation faces across a border: its army is split between those fronts.
-  const fronts = new Map<number, number>();
+  // Every pair of enemies is a front (they may not touch: they can fight across a short stretch of sea, see push).
   const pairs: [number, number][] = [];
   for (const war of w.wars) {
-    for (const a of war.attackers) for (const d of war.defenders) {
-      if (!w.alive(a) || !w.alive(d)) continue;
-      // Enemies that don't touch can still fight across a short stretch of sea (see push).
-      pairs.push([a, d]);
-      fronts.set(a, (fronts.get(a) ?? 0) + 1);
-      fronts.set(d, (fronts.get(d) ?? 0) + 1);
-    }
+    for (const a of war.attackers) for (const d of war.defenders) if (w.alive(a) && w.alive(d)) pairs.push([a, d]);
   }
   for (const war of [...w.wars]) {
     war.attackers = war.attackers.filter((id) => w.alive(id));
@@ -98,23 +97,33 @@ export function fightWars(w: World): void {
       // Losses: more against a stronger enemy.
       const lossA = Math.min(rules.maxLosses, rules.losses * Math.sqrt(sd / Math.max(1, sa)));
       const lossD = Math.min(rules.maxLosses, rules.losses * Math.sqrt(sa / Math.max(1, sd)));
-      for (const id of war.attackers) bleed(w, id, lossA);
-      for (const id of war.defenders) bleed(w, id, lossD);
+      for (const id of war.attackers) lost.set(id, (lost.get(id) ?? 0) + bleed(w, id, war.defenders, lossA));
+      for (const id of war.defenders) lost.set(id, (lost.get(id) ?? 0) + bleed(w, id, war.attackers, lossD));
     }
   }
-  // The fronts move: on each, the stronger side pushes into the other's land.
+  // The fronts move: on each, a side whose attacking armies beat the other's defence pushes in.
   const warOf = (a: number, d: number): War | undefined => w.wars.find((x) => x.attackers.includes(a) && x.defenders.includes(d));
+  w.battles = [];
   for (const [a, d] of pairs) {
     if (!w.alive(a) || !w.alive(d)) continue;
-    const ea = w.strength(a) / (fronts.get(a) ?? 1);
-    const ed = (w.strength(d) / (fronts.get(d) ?? 1)) * (1 + defence(w, d));
-    if (ea + ed <= 0) continue;
-    const r = ea / (ea + ed);
-    const edge = Math.abs(r - 0.5) * 2;
+    const pa = frontPower(w, a, d);
+    const pd = frontPower(w, d, a);
+    // Each side's edge when it attacks: its attack against the other's defence (with forts and terrain).
+    const edgeOf = (att: number, def: number): number => (att > def && att > 0 ? (att - def) / (att + def) : 0);
+    const ea = edgeOf(pa.attack, pd.defence * (1 + defence(w, d)));
+    const ed = edgeOf(pd.attack, pa.defence * (1 + defence(w, a)));
+    const [winner, loser, edge] = ea >= ed ? [a, d, ea] : [d, a, ed];
+    if (pa.armies || pd.armies) w.battles.push({ a, d, winner: edge >= rules.deadZone ? winner : 0, edge, lostA: 0, lostD: 0 });
     if (edge < rules.deadZone) continue;
-    const [winner, loser] = r > 0.5 ? [a, d] : [d, a];
     const war = warOf(a, d);
     if (war) push(w, war, winner, loser, edge);
+  }
+  // Each nation's losses, shared out over the battles it fought.
+  const fights = new Map<number, number>();
+  for (const b of w.battles) for (const id of [b.a, b.d]) fights.set(id, (fights.get(id) ?? 0) + 1);
+  for (const b of w.battles) {
+    b.lostA = (lost.get(b.a) ?? 0) / (fights.get(b.a) ?? 1);
+    b.lostD = (lost.get(b.d) ?? 0) / (fights.get(b.d) ?? 1);
   }
   // Peace: when one side is clearly winning, or the war drags on. When the player's nation is
   // the one winning, the player decides when to stop (Make peace) and keeps conquering till then.
@@ -134,10 +143,26 @@ function defence(w: World, id: number): number {
   return (w.sheets[id - 1]?.stats.defence.value ?? 0) / 100;
 }
 
-/** A nation loses `share` of its fighting troops. */
-function bleed(w: World, id: number, share: number): void {
+/**
+ * A nation's armies facing `enemies` lose `share` of their troops (× their stance's losses);
+ * its home armies lose a third of that; the reserve is safe at the capital.
+ */
+function bleed(w: World, id: number, enemies: number[], share: number): number {
   const l = w.live[id - 1];
-  for (const d of l.divisions) if (d.training === 0) d.troops *= 1 - share;
+  const stances = w.sim.army.stances;
+  const rate = new Map<number, number>();
+  for (const a of l.armies ?? []) {
+    if (enemies.includes(a.front)) rate.set(a.id, share * stances[a.stance].losses);
+    else if (a.front === 0) rate.set(a.id, share / 3);
+  }
+  let lost = 0;
+  for (const d of l.divisions) {
+    if (d.training > 0) continue;
+    const cut = d.troops * (rate.get(d.army ?? 0) ?? 0);
+    d.troops -= cut;
+    lost += cut;
+  }
+  return lost;
 }
 
 /**
@@ -219,6 +244,7 @@ function push(w: World, war: War, winner: number, loser: number, edge: number): 
   war.progress[key] = Math.min(budget, 6);
   if (!taken.length) return;
   if (loser === w.mineId) w.landChanged();
+  infamyForLand(w, winner, taken);
   w.transferLand(taken, winner);
   w.lastConqueror.set(loser, winner);
   // Paint on land that changed hands no longer applies.
@@ -226,6 +252,15 @@ function push(w: World, war: War, winner: number, loser: number, edge: number): 
   w.markChanged(taken);
   w.touch(winner);
   w.touch(loser);
+}
+
+/** Taking land costs infamy: 'infamyPerLand' × the land taken ÷ the taker's own land. */
+function infamyForLand(w: World, winner: number, pixels: readonly number[]): void {
+  const { territory, map } = w.opts;
+  let km = 0;
+  for (const i of pixels) km += territory.areas[(i / map.width) | 0];
+  const own = territory.holding(winner)?.area ?? 0;
+  if (own > 0) w.addInfamy(winner, (w.sim.ai.infamyPerLand * km) / own);
 }
 
 /**
@@ -289,6 +324,7 @@ export function makePeace(w: World, war: War): PeaceTerms {
     const all = Array.from(w.opts.territory.holding(loser)?.pixels ?? []);
     if (all.length) {
       if (loser === w.mineId) w.landChanged();
+      infamyForLand(w, winner, all);
       w.transferLand(all, winner);
       for (const i of all) w.paint[i] = 0;
       w.markChanged(all);
@@ -307,6 +343,14 @@ export function makePeace(w: World, war: War): PeaceTerms {
       for (const a of allies) w.live[loser - 1].tributes.push({ to: a, amount: (income * p.tributeShare) / 2, yearsLeft: p.tributeYears });
       text += ` Its allies (${allies.map((a) => w.name(a)).join(", ")}) get ${Math.round((p.tributeShare / 2) * 100)}% of ${w.name(loser)}'s income for ${p.tributeYears} years.`;
     }
+  }
+  // Winning lifts stability, losing hurts it (more for a bigger win); allies feel half of it.
+  if (Math.abs(war.score) >= p.tributeAt) {
+    const big = w.sim.stability.events.war * (0.4 + 0.6 * Math.min(1, Math.abs(war.score) / 100));
+    const winners = winner === war.attackers[0] ? war.attackers : war.defenders;
+    const losers = winner === war.attackers[0] ? war.defenders : war.attackers;
+    for (const id of winners) stabilityEvent(w, id, "wars", id === winner ? big : big / 2);
+    for (const id of losers) stabilityEvent(w, id, "wars", id === loser ? -big : -big / 2);
   }
   for (const id of [...war.attackers, ...war.defenders]) w.touch(id);
   w.peaceSigned(war, { text });

@@ -29,8 +29,55 @@ export interface SimData {
   brushes: { cost: Record<BrushId, number>; eraseRefund: number; sizes: number[] };
   buildings: BuildingSpec[];
   growth: { developmentPerYear: number; perSchool: number; debt: ModSet };
-  army: { trainingMonths: number; disband: number; queuePerMonth: number };
-  ai: { buildReserve: number; warChance: number; warOdds: number; allianceAt: number; breakAllianceAt: number; maxAllies: number; allyJoinsAttack: number };
+  army: {
+    trainingMonths: number;
+    disband: number;
+    queuePerMonth: number;
+    /** About how many divisions an army has, and the most armies a nation keeps. */
+    armySize: number;
+    maxArmies: number;
+    /** Home armies guard every front with this share of their strength (split between the fronts). */
+    homeShare: number;
+    /** Every front has militia worth this share of the nation's strength, even with no army there. */
+    militia: number;
+    /** A nation's own armies attack when they're this many times stronger than the enemy on that front. */
+    attackOdds: number;
+    /** What each stance does: × attack, × defence, × losses. */
+    stances: Record<"attack" | "hold" | "defend", { attack: number; defence: number; losses: number }>;
+  };
+  ai: {
+    buildReserve: number;
+    warChance: number;
+    warOdds: number;
+    allianceAt: number;
+    breakAllianceAt: number;
+    maxAllies: number;
+    allyJoinsAttack: number;
+    /** How many months a planned war takes to prepare (between these). */
+    planMin: number;
+    planMax: number;
+    /** How much bigger an army it wants at war, while planning one, and when threatened; the most divisions it orders at once. */
+    armyBoostWar: number;
+    armyBoostPlan: number;
+    armyBoostThreat: number;
+    maxOrder: number;
+    /** Infamy for starting a war, and for land taken (× land ÷ own land); the share that fades in a year. */
+    infamyPerWar: number;
+    infamyPerLand: number;
+    infamyDecay: number;
+    /** Coalitions: against infamy from 'coalitionAt', or a nation 'coalitionPower' × stronger than its neighbours' average; members dislike it (relation under 'coalitionRelation'); they strike at 'coalitionOdds' × its strength. */
+    coalitionAt: number;
+    coalitionPower: number;
+    coalitionRelation: number;
+    coalitionOdds: number;
+    /** Revolts: below 'revoltBelow' stability, a monthly chance up to 'revoltChance'; a region of 'revoltShareMin'..'revoltShareMax' of the land breaks away; not in nations under 'revoltMinPixels' pixels, and not twice within 'revoltCooldownYears'. */
+    revoltBelow: number;
+    revoltChance: number;
+    revoltShareMin: number;
+    revoltShareMax: number;
+    revoltMinPixels: number;
+    revoltCooldownYears: number;
+  };
   relations: { base: number; aggression: number; sameIdeology: number; random: number; drift: number; war: number; afterPeace: number; push: number };
   war: {
     scorePerMonth: number;
@@ -58,6 +105,26 @@ export interface SimData {
     tributeYears: number;
   };
   save: { everyYears: number };
+  /** Stability earned by progress (src/sim/stability.ts). */
+  stability: {
+    /** The starting roll counts this much (1 = fully), and fades over 'fadeYears'; so does how mild stability's effects start ('effectStart'). */
+    /** Where the target starts before the signals (a nation doing nothing special sits a bit above it). */
+    base: number;
+    startSpread: number;
+    fadeYears: number;
+    effectStart: number;
+    /** Share of the way to the target stability moves each month. */
+    moveRate: number;
+    /** Readings are smoothed over about 'smoothMonths'; events are forgotten over about 'memoryMonths'. */
+    smoothMonths: number;
+    memoryMonths: number;
+    /** Points each signal adds at its best (and takes at its worst). */
+    weights: Record<"economy" | "debt" | "food" | "population" | "development" | "buildings" | "wars" | "land" | "peace", number>;
+    /** What counts as a full signal: income growth a year, net income as a share of income, population growth a year, development points a year, land change, well fed (food use), hungry (over 100%), months of peace, how bad being at war is. */
+    refs: { income: number; net: number; growth: number; development: number; land: number; wellFed: number; fedBonus: number; hungry: number; peaceMonths: number; atWar: number };
+    /** How big an event is: a building finished, a war won or lost. */
+    events: { building: number; war: number };
+  };
 }
 
 const PUSHES: PushId[] = ["build", "recruit", "improveRelations", "worsenRelations", "alliance", "declareWar", "offerPeace"];
@@ -166,13 +233,53 @@ export function parseSimData(raw: unknown): SimData {
     brushes,
     buildings,
     growth,
-    army: numbers("army", ["trainingMonths", "disband", "queuePerMonth"]),
-    ai: numbers("ai", ["buildReserve", "warChance", "warOdds", "allianceAt", "breakAllianceAt", "maxAllies", "allyJoinsAttack"]),
+    army: { ...numbers("army", ["trainingMonths", "disband", "queuePerMonth", "armySize", "maxArmies", "homeShare", "militia", "attackOdds"]), stances: stances(section("army").stances) },
+    ai: numbers("ai", [
+      "buildReserve", "warChance", "warOdds", "allianceAt", "breakAllianceAt", "maxAllies", "allyJoinsAttack",
+      "planMin", "planMax", "armyBoostWar", "armyBoostPlan", "armyBoostThreat", "maxOrder",
+      "infamyPerWar", "infamyPerLand", "infamyDecay", "coalitionAt", "coalitionPower", "coalitionRelation", "coalitionOdds",
+      "revoltBelow", "revoltChance", "revoltShareMin", "revoltShareMax", "revoltMinPixels", "revoltCooldownYears",
+    ]),
     relations: numbers("relations", ["base", "aggression", "sameIdeology", "random", "drift", "war", "afterPeace", "push"]),
     war: { ...numbers("war", ["scorePerMonth", "losses", "maxLosses", "pushRate", "minPush", "maxShare", "deadZone", "defendPaintCost", "seaCrossing", "seaCost"]), conquestCost: conquestCost(section("war").conquestCost) },
     peace: numbers("peace", ["winAt", "minMonths", "maxMonths", "annexAt", "annexSize", "tributeAt", "tributeShare", "tributeYears"]),
     save: numbers("save", ["everyYears"]),
+    stability: {
+      ...numbers("stability", ["base", "startSpread", "fadeYears", "effectStart", "moveRate", "smoothMonths", "memoryMonths"]),
+      weights: subNumbers(section("stability"), "stability.weights", ["economy", "debt", "food", "population", "development", "buildings", "wars", "land", "peace"]),
+      refs: subNumbers(section("stability"), "stability.refs", ["income", "net", "growth", "development", "land", "wellFed", "fedBonus", "hungry", "peaceMonths", "atWar"]),
+      events: subNumbers(section("stability"), "stability.events", ["building", "war"]),
+    },
   };
+}
+
+/** army.stances: { "attack": { "attack": 1, "defence": 0.8, "losses": 1 }, "hold": …, "defend": … }. */
+function stances(v: unknown): SimData["army"]["stances"] {
+  const where = "army.stances";
+  if (!isObject(v)) throw new Error(`${where} must be { "attack": {…}, "hold": {…}, "defend": {…} }`);
+  const out = {} as SimData["army"]["stances"];
+  for (const k of ["attack", "hold", "defend"] as const) {
+    const s = v[k];
+    if (!isObject(s)) throw new Error(`${where}.${k} is missing`);
+    const n = (f: string): number => {
+      if (typeof s[f] !== "number" || (s[f] as number) < 0) throw new Error(`${where}.${k}.${f} must be a number, 0 or more`);
+      return s[f] as number;
+    };
+    out[k] = { attack: n("attack"), defence: n("defence"), losses: n("losses") };
+  }
+  return out;
+}
+
+/** A { name: number } object inside a section, every name required. */
+function subNumbers<K extends string>(sec: Record<string, unknown>, where: string, names: K[]): Record<K, number> {
+  const v = sec[where.split(".").pop()!];
+  if (!isObject(v)) throw new Error(`${where} must be { ${names.map((n) => `"${n}": …`).join(", ")} }`);
+  const out = {} as Record<K, number>;
+  for (const n of names) {
+    if (typeof v[n] !== "number" || !Number.isFinite(v[n])) throw new Error(`${where}.${n} must be a number`);
+    out[n] = v[n] as number;
+  }
+  return out;
 }
 
 /** war.conquestCost: { "Mountains": 4, … } by terrain name, as a list by terrain id (1 where unlisted). */

@@ -46,28 +46,57 @@
   },
 
   "growth": {
-    "about": "Development moves toward what the nation's stats aim for by 'developmentPerYear' points a year, plus 'perSchool' for each school level. A nation in debt (treasury below zero) gets 'debt' modifiers.",
+    "about": "Development moves toward what the nation's stats aim for by 'developmentPerYear' points a year, plus 'perSchool' for each school level. A nation in debt (treasury below zero) gets 'debt' modifiers (its stability suffers through 'stability' below).",
     "developmentPerYear": 1,
     "perSchool": 0.4,
-    "debt": { "stability": "-10", "popularity": "-5" }
+    "debt": { "popularity": "-5" }
   },
 
   "army": {
-    "about": "New divisions train for 'trainingMonths' months before they count. A division under 'disband' troops is broken up. Divisions you order go in a queue: up to 'queuePerMonth' are raised each month while the nation has the men, the money and the calm.",
+    "about": "New divisions train for 'trainingMonths' months before they count. A division under 'disband' troops is broken up. Divisions you order go in a queue: up to 'queuePerMonth' are raised each month while the nation has the men, the money and the calm. Divisions are grouped into armies of about 'armySize' divisions (at most 'maxArmies' armies); new ones wait in the reserve at the capital until trained. Each army fights on one front (or stays home, guarding every front with 'homeShare' of its strength). Every front also has militia worth 'militia' of the nation's strength. A nation's own armies attack when they're 'attackOdds' times stronger than the enemy there, and dig in when they're much weaker. 'stances': what Attack, Hold and Defend do to attack, defence and losses (Hold and Defend never advance).",
     "trainingMonths": 6,
     "disband": 60,
-    "queuePerMonth": 4
+    "queuePerMonth": 4,
+    "armySize": 12,
+    "maxArmies": 6,
+    "homeShare": 0.5,
+    "militia": 0.08,
+    "attackOdds": 1.1,
+    "stances": {
+      "attack": { "attack": 1, "defence": 0.8, "losses": 1 },
+      "hold": { "attack": 0, "defence": 1.2, "losses": 0.8 },
+      "defend": { "attack": 0, "defence": 1.5, "losses": 0.6 }
+    }
   },
 
   "ai": {
-    "about": "What computer-run nations do. Each nation thinks once a year (each in its own month). 'buildReserve': it keeps this many months of upkeep in the treasury before building (so it doesn't build every year). 'warChance': yearly chance of starting a war at aggression 100 (it scales with aggression²). 'warOdds': it only attacks when its side is this many times stronger. 'allianceAt': relation needed to ally; 'maxAllies'.",
+    "about": "What computer-run nations do. Each nation thinks once a year (each in its own month). 'buildReserve': it keeps this many months of upkeep in the treasury before building (so it doesn't build every year). 'warChance': yearly chance of starting a war at aggression 100 (it scales with aggression²). 'warOdds': it only attacks when its side is this many times stronger. 'allianceAt': relation needed to ally; 'maxAllies'. Wars are planned first: the nation masses troops for 'planMin'..'planMax' months (shown on the map), then declares war if it still looks winnable. Armies: a nation wants 'armyBoostWar' × its peacetime army at war, 'armyBoostPlan' × while planning a war, 'armyBoostThreat' × when someone plans war on it or a coalition targets it, ordering at most 'maxOrder' divisions at a time. Infamy: 'infamyPerWar' for starting a war, 'infamyPerLand' × land taken ÷ own land; 'infamyDecay' of it fades each year. Coalitions form against a neighbour with infamy from 'coalitionAt', or 'coalitionPower' × stronger than its neighbours on average, among nations whose relation with it is under 'coalitionRelation'; they declare war together when they're 'coalitionOdds' × as strong. Revolts: below 'revoltBelow' stability a nation has a monthly chance of up to 'revoltChance' (more the lower it is) that a region of 'revoltShareMin'..'revoltShareMax' of its land breaks away as a new nation, if it has 'revoltMinPixels' pixels or more and had no revolt in 'revoltCooldownYears' years.",
     "buildReserve": 12,
     "warChance": 0.3,
     "warOdds": 1.3,
     "allianceAt": 20,
     "breakAllianceAt": 0,
     "maxAllies": 2,
-    "allyJoinsAttack": 0.5
+    "allyJoinsAttack": 0.5,
+    "planMin": 4,
+    "planMax": 10,
+    "armyBoostWar": 1.5,
+    "armyBoostPlan": 1.4,
+    "armyBoostThreat": 1.3,
+    "maxOrder": 12,
+    "infamyPerWar": 6,
+    "infamyPerLand": 120,
+    "infamyDecay": 0.25,
+    "coalitionAt": 50,
+    "coalitionPower": 5,
+    "coalitionRelation": -25,
+    "coalitionOdds": 1,
+    "revoltBelow": 20,
+    "revoltChance": 0.01,
+    "revoltShareMin": 0.15,
+    "revoltShareMax": 0.35,
+    "revoltMinPixels": 150,
+    "revoltCooldownYears": 10
   },
 
   "relations": {
@@ -112,5 +141,19 @@
   "save": {
     "about": "The game saves in your browser every 'everyYears' years (and when you leave the page); the start screen then offers Continue.",
     "everyYears": 1
+  },
+
+  "stability": {
+    "about": "Stability is earned by progress. Each month a nation reads its progress signals, each from -1 (worst) to 1 (best), and its target stability is 'base' + each signal × its 'weights' points + what lasts (buildings, popularity) + the starting roll's part. Stability moves 'moveRate' of the way to the target each month. Readings (economy, debt, food, population, development, peace) are smoothed over about 'smoothMonths'; events (buildings finished, wars won or lost, land gained or lost) are remembered and forgotten over about 'memoryMonths'. 'refs' say what a full signal is: 'income' income growth a year and 'net' net income as a share of income (economy, half each); 'growth' population growth a year; 'development' points a year; 'land' land gained or lost as a share of the nation's land; food use under 'wellFed' counts as well fed ('fedBonus' of a full signal: being fed is normal), and 'hungry' over 100% is fully hungry; 'peaceMonths' months of peace is a full long peace, and being at war counts as -'atWar'. 'events': a building finished adds 'building'; a war won adds up to 'war' (less for a narrow win), a lost one takes it. The starting roll counts 'startSpread' as much as on the wheel, and its part fades over about 'fadeYears' years; stability's effects on the rest of the sheet start at 'effectStart' of their full strength and grow to full over the same years.",
+    "base": 40,
+    "startSpread": 0.6,
+    "fadeYears": 8,
+    "effectStart": 0.4,
+    "moveRate": 0.03,
+    "smoothMonths": 24,
+    "memoryMonths": 36,
+    "weights": { "economy": 8, "debt": 8, "food": 6, "population": 5, "development": 3, "buildings": 4, "wars": 10, "land": 6, "peace": 6 },
+    "refs": { "income": 0.05, "net": 0.3, "growth": 0.01, "development": 1, "land": 0.05, "wellFed": 0.7, "fedBonus": 0.5, "hungry": 0.2, "peaceMonths": 240, "atWar": 0.3 },
+    "events": { "building": 0.4, "war": 1 }
   }
 }

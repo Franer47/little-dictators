@@ -208,6 +208,16 @@
   color: rgba(241, 232, 212, 0.55);
 }
 
+.gp-threat {
+  margin: 4px 0;
+  padding: 5px 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  background: rgba(232, 128, 106, 0.1);
+  border-left: 3px solid #e8a25a;
+  border-radius: 4px;
+}
+
 .gp-going {
   color: var(--up);
 }
@@ -651,10 +661,32 @@
 }
 
 .nb-date {
-  min-width: 108px;
+  /* As wide as the longest date ("September 1581"), so the speed buttons don't move. */
+  min-width: 132px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
   font: 700 14px/1.1 var(--title-font);
   color: var(--gold-bright);
   text-align: right;
+}
+
+/* How far through the month the clock is. */
+.nb-month {
+  display: block;
+  width: 100%;
+  height: 2px;
+  overflow: hidden;
+  background: rgba(240, 212, 138, 0.15);
+  border-radius: 1px;
+}
+
+.nb-month i {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: var(--gold-bright);
 }
 
 .nb-speeds {
@@ -683,6 +715,12 @@
 .nb-speeds button.paused.on {
   background: #e8806a;
   border-color: #e8806a;
+}
+
+.nb-influence b {
+  display: inline-block;
+  min-width: 3ch;
+  text-align: right;
 }
 
 .nb-influence {
