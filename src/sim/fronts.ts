@@ -10,6 +10,8 @@ import type { World } from "./world.ts";
 export interface Fronts {
   /** By nation id: its pixels that touch an enemy's, in no particular order. */
   byNation: Map<number, number[]>;
+  /** By id × 65536 + enemy: id's pixels that touch that enemy (where its armies on that front stand). */
+  byPair: Map<number, number[]>;
   /** Each war's front, for the swords on the map: the middle pixel, and the two leaders. */
   wars: { id: number; x: number; y: number; attacker: number; defender: number; mine: boolean }[];
 }
@@ -29,6 +31,7 @@ export function findFronts(map: GameMap, territory: Territory, w: World): Fronts
   const { width } = map;
   const owner = territory.owner;
   const byNation = new Map<number, number[]>();
+  const byPair = new Map<number, number[]>();
   // Pixels along the front between each pair (for the swords): key a*65536+b with a < b.
   const pairPixels = new Map<number, number[]>();
   for (const [id, foes] of enemies) {
@@ -45,6 +48,9 @@ export function findFronts(map: GameMap, territory: Territory, w: World): Fronts
         const other = owner[p[1] * width + p[0]];
         if (other && foes.has(other)) {
           front.push(i);
+          const own = id * 65536 + other;
+          if (!byPair.has(own)) byPair.set(own, []);
+          byPair.get(own)!.push(i);
           if (id < other) {
             const key = id * 65536 + other;
             if (!pairPixels.has(key)) pairPixels.set(key, []);
@@ -91,5 +97,5 @@ export function findFronts(map: GameMap, territory: Territory, w: World): Fronts
     const involved = [...war.attackers, ...war.defenders].includes(mine);
     wars.push({ id: war.id, x: best % width, y: (best / width) | 0, attacker: a, defender: d, mine: involved });
   }
-  return { byNation, wars };
+  return { byNation, byPair, wars };
 }

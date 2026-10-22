@@ -53,10 +53,20 @@
   },
 
   "army": {
-    "about": "New divisions train for 'trainingMonths' months before they count. A division under 'disband' troops is broken up. Divisions you order go in a queue: up to 'queuePerMonth' are raised each month while the nation has the men, the money and the calm.",
+    "about": "New divisions train for 'trainingMonths' months before they count. A division under 'disband' troops is broken up. Divisions you order go in a queue: up to 'queuePerMonth' are raised each month while the nation has the men, the money and the calm. Divisions are grouped into armies of about 'armySize' divisions (at most 'maxArmies' armies); new ones wait in the reserve at the capital until trained. Each army fights on one front (or stays home, guarding every front with 'homeShare' of its strength). Every front also has militia worth 'militia' of the nation's strength. A nation's own armies attack when they're 'attackOdds' times stronger than the enemy there, and dig in when they're much weaker. 'stances': what Attack, Hold and Defend do to attack, defence and losses (Hold and Defend never advance).",
     "trainingMonths": 6,
     "disband": 60,
-    "queuePerMonth": 4
+    "queuePerMonth": 4,
+    "armySize": 12,
+    "maxArmies": 6,
+    "homeShare": 0.5,
+    "militia": 0.08,
+    "attackOdds": 1.1,
+    "stances": {
+      "attack": { "attack": 1, "defence": 0.8, "losses": 1 },
+      "hold": { "attack": 0, "defence": 1.2, "losses": 0.8 },
+      "defend": { "attack": 0, "defence": 1.5, "losses": 0.6 }
+    }
   },
 
   "ai": {

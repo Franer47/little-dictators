@@ -324,32 +324,47 @@ simulation needs them: defence for wars and front lines, trade for income and co
 between nations, naval reach for overseas invasions, and cohesion for revolts and
 breakaways.
 
-## Armies: divisions on the map
+## Armies and fronts
 
-Every nation's army is split into **divisions** of 400 troops, each a little flag in the
-nation's colour along its borders: its future front line (wars come in milestone 5). An
-island nation with only a small land border guards its coasts too. The flags only show when
-you **zoom in close**, so the map stays readable; there, a nation's flags that would overlap
-merge into one with their total, and zooming in further shows every division.
+Armies work like Victoria 3's fronts. Every nation's soldiers are **divisions** of 400 troops,
+grouped into a few **armies** (about 12 divisions each, at most 6 armies). Each army is **one
+token** on the map: the nation's flag, how many divisions it has, a strength bar (green when
+full, red when worn down) and its stance on the cloth (▲ attack, ▬ hold, a shield for defend).
 
-Click a flag (or **Army** in the top strip) to open that nation's **Army section**: its
-troops, divisions, manpower, yearly cost and quality, and a list of its divisions. While it's
-open, that nation's flags show from further out too. For **your own** nation you can:
+- An army is sent to a **front** (the border with one enemy) or stays **at home**, standing
+  along the border (on your Defend paint, if you painted some) and guarding every front a
+  little.
+- Its **stance**: **Attack** pushes into the enemy's land, **Hold** stands its ground
+  (stronger in defence, never advances), **Defend** digs in (much stronger in defence, fewer
+  losses, never advances).
+- New divisions wait in the **Reserve** at the capital (a striped flag with an R) while they
+  train, then join an army.
+- Worn-down divisions in an army are merged back into full ones, so the numbers stay tidy.
 
-- **Order divisions**: **+1**, **+5**, **+25** or **+100** new divisions of 400 troops
-  (✦1 each). They go into a **queue**, and your nation raises up to 4 a month on its own,
-  whenever it can. The Army section shows how many are waiting and why (**Clear** cancels
-  them and gives the influence back).
-- **Bigger division** (+400 troops to the division you picked, up to 4,000; ✦1). Your nation
-  decides at once and says why.
+**Every nation commands its own armies**, yours included: it sends them where the enemy is
+strongest, attacks where it's stronger and digs in where it's much weaker. You can take over
+any of your armies by giving it an order (a front or a stance) in the Army section; it then
+says "You command it", and your nation leaves it alone until you press **Give back**.
+
+To keep the map clean, only **your** armies and **your enemies'** show, plus the armies of the
+nation whose Army section is open; tick **Show every nation's armies** to see them all. When
+an army is sent somewhere else it marches there instead of jumping.
+
+Click an army (or **Army** on the left) to open the **Army section**: troops, divisions,
+manpower, yearly cost and quality, every army with its front and stance, and the reserve. For
+**your own** nation you can also **order divisions**: **+1**, **+5**, **+25** or **+100** new
+divisions of 400 troops (✦1 each). They go into a **queue**, and your nation raises up to 4 a
+month on its own, whenever it can. The Army section shows how many are waiting and why
+(**Clear** cancels them and gives the influence back).
 
 A division is only raised while your nation is stable enough (stability 25 or more), has the
 men (its army stays within its manpower) and can pay (its net income stays above zero);
-otherwise the queue waits. New troops are added to its army and upkeep, and the flag is
-striped while they're **in training** (six months; they don't fight until then). Nations also raise and break up divisions on their own
-once a year, and lose troops in wars. Other nations' armies you can look at but not change.
-The numbers are in `"divisions"` in `public/data/eras/1500-stats.json` and `"army"` in
-`1500-sim.json`.
+otherwise the queue waits. New troops are added to its army and upkeep, and they're **in
+training** for six months (they don't fight until then). Nations also raise and break up
+divisions on their own once a year, and lose troops in wars. Other nations' armies you can
+look at but not command. The numbers are in `"divisions"` in
+`public/data/eras/1500-stats.json` and `"army"` in `1500-sim.json` (army size, how many
+armies, what each stance does, militia, home guard).
 
 ![Divisions along the borders and the Army section](docs/army.jpg)
 
@@ -412,26 +427,28 @@ The menu on the left:
   birth rate per level). Pushing a building costs ✦6. Two can be built at once; if your
   nation is busy or short of money, the building goes into a **queue** and starts by itself
   later (**Clear** cancels the queue and gives the influence back).
-- **Army**: your divisions; order 1, 5, 25 or 100 new ones (✦1 each) into a queue that's
-  raised a few a month, or make one bigger. New soldiers train for six months first (striped
-  flags).
+- **Army**: your armies, their fronts and stances (take command of any of them), the
+  reserve, and orders for 1, 5, 25 or 100 new divisions (✦1 each) into a queue that's raised a
+  few a month. New soldiers train for six months in the reserve first.
 - **Wars**: your wars (with the war score), your allies and your neighbours, each with ＋
   / − relations, Ally and War buttons. **Right-click** any nation on the map for the same
   choices.
 - **Brushes**: paint the map with influence. **War goal** (other nations' land you want: your
   nation is keener to fight its owner and takes that land first in a peace), **Defend** (your
-  divisions stand there, forts go there first), **Develop** (new buildings go there first, and
+  armies at home stand there, forts go there first), **Develop** (new buildings go there first, and
   your nation builds more farms, markets, workshops and schools), **Erase** (gives back half).
 
-**Wars are fought pixel by pixel.** Every month the two sides' armies clash, both lose
-troops, and the war score moves toward the stronger side (troops × army quality, defenders
-helped by their defence). Along every **front** (two enemies whose land touches, or with at
-most 6 pixels of sea between them) the stronger one **pushes into the other's land**: the
+**Wars are fought pixel by pixel.** Every month the war score moves toward the stronger side
+(troops × army quality, defenders helped by their defence), and the armies on the fronts lose
+troops (fewer when they hold or dig in; the reserve is safe). Along every **front** (two
+enemies whose land touches, or with at most 6 pixels of sea between them) the armies there
+fight: if one side's **attacking** armies beat the other's defence (its armies there, a little
+from its home armies, and some local militia), it **pushes into the other's land**: the
 bigger its edge, the more pixels it takes, and you can watch the border creep forward through
-the month. Terrain slows it down (a mountain pixel costs four times a plain, highlands and
+the month. A front with no army on it is held only by militia. Terrain slows it down (a mountain pixel costs four times a plain, highlands and
 snow twice, rivers three times, landing across the sea twice), your **Defend** paint makes
 land twice as hard to take, and your **War goal** paint is taken first. A nation fighting on
-several fronts splits its army between them. Conquered land is yours at once, **with what's
+several fronts splits its armies between them. Conquered land is yours at once, **with what's
 on it**: the same share of the loser's people as of its land, and the buildings standing there
 (buildings still being built there are lost). Take all of a nation's land and you get its
 treasury too.
@@ -447,8 +464,7 @@ shows how many wars you're in. A nation that loses all its land has **fallen** (
 to Y"); if it's yours you can keep watching or pick another nation to guide.
 
 **On the map**, every war has crossed swords at the middle of its front (big and red when
-it's yours), and while at war a nation's divisions stand on its front with the enemy instead
-of along its whole border. Buildings show as small icons where they stand when you zoom in
+it's yours), and the armies stand on the fronts they were sent to. Buildings show as small icons where they stand when you zoom in
 (faded while they're being built).
 
 ![A war front: divisions face each other, swords mark the war](docs/war-front.jpg)
@@ -495,10 +511,11 @@ src/
   ui/wheel/               the wheel screen: flow, the two wheel looks, sounds, confetti
   ui/nationPanel.ts       the nation panel in the corner: stat sheet, creation record
   ui/nationBar.ts         the strip across the top: your nation's key numbers and the Army button
-  ui/armyPanel.ts         the Army section: divisions, and requests for new or bigger ones
-  game/army.ts            divisions: how many, where their flags stand, whether a nation agrees to a request
+  ui/armyPanel.ts         the Army section: armies, fronts, stances, the reserve, orders for divisions
+  game/army.ts            divisions: how many a peacetime army makes, the border lines armies stand along
+  sim/armies.ts           armies: grouping divisions, fronts, stances, what each nation decides for its armies
   game/labels.ts          where each nation's name goes on the map
-  render/divisionLayer.ts draws the army flags (merged when zoomed out)
+  render/armyLayer.ts     draws the army tokens (they march when sent somewhere else)
   render/labelLayer.ts    draws the nation names
   ui/icons.ts             the small stat icons and meter colours
   ui/placement.ts         placing nations: the hint bar, nation list, Surprise me, Fill, Clear

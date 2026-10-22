@@ -6,6 +6,13 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 ## Unreleased
 
 ### Added
+- **Armies and fronts, like Victoria 3.** Divisions are grouped into a few armies, each one
+  token on the map (flag, divisions, a strength bar, its stance) instead of hundreds of little
+  flags. Armies go to a front (the border with one enemy) or stay home, and Attack, Hold or
+  Defend. Your nation commands them itself; give an army an order to command it yourself, and
+  Give back to hand it back. New divisions wait in a Reserve at the capital while they train.
+  Only your armies and your enemies' show on the map (tick "Show every nation's armies" for
+  all), and armies march to where they're sent.
 - **Queues:** order 1, 5, 25 or 100 divisions at once from the Army section. They wait in a
   queue and your nation raises up to 4 a month whenever it has the men, the money and the
   calm. Buildings you can't start yet (short of money, or two already being built) go into a
@@ -42,6 +49,10 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 - **How to play:** a short guide the first time you play (and from the How to button).
 
 ### Changed
+- Wars are now fought by the armies on each front: a side pushes in only where its attacking
+  armies beat the other's defence; a front with no army is held by militia. Worn-down
+  divisions merge back into full ones.
+- The "Bigger division" button is gone (divisions now merge by themselves).
 - A division now costs ✦1 influence instead of ✦4.
 - **The map info is folded away.** What's under the mouse (terrain, height, position) and
   the controls now hide behind the ⓘ button in the bottom-left corner; click it to show them.

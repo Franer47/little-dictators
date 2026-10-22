@@ -1,7 +1,6 @@
-// Armies on the map: every nation's soldiers are split into divisions (a little flag each),
-// spread along its borders, ready to hold the front when wars come (milestone 5). Which
-// divisions a nation has is decided by the running world (src/sim/world.ts); this file only
-// says where their flags stand. Plain game logic, no drawing (src/render/divisionLayer.ts).
+// Divisions and borders: how many divisions a peacetime army makes, and the border lines a
+// nation's armies can stand along at home (src/sim/armies.ts groups the divisions into armies;
+// src/render/armyLayer.ts draws them). Plain game logic, no drawing.
 // The numbers are in public/data/eras/1500-stats.json, "divisions".
 
 import type { GameMap } from "../map/gameMap.ts";
@@ -16,19 +15,6 @@ export interface DivisionRules {
   maxSize: number;
   /** Below this stability the nation refuses any request. */
   minStability: number;
-}
-
-export interface Division {
-  /** Its owner's nation id. */
-  nation: number;
-  /** Its number within the nation (0 = the 1st division). */
-  index: number;
-  troops: number;
-  /** Where its flag stands (map pixel). */
-  x: number;
-  y: number;
-  /** Still training: it doesn't fight yet. */
-  training: boolean;
 }
 
 /** How many divisions the peacetime army makes (at least one for any army of half a division or more). */
@@ -117,41 +103,6 @@ export function findBorders(
   return { lines };
 }
 
-/** Every nation's divisions, with their flags spread evenly along its border (see findBorders). */
-export function spreadDivisions(
-  map: GameMap,
-  borders: Borders,
-  /** Each nation's divisions (by id): troops, and whether it's still training. */
-  troopsOf: (id: number) => readonly { troops: number; training: boolean }[],
-  /** Lines to use instead for some nations (by id), e.g. the front of a war (sorted with sortAround). */
-  override?: ReadonlyMap<number, Int32Array>,
-): Division[] {
-  const { width } = map;
-  const out: Division[] = [];
-  borders.lines.forEach((border, k) => {
-    const id = k + 1;
-    const line = override?.get(id) ?? border;
-    const divs = troopsOf(id);
-    if (!divs.length || !line.length) return;
-    divs.forEach((d, index) => {
-      const p = line[Math.floor(((index + 0.5) * line.length) / divs.length)];
-      out.push({ nation: id, index, troops: Math.round(d.troops), x: p % width, y: (p / width) | 0, training: d.training });
-    });
-  });
-  return out;
-}
-
-/** Both steps at once (findBorders, then spreadDivisions). */
-export function placeDivisions(
-  map: GameMap,
-  owner: Uint16Array,
-  count: number,
-  troopsOf: (id: number) => readonly { troops: number; training: boolean }[],
-  guard?: Uint8Array,
-): Division[] {
-  return spreadDivisions(map, findBorders(map, owner, count, guard), troopsOf);
-}
-
 const SIDES: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
 /** A border's pixels sorted by angle around its middle, which walks round it. */
@@ -174,10 +125,4 @@ export function sortAround(border: Int32Array, width: number, wraps: boolean): I
   const angle = new Map<number, number>();
   for (const i of border) angle.set(i, Math.atan2(((i / width) | 0) - cy, dx(i) - cx));
   return Int32Array.from(border).sort((a, b) => angle.get(a)! - angle.get(b)!);
-}
-
-/** "1st", "2nd", "3rd", "4th"… */
-export function ordinal(n: number): string {
-  const s = n % 100 >= 11 && n % 100 <= 13 ? "th" : (["th", "st", "nd", "rd"][n % 10] ?? "th");
-  return `${n}${s}`;
 }
