@@ -4,9 +4,7 @@
 
 import "@fontsource/press-start-2p/400.css";
 import "@fontsource/luckiest-guy/400.css";
-import "@fontsource/pixelify-sans/400.css";
-import "@fontsource/pixelify-sans/600.css";
-import "@fontsource/pixelify-sans/700.css";
+import "@fontsource/vt323/400.css";
 import "./wheel.css";
 import { describeOutcome, generateName, type Nation, type WheelOutcome } from "../../game/nation.ts";
 import { createRng, type Rng } from "../../game/random.ts";

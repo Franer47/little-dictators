@@ -42,6 +42,8 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 - **How to play:** a short guide the first time you play (and from the How to button).
 
 ### Changed
+- **Clearer numbers on the pixel wheel:** its font is now VT323, whose 5, 8 and 9 are easy to
+  tell apart.
 - A division now costs ✦1 influence instead of ✦4.
 - **The map info is folded away.** What's under the mouse (terrain, height, position) and
   the controls now hide behind the ⓘ button in the bottom-left corner; click it to show them.
