@@ -28,6 +28,13 @@ export function findFronts(map: GameMap, territory: Territory, w: World): Fronts
     addEnemy(a, d);
     addEnemy(d, a);
   }
+  // Planned wars too: the planner's armies mass on that border.
+  w.live.forEach((l, i) => {
+    if (l.alive && l.plan && w.alive(l.plan.target)) {
+      addEnemy(i + 1, l.plan.target);
+      addEnemy(l.plan.target, i + 1);
+    }
+  });
   const { width } = map;
   const owner = territory.owner;
   const byNation = new Map<number, number[]>();

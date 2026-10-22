@@ -185,7 +185,44 @@ export class Placement {
   }
 
   private newWorld(): World {
-    return new World({ map: this.opts.map, territory: this.territory, nations: this.nations, stats: this.opts.stats, sim: this.opts.sim, seed: this.worldSeed });
+    const w = new World({ map: this.opts.map, territory: this.territory, nations: this.nations, stats: this.opts.stats, sim: this.opts.sim, seed: this.worldSeed });
+    w.onRevolt = (from, pixels) => this.revolt(from, pixels);
+    return w;
+  }
+
+  /**
+   * A revolt: a new nation is rolled (one whose government differs from the old regime's, if a
+   * few tries find one) and takes `pixels` of nation `from`. Returns its id (0 if it can't).
+   */
+  private revolt(from: number, pixels: number[]): number {
+    const old = this.nations[from - 1]?.nation;
+    if (!old || !pixels.length) return 0;
+    let nation = rollNation(this.opts.wheels, this.opts.mapName, createRng(this.nextSeed()));
+    for (let k = 0; k < 4; k++) {
+      const differs = nation.results.government?.sliceId !== old.results.government?.sliceId && nation.results.ideology?.sliceId !== old.results.ideology?.sliceId;
+      if (differs) break;
+      nation = rollNation(this.opts.wheels, this.opts.mapName, createRng(this.nextSeed()));
+    }
+    let holding;
+    try {
+      holding = this.territory.addHolding(pixels[0]);
+    } catch {
+      return 0;
+    }
+    const placed: PlacedNation = { nation, color: "", holding };
+    this.nations.push(placed);
+    // Its colour: unlike the nation it breaks from and that nation's neighbours.
+    const avoid = new Set<string>([this.nations[from - 1].color]);
+    for (const n of this.territory.neighbours(from)) {
+      const c = this.nations[n - 1]?.color;
+      if (c) avoid.add(c);
+    }
+    placed.color = this.bestColor(avoid);
+    this.layer.setColor(holding.id, placed.color);
+    this.world.revolt(from, holding.id, pixels);
+    holding.rolledArea = holding.targetArea = holding.area;
+    this.updateList();
+    return holding.id;
   }
 
   /** Every placed nation's stat sheet (by id - 1), from the running world. */
@@ -559,6 +596,17 @@ export class Placement {
       battles.push({ x: at % this.opts.map.width, y: Math.floor(at / this.opts.map.width), colorA: colorOf(b.a), colorD: colorOf(b.d), lean, mine: b.a === w.mineId || b.d === w.mineId });
     }
     this.effects.battles = battles;
+    // Planned wars: where the planner masses its troops.
+    const plans: WorldLayer["plans"] = [];
+    w.live.forEach((l, i) => {
+      const t = l.alive ? l.plan?.target : 0;
+      if (!t) return;
+      const px = fronts.byPair.get((i + 1) * 65536 + t);
+      if (!px?.length) return;
+      const at = middleOf(this.opts.map, px);
+      plans.push({ x: at % this.opts.map.width, y: Math.floor(at / this.opts.map.width), color: colorOf(i + 1), mine: t === w.mineId || i + 1 === w.mineId });
+    });
+    this.warLayer.plans = plans;
     // Buildings where they stand (finished, and being built).
     const width = this.opts.map.width;
     const mine = w.mineId;

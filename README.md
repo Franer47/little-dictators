@@ -463,6 +463,26 @@ other's defensive wars. The Wars panel lists your **recent treaties**, and the W
 shows how many wars you're in. A nation that loses all its land has **fallen** ("X has fallen
 to Y"); if it's yours you can keep watching or pick another nation to guide.
 
+**The other nations are alive.** They don't just wait to be conquered:
+
+- **They plan their wars where you can see them.** A nation that decides to attack first
+  **masses troops on the border** for 4–10 months. A turning dashed ring with a flag marks the
+  spot on the map, and its armies gather there. Then it declares war, or calls it off if the
+  odds turned. If it's aimed at you, a letter warns you, and the Wars panel's **Threats**
+  section counts down the months.
+- **They raise bigger armies** when they're at war (×1.5), planning one (×1.4) or threatened
+  (×1.3), through the same division queue you use.
+- **Coalitions.** Starting wars and taking land gives a nation **infamy** (it fades by a
+  quarter a year; the Wars panel shows yours). Neighbours who dislike a nation with too much
+  infamy (50 or more), or one far stronger than everyone around it, band together. Once the
+  coalition is as strong as its target, all its members declare war together.
+- **Revolts.** A nation whose stability drops under 20 may lose a region on its far side, away
+  from its capital. It breaks away as a **new nation**, rolled on the wheels and different
+  from the old regime, with its own people, buildings and the soldiers who deserted there.
+  Then it fights a **War of Independence**.
+
+The numbers are in `"ai"` in `public/data/eras/1500-sim.json`.
+
 **On the map**, every war has crossed swords at the middle of its front (big and red when
 it's yours), and the armies stand on the fronts they were sent to.
 
@@ -542,7 +562,7 @@ src/
   game/chart.ts           the nation chart: the dot, chart-sized slices, the golden chance
   game/stats.ts           the stat sheet: one look over the map for everyone's land, then each nation's numbers
   sim/world.ts            the running world: the monthly tick, money, people, buildings, relations, your pushes and brushes
-  sim/ai.ts               what each nation decides once a year: build, recruit, allies, wars
+  sim/ai.ts               what each nation decides: build, recruit, allies, planned wars, coalitions, revolts
   sim/war.ts              simple wars, war score and peace treaties (land, tribute)
   sim/simData.ts          loads and checks public/data/eras/1500-sim.json
   sim/save.ts             saving in the browser (IndexedDB) and Continue

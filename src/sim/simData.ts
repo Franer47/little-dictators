@@ -45,7 +45,39 @@ export interface SimData {
     /** What each stance does: × attack, × defence, × losses. */
     stances: Record<"attack" | "hold" | "defend", { attack: number; defence: number; losses: number }>;
   };
-  ai: { buildReserve: number; warChance: number; warOdds: number; allianceAt: number; breakAllianceAt: number; maxAllies: number; allyJoinsAttack: number };
+  ai: {
+    buildReserve: number;
+    warChance: number;
+    warOdds: number;
+    allianceAt: number;
+    breakAllianceAt: number;
+    maxAllies: number;
+    allyJoinsAttack: number;
+    /** How many months a planned war takes to prepare (between these). */
+    planMin: number;
+    planMax: number;
+    /** How much bigger an army it wants at war, while planning one, and when threatened; the most divisions it orders at once. */
+    armyBoostWar: number;
+    armyBoostPlan: number;
+    armyBoostThreat: number;
+    maxOrder: number;
+    /** Infamy for starting a war, and for land taken (× land ÷ own land); the share that fades in a year. */
+    infamyPerWar: number;
+    infamyPerLand: number;
+    infamyDecay: number;
+    /** Coalitions: against infamy from 'coalitionAt', or a nation 'coalitionPower' × stronger than its neighbours' average; members dislike it (relation under 'coalitionRelation'); they strike at 'coalitionOdds' × its strength. */
+    coalitionAt: number;
+    coalitionPower: number;
+    coalitionRelation: number;
+    coalitionOdds: number;
+    /** Revolts: below 'revoltBelow' stability, a monthly chance up to 'revoltChance'; a region of 'revoltShareMin'..'revoltShareMax' of the land breaks away; not in nations under 'revoltMinPixels' pixels, and not twice within 'revoltCooldownYears'. */
+    revoltBelow: number;
+    revoltChance: number;
+    revoltShareMin: number;
+    revoltShareMax: number;
+    revoltMinPixels: number;
+    revoltCooldownYears: number;
+  };
   relations: { base: number; aggression: number; sameIdeology: number; random: number; drift: number; war: number; afterPeace: number; push: number };
   war: {
     scorePerMonth: number;
@@ -182,7 +214,12 @@ export function parseSimData(raw: unknown): SimData {
     buildings,
     growth,
     army: { ...numbers("army", ["trainingMonths", "disband", "queuePerMonth", "armySize", "maxArmies", "homeShare", "militia", "attackOdds"]), stances: stances(section("army").stances) },
-    ai: numbers("ai", ["buildReserve", "warChance", "warOdds", "allianceAt", "breakAllianceAt", "maxAllies", "allyJoinsAttack"]),
+    ai: numbers("ai", [
+      "buildReserve", "warChance", "warOdds", "allianceAt", "breakAllianceAt", "maxAllies", "allyJoinsAttack",
+      "planMin", "planMax", "armyBoostWar", "armyBoostPlan", "armyBoostThreat", "maxOrder",
+      "infamyPerWar", "infamyPerLand", "infamyDecay", "coalitionAt", "coalitionPower", "coalitionRelation", "coalitionOdds",
+      "revoltBelow", "revoltChance", "revoltShareMin", "revoltShareMax", "revoltMinPixels", "revoltCooldownYears",
+    ]),
     relations: numbers("relations", ["base", "aggression", "sameIdeology", "random", "drift", "war", "afterPeace", "push"]),
     war: { ...numbers("war", ["scorePerMonth", "losses", "maxLosses", "pushRate", "minPush", "maxShare", "deadZone", "defendPaintCost", "seaCrossing", "seaCost"]), conquestCost: conquestCost(section("war").conquestCost) },
     peace: numbers("peace", ["winAt", "minMonths", "maxMonths", "annexAt", "annexSize", "tributeAt", "tributeShare", "tributeYears"]),
