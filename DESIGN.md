@@ -261,6 +261,26 @@ The wheel setup is fully configurable, per wheel:
 5. **Conquest** — wars and pixel-by-pixel front lines. Two modes: push on all borders, or
    influence a single army to follow a specific path/pattern. Overseas invasions,
    river crossings, national waters.
+   - **Status 2026-10-22: milestones 3–5 largely built** (PRs #16–#24, built mostly in the
+     stats session with the owner):
+     - **3a stat sheet** ✅ (#16): army, economy, growth & food, stability/popularity/
+       aggression and more, from wheel results + terrain, with "why" breakdowns; tuned via
+       an editable Excel workbook (a script writes it back into the data).
+     - **4. The game runs** ✅ (#17, #18): monthly ticks at three speeds (1500→2000 in ~6 h),
+       growth, money, eight buildings with five levels, development, relations, alliances,
+       wars and peace, conquest pixel by pixel, news feed, letters, autosave + Continue.
+       **Influence** ✦ guides your nation (build, recruit, diplomacy, war/peace); your nation
+       can refuse. **Brushes** paint War goal / Defend / Develop. Queues for divisions and
+       buildings; conquered land keeps its people and buildings.
+     - **5. Conquest** ✅ (#20): armies and fronts like Victoria 3 (Attack/Hold/Defend,
+       reserves, militia on empty fronts).
+     - **Animations** ✅ (#21): conquest glow, battles, lunges, ripples, counting numbers.
+     - **Living AI** ✅ (#22): planned wars with visible build-up, **infamy** and
+       **coalitions**, **revolts** that spawn new nations and wars of independence.
+     - **Stability is earned** ✅ (#24, rule above); numbers no longer shake the UI.
+     - **Detailed test map** "Earth (detailed, slow)", 6000 px wide ✅ (#23); wars, armies
+       and brushes aren't scaled to it yet.
+     - Pixel wheel uses the VT323 font for clearer numbers ✅ (#19).
 6. **Depth** — events, resources, history effects, revolutions, technology (research,
    spread, tech alliances), canals, and **procedurally generated flags** based on the nation's
    stats (government → layout/symbol, ideology → colours, etc.).
