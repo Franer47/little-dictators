@@ -6,6 +6,12 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 ## Unreleased
 
 ### Added
+- **The map comes alive between months.** Conquered land creeps in through the whole month
+  and glows in its new owner's colour; battles flash with sparks and smoke, with a bar for
+  who's winning and the losses floating up; armies lunge at each other; ripples mark wars
+  declared, peace signed, nations fallen and your buildings finished. The top strip's numbers
+  count to their new values, and a thin bar under the date shows how far through the month
+  it is.
 - **Armies and fronts, like Victoria 3.** Divisions are grouped into a few armies, each one
   token on the map (flag, divisions, a strength bar, its stance) instead of hundreds of little
   flags. Armies go to a front (the border with one enemy) or stay home, and Attack, Hold or

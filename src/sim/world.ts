@@ -17,7 +17,7 @@ import { createRng, type Rng } from "../game/random.ts";
 import { accessShare, statSheet, surveyLand, type LandFacts, type LiveState, type StatSheet, type StatsData } from "../game/stats.ts";
 import type { BrushId, BuildingSpec, PushId, SimData } from "./simData.ts";
 import { aiThink } from "./ai.ts";
-import { organizeArmies, type ArmyLive, type Stance } from "./armies.ts";
+import { capitalOf, organizeArmies, type ArmyLive, type Stance } from "./armies.ts";
 import { fightWars, makePeace, type PeaceTerms } from "./war.ts";
 
 /** What the world needs to know about a nation on the map (the placement screen's PlacedNation). */
@@ -74,12 +74,14 @@ export interface War {
   progress?: Record<string, number>;
 }
 
-/** A front where armies fought this month: the two sides, who pushed (0 = nobody) and by how much (0..1). */
+/** A front where armies fought this month: the two sides, who pushed (0 = nobody), by how much (0..1), and the troops each side lost there. */
 export interface Battle {
   a: number;
   d: number;
   winner: number;
   edge: number;
+  lostA: number;
+  lostD: number;
 }
 
 export type EventKind = "war" | "peace" | "build" | "army" | "diplomacy" | "fall" | "info";
@@ -91,6 +93,8 @@ export interface GameEvent {
   text: string;
   /** The nations it's about (for "your nation" filtering and zooming to them). */
   nations: number[];
+  /** Where on the map it happened (a pixel), for the ripple there; missing for old events. */
+  at?: number;
 }
 
 export interface Decision {
@@ -449,7 +453,7 @@ export class World {
         this.dirty.add(id);
         l.sites.push({ id: b.id, at: b.at });
         const spec = this.buildingSpec(b.id);
-        if (id === mine) this.log("build", `${this.name(id)} finished a ${spec?.name ?? b.id} (level ${l.buildings[b.id]}).`, [id]);
+        if (id === mine) this.log("build", `${this.name(id)} finished a ${spec?.name ?? b.id} (level ${l.buildings[b.id]}).`, [id], b.at);
       }
       l.building = l.building.filter((x) => x.monthsLeft > 0);
       // Divisions train; tiny ones are broken up.
@@ -529,11 +533,13 @@ export class World {
     this.wars = this.wars.filter((w) => w.attackers.length && w.defenders.length);
     for (const key of [...this.alliances]) if (Math.floor(key / 65536) === id || key % 65536 === id) this.alliances.delete(key);
     const by = this.lastConqueror.get(id);
-    this.log("fall", by && this.alive(by) ? `${this.name(id)} has fallen to ${this.name(by)}.` : `${this.name(id)} has fallen.`, by ? [id, by] : [id]);
+    const start = this.opts.territory.holding(id)?.start;
+    const at = start ? start[1] * this.opts.map.width + start[0] : undefined;
+    this.log("fall", by && this.alive(by) ? `${this.name(id)} has fallen to ${this.name(by)}.` : `${this.name(id)} has fallen.`, by ? [id, by] : [id], at);
   }
 
-  log(kind: EventKind, text: string, nations: number[]): void {
-    this.events.push({ year: this.year, month: this.month, kind, text, nations });
+  log(kind: EventKind, text: string, nations: number[], at?: number): void {
+    this.events.push({ year: this.year, month: this.month, kind, text, nations, ...(at !== undefined && at >= 0 ? { at } : {}) });
     if (this.events.length > 300) this.events.splice(0, this.events.length - 300);
   }
 
@@ -878,7 +884,7 @@ export class World {
     for (const id of [...war.attackers, ...war.defenders]) organizeArmies(this, id);
     this.shiftRelation(attacker, defender, -30, -10);
     const joined = [...war.attackers.slice(1), ...war.defenders.slice(1)];
-    this.log("war", `${this.name(attacker)} declared war on ${this.name(defender)}${joined.length ? ` (with ${joined.map((n) => this.name(n)).join(", ")})` : ""}.`, [...war.attackers, ...war.defenders]);
+    this.log("war", `${this.name(attacker)} declared war on ${this.name(defender)}${joined.length ? ` (with ${joined.map((n) => this.name(n)).join(", ")})` : ""}.`, [...war.attackers, ...war.defenders], capitalOf(this, defender));
     return war;
   }
 
@@ -886,7 +892,7 @@ export class World {
   peaceSigned(war: War, terms: PeaceTerms): void {
     this.wars = this.wars.filter((w) => w !== war);
     for (const a of war.attackers) for (const d of war.defenders) this.shiftRelation(a, d, this.sim.relations.afterPeace - this.relation(a, d) * 0.5, -10);
-    this.log("peace", terms.text, [...war.attackers, ...war.defenders]);
+    this.log("peace", terms.text, [...war.attackers, ...war.defenders], capitalOf(this, war.defenders[0] ?? war.attackers[0]));
   }
 
   // ---------------------------------------------------------------- brushes

@@ -464,7 +464,23 @@ shows how many wars you're in. A nation that loses all its land has **fallen** (
 to Y"); if it's yours you can keep watching or pick another nation to guide.
 
 **On the map**, every war has crossed swords at the middle of its front (big and red when
-it's yours), and the armies stand on the fronts they were sent to. Buildings show as small icons where they stand when you zoom in
+it's yours), and the armies stand on the fronts they were sent to.
+
+**Animations** keep the map moving between the monthly ticks, at any speed:
+
+- Conquered land **creeps in through the whole month** and glows for a moment in its new
+  owner's colour.
+- Every battle has a small **bar** under its swords showing who's winning. Each month it
+  **flashes** with sparks and smoke, the armies there **lunge** at each other, and for your
+  own battles (or the nation whose Army section is open) the troops each side lost **float
+  up** in its colour.
+- **Ripples** spread from where something happened: a war declared (red, at the defender's
+  capital), a peace signed (white), a nation fallen (dark), one of your buildings finished
+  (gold).
+- In the top strip the numbers **count** to their new values, and a thin bar under the date
+  fills up through the month.
+
+With "reduce motion" on in your system settings, the map skips these. Buildings show as small icons where they stand when you zoom in
 (faded while they're being built).
 
 ![A war front: divisions face each other, swords mark the war](docs/war-front.jpg)
@@ -515,7 +531,8 @@ src/
   game/army.ts            divisions: how many a peacetime army makes, the border lines armies stand along
   sim/armies.ts           armies: grouping divisions, fronts, stances, what each nation decides for its armies
   game/labels.ts          where each nation's name goes on the map
-  render/armyLayer.ts     draws the army tokens (they march when sent somewhere else)
+  render/armyLayer.ts     draws the army tokens (they march when sent somewhere else, and lunge in battle)
+  render/effectsLayer.ts  the map's animations: conquest glow, battle bars, sparks, smoke, losses, ripples
   render/labelLayer.ts    draws the nation names
   ui/icons.ts             the small stat icons and meter colours
   ui/placement.ts         placing nations: the hint bar, nation list, Surprise me, Fill, Clear

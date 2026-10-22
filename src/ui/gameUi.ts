@@ -12,6 +12,7 @@ import { describeTerms, peaceTerms } from "../sim/war.ts";
 import { badge, icon, scoreColor } from "./icons.ts";
 import { escapeHtml } from "./uiBits.ts";
 import { loadPref, savePref } from "./prefs.ts";
+import { setMonthProgress } from "./nationBar.ts";
 
 export interface GameHost {
   world(): World;
@@ -162,6 +163,7 @@ export class GameUi {
         this.host.afterTick(result);
         this.onTick(result);
       }
+      setMonthProgress(this.acc / w.sim.clock.msPerMonth);
     }
     requestAnimationFrame(this.frame);
   };

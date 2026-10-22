@@ -4,6 +4,7 @@
 // comes from; click the name to open your nation.
 
 import "./nationBar.css";
+import { compactNumber } from "../game/numbers.ts";
 import type { StatSheet, StatsData } from "../game/stats.ts";
 import { escapeHtml, hoverTips } from "./uiBits.ts";
 import { badge, icon, ideologyColor, scoreColor, statIcon } from "./icons.ts";
@@ -21,6 +22,9 @@ const bar = document.createElement("header");
 bar.id = "nation-bar";
 bar.hidden = true;
 let current: NationBarInfo | null = null;
+/** The numbers shown last, so new ones count up (or down) to their value instead of jumping. */
+const lastShown = new Map<string, number>();
+const COUNT_MS = 450;
 
 /** Sets up the strip (once): `open` runs when the player clicks their nation's name, `speed` on a speed button. */
 export function initNationBar(handlers: { open: () => void; speed: (i: number) => void }): void {
@@ -54,10 +58,13 @@ export function showNationBar(info: NationBarInfo | null): void {
   const delta = (v: number, text: string): string =>
     `<span class="nb-delta ${v >= 0 ? "up" : "down"}">${v >= 0 ? "▲" : "▼"} ${escapeHtml(text.replace(/^[+−-]/, ""))}</span>`;
   const meter = (v: number): string => `<span class="nb-meter"><span style="width:${Math.max(2, Math.min(100, v))}%;background:${scoreColor(v)}"></span></span>`;
+  // A number that counts to its new value: `fmt` says how to write the in-between ones.
+  const count = (key: string, value: number, text: string, fmt: "money" | "num" | "int"): string =>
+    `<b data-count="${key}" data-to="${value}" data-fmt="${fmt}" data-text="${escapeHtml(text)}">${escapeHtml(text)}</b>`;
   const item = (id: keyof StatSheet["stats"], label: string, value: string): string =>
     `<div class="nb-item" data-stat="${id}" tabindex="0">${statIcon(s[id])}<span class="nb-text"><span class="nb-label">${escapeHtml(label)}</span><span class="nb-value">${value}</span></span></div>`;
   const score = (id: "stability" | "popularity" | "development", label: string): string =>
-    item(id, label, `<b style="color:${scoreColor(s[id].value)}">${Math.round(s[id].value)}</b>${meter(s[id].value)}`);
+    item(id, label, `<span style="color:${scoreColor(s[id].value)}">${count(id, s[id].value, String(Math.round(s[id].value)), "int")}</span>${meter(s[id].value)}`);
 
   const options = info.data.ideology?.options ?? [];
   const colorOf = (id: string): string => {
@@ -74,11 +81,11 @@ export function showNationBar(info: NationBarInfo | null): void {
       <span class="nb-title"><span class="nb-you">Your nation</span><span class="nb-name"></span></span>
     </button>
     <div class="nb-items">
-      ${item("treasury", "Treasury", `<b>${escapeHtml(s.treasury.text)}</b>${delta(s.net.value, s.net.text)}`)}
-      ${item("population", "Population", `<b>${escapeHtml(s.population.text)}</b>${delta(s.growth.value, s.growth.text)}`)}
+      ${item("treasury", "Treasury", `${count("treasury", s.treasury.value, s.treasury.text, "money")}${delta(s.net.value, s.net.text)}`)}
+      ${item("population", "Population", `${count("population", s.population.value, s.population.text, "num")}${delta(s.growth.value, s.growth.text)}`)}
       ${score("stability", "Stability")}
       ${score("popularity", "Popularity")}
-      ${item("army", "Army", `<b>${escapeHtml(s.army.text)}</b><span class="nb-sub">/ ${escapeHtml(s.manpower.text)}</span>`)}
+      ${item("army", "Army", `${count("army", s.army.value, s.army.text, "num")}<span class="nb-sub">/ ${escapeHtml(s.manpower.text)}</span>`)}
       ${score("development", "Development")}
       ${
         main
@@ -90,6 +97,42 @@ export function showNationBar(info: NationBarInfo | null): void {
   bar.querySelector(".nb-name")!.textContent = info.name;
   bar.hidden = false;
   document.body.classList.add("has-strip");
+  countUp(info.data.numberSuffixes);
+}
+
+/** Every [data-count] number runs from the value shown last to its new one. */
+function countUp(suffixes: readonly string[]): void {
+  const els = [...bar.querySelectorAll<HTMLElement>("[data-count]")];
+  const runs = els
+    .map((el) => {
+      const key = el.dataset.count!;
+      const to = Number(el.dataset.to);
+      const from = lastShown.get(key);
+      lastShown.set(key, to);
+      return { el, from: from ?? to, to, fmt: el.dataset.fmt, text: el.dataset.text ?? "" };
+    })
+    .filter((r) => r.from !== r.to && Number.isFinite(r.from));
+  if (!runs.length || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const write = (v: number, fmt?: string): string => {
+    if (fmt === "int") return String(Math.round(v));
+    const body = compactNumber(Math.abs(v), suffixes);
+    return fmt === "money" ? `${v < 0 ? "−" : ""}$${body}` : body;
+  };
+  const t0 = performance.now();
+  const step = (now: number): void => {
+    const t = Math.min(1, (now - t0) / COUNT_MS);
+    const e = 1 - (1 - t) ** 3;
+    for (const r of runs) if (r.el.isConnected) r.el.textContent = t >= 1 ? r.text : write(r.from + (r.to - r.from) * e, r.fmt);
+    if (t < 1) requestAnimationFrame(step);
+  };
+  for (const r of runs) r.el.textContent = write(r.from, r.fmt);
+  requestAnimationFrame(step);
+}
+
+/** How far through the month the clock is (0..1): the thin bar under the date. */
+export function setMonthProgress(p: number): void {
+  const el = bar.querySelector<HTMLElement>(".nb-month i");
+  if (el) el.style.width = `${Math.max(0, Math.min(1, p)) * 100}%`;
 }
 
 /** Hides the strip while the wheel screen is up (it comes back with showNationBar). */
@@ -103,5 +146,5 @@ function clockHtml(c: NonNullable<NationBarInfo["clock"]>): string {
     .concat(c.speeds.map((x, i) => `<button type="button" data-speed="${i + 1}" class="${c.speed === i + 1 ? "on" : ""}" title="Speed ×${x} (key ${i + 1})">${"▶".repeat(Math.min(3, i + 1))}</button>`))
     .join("");
   return `<div class="nb-influence" title="Influence: what you spend to push your nation (build, recruit, war, peace, relations, brushes). You get about ${c.perMonth.toFixed(1)} a month, more when it's stable and likes its ruler.">${icon("star")}${Math.floor(c.influence)}</div>
-    <div class="nb-clock"><span class="nb-date">${escapeHtml(c.date)}</span><div class="nb-speeds">${speeds}</div></div>`;
+    <div class="nb-clock"><span class="nb-date">${escapeHtml(c.date)}<span class="nb-month"><i></i></span></span><div class="nb-speeds">${speeds}</div></div>`;
 }

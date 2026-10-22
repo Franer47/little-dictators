@@ -70,6 +70,8 @@ const SIDES: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 /** One month of every war: battles, losses, war score, the fronts moving, and peace where it's due. */
 export function fightWars(w: World): void {
   const rules = w.sim.war;
+  // Troops each nation lost this month (shared out over its battles, for the map).
+  const lost = new Map<number, number>();
   const peace = w.sim.peace;
   // Every pair of enemies is a front (they may not touch: they can fight across a short stretch of sea, see push).
   const pairs: [number, number][] = [];
@@ -94,8 +96,8 @@ export function fightWars(w: World): void {
       // Losses: more against a stronger enemy.
       const lossA = Math.min(rules.maxLosses, rules.losses * Math.sqrt(sd / Math.max(1, sa)));
       const lossD = Math.min(rules.maxLosses, rules.losses * Math.sqrt(sa / Math.max(1, sd)));
-      for (const id of war.attackers) bleed(w, id, war.defenders, lossA);
-      for (const id of war.defenders) bleed(w, id, war.attackers, lossD);
+      for (const id of war.attackers) lost.set(id, (lost.get(id) ?? 0) + bleed(w, id, war.defenders, lossA));
+      for (const id of war.defenders) lost.set(id, (lost.get(id) ?? 0) + bleed(w, id, war.attackers, lossD));
     }
   }
   // The fronts move: on each, a side whose attacking armies beat the other's defence pushes in.
@@ -110,10 +112,17 @@ export function fightWars(w: World): void {
     const ea = edgeOf(pa.attack, pd.defence * (1 + defence(w, d)));
     const ed = edgeOf(pd.attack, pa.defence * (1 + defence(w, a)));
     const [winner, loser, edge] = ea >= ed ? [a, d, ea] : [d, a, ed];
-    if (pa.armies || pd.armies) w.battles.push({ a, d, winner: edge >= rules.deadZone ? winner : 0, edge });
+    if (pa.armies || pd.armies) w.battles.push({ a, d, winner: edge >= rules.deadZone ? winner : 0, edge, lostA: 0, lostD: 0 });
     if (edge < rules.deadZone) continue;
     const war = warOf(a, d);
     if (war) push(w, war, winner, loser, edge);
+  }
+  // Each nation's losses, shared out over the battles it fought.
+  const fights = new Map<number, number>();
+  for (const b of w.battles) for (const id of [b.a, b.d]) fights.set(id, (fights.get(id) ?? 0) + 1);
+  for (const b of w.battles) {
+    b.lostA = (lost.get(b.a) ?? 0) / (fights.get(b.a) ?? 1);
+    b.lostD = (lost.get(b.d) ?? 0) / (fights.get(b.d) ?? 1);
   }
   // Peace: when one side is clearly winning, or the war drags on. When the player's nation is
   // the one winning, the player decides when to stop (Make peace) and keeps conquering till then.
@@ -137,7 +146,7 @@ function defence(w: World, id: number): number {
  * A nation's armies facing `enemies` lose `share` of their troops (× their stance's losses);
  * its home armies lose a third of that; the reserve is safe at the capital.
  */
-function bleed(w: World, id: number, enemies: number[], share: number): void {
+function bleed(w: World, id: number, enemies: number[], share: number): number {
   const l = w.live[id - 1];
   const stances = w.sim.army.stances;
   const rate = new Map<number, number>();
@@ -145,7 +154,14 @@ function bleed(w: World, id: number, enemies: number[], share: number): void {
     if (enemies.includes(a.front)) rate.set(a.id, share * stances[a.stance].losses);
     else if (a.front === 0) rate.set(a.id, share / 3);
   }
-  for (const d of l.divisions) if (d.training === 0) d.troops *= 1 - (rate.get(d.army ?? 0) ?? 0);
+  let lost = 0;
+  for (const d of l.divisions) {
+    if (d.training > 0) continue;
+    const cut = d.troops * (rate.get(d.army ?? 0) ?? 0);
+    d.troops -= cut;
+    lost += cut;
+  }
+  return lost;
 }
 
 /**

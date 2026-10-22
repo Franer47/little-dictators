@@ -70,32 +70,38 @@ export function findFronts(map: GameMap, territory: Territory, w: World): Fronts
     if (!a || !d) continue;
     const pixels = pairPixels.get(a < d ? a * 65536 + d : d * 65536 + a);
     if (!pixels?.length) continue; // they don't touch (a war across the sea)
-    // The front pixel nearest the middle of the front.
-    const ref = pixels[0] % width;
-    let sx = 0;
-    let sy = 0;
-    for (const i of pixels) {
-      let dx = (i % width) - ref;
-      if (map.wraps) dx = dx > width / 2 ? dx - width : dx < -width / 2 ? dx + width : dx;
-      sx += dx;
-      sy += (i / width) | 0;
-    }
-    const cx = ref + sx / pixels.length;
-    const cy = sy / pixels.length;
-    let best = pixels[0];
-    let bestD = Infinity;
-    for (const i of pixels) {
-      let dx = (i % width) - cx;
-      if (map.wraps) dx = dx > width / 2 ? dx - width : dx < -width / 2 ? dx + width : dx;
-      const dy = ((i / width) | 0) - cy;
-      const dist = dx * dx + dy * dy;
-      if (dist < bestD) {
-        bestD = dist;
-        best = i;
-      }
-    }
+    const best = middleOf(map, pixels);
     const involved = [...war.attackers, ...war.defenders].includes(mine);
     wars.push({ id: war.id, x: best % width, y: (best / width) | 0, attacker: a, defender: d, mine: involved });
   }
   return { byNation, byPair, wars };
+}
+
+/** The pixel of a front nearest its middle (where the swords and the battle go). */
+export function middleOf(map: GameMap, pixels: readonly number[]): number {
+  const { width } = map;
+  const ref = pixels[0] % width;
+  let sx = 0;
+  let sy = 0;
+  for (const i of pixels) {
+    let dx = (i % width) - ref;
+    if (map.wraps) dx = dx > width / 2 ? dx - width : dx < -width / 2 ? dx + width : dx;
+    sx += dx;
+    sy += (i / width) | 0;
+  }
+  const cx = ref + sx / pixels.length;
+  const cy = sy / pixels.length;
+  let best = pixels[0];
+  let bestD = Infinity;
+  for (const i of pixels) {
+    let dx = (i % width) - cx;
+    if (map.wraps) dx = dx > width / 2 ? dx - width : dx < -width / 2 ? dx + width : dx;
+    const dy = ((i / width) | 0) - cy;
+    const dist = dx * dx + dy * dy;
+    if (dist < bestD) {
+      bestD = dist;
+      best = i;
+    }
+  }
+  return best;
 }
