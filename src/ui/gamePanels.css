@@ -661,11 +661,12 @@
 }
 
 .nb-date {
+  /* As wide as the longest date ("September 1581"), so the speed buttons don't move. */
+  min-width: 132px;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 3px;
-  min-width: 108px;
   font: 700 14px/1.1 var(--title-font);
   color: var(--gold-bright);
   text-align: right;
@@ -714,6 +715,12 @@
 .nb-speeds button.paused.on {
   background: #e8806a;
   border-color: #e8806a;
+}
+
+.nb-influence b {
+  display: inline-block;
+  min-width: 3ch;
+  text-align: right;
 }
 
 .nb-influence {

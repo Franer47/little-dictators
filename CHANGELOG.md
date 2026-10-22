@@ -67,6 +67,10 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 - **How to play:** a short guide the first time you play (and from the How to button).
 
 ### Changed
+- **Numbers no longer make the screen shake.** Live numbers keep their decimals ("84.0K", not
+  "84K"), every digit is the same width, and the numbers in the top strip, the stat panel and
+  the nation list have a fixed width, so nothing next to them jumps as they tick (even from
+  999K to 1.00M).
 - Debt no longer takes 10 stability points directly; it's one of stability's progress signals now.
 - Wars are now fought by the armies on each front: a side pushes in only where its attacking
   armies beat the other's defence; a front with no army is held by militia. Worn-down

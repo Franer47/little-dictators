@@ -22,6 +22,8 @@ body {
   overflow: hidden;
   background: #1b3354;
   font-family: system-ui, sans-serif;
+  /* Every digit the same width, so numbers ticking by don't make the screen shake. */
+  font-variant-numeric: tabular-nums;
   color: var(--ink);
 }
 
