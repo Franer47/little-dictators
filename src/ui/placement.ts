@@ -27,7 +27,8 @@ import { initNationBar, setNationBarHidden, showNationBar } from "./nationBar.ts
 import { showArmyPanel } from "./armyPanel.ts";
 import { findBorders, sortAround, type Borders } from "../game/army.ts";
 import { capitalOf, divisionsOf, enemiesOf } from "../sim/armies.ts";
-import { findFronts } from "../sim/fronts.ts";
+import { findFronts, middleOf } from "../sim/fronts.ts";
+import { EffectsLayer, type BattleMark, type RippleKind } from "../render/effectsLayer.ts";
 import { WorldLayer } from "../render/worldLayer.ts";
 import { World, type TickResult } from "../sim/world.ts";
 import type { SimData } from "../sim/simData.ts";
@@ -85,6 +86,10 @@ export class Placement {
   statsMs = 0;
   /** Army tokens on the map: yours, your enemies' and the nation whose Army section is open (or everyone's). */
   private armyLayer = new ArmyLayer();
+  /** Glowing conquests, battles, ripples (src/render/effectsLayer.ts). */
+  private effects = new EffectsLayer();
+  /** Where each front's battle is (map pixel), by "a-d", from the last time the fronts were worked out. */
+  private battleAt = new Map<string, number>();
   /** Show every nation's armies, not just yours and your enemies'. */
   private showAllArmies = false;
   private labelLayer = new LabelLayer();
@@ -98,7 +103,7 @@ export class Placement {
   /** Land changed hands since the names and flag positions were last worked out. */
   private mapDirty = false;
   /** Conquered pixels being drawn a few at a time through the month (one list per conqueror). */
-  private creep: { pixels: number[]; done: number; start: number; ms: number }[] = [];
+  private creep: { owner: number; pixels: number[]; done: number; start: number; ms: number }[] = [];
   /** The nation whose Army section is open (0 = closed), its selected army and the last answer. */
   private army: { nation: number; selected: number | null; message: { ok: boolean; text: string } | null } = { nation: 0, selected: null, message: null };
   private layer: TerritoryLayer;
@@ -129,13 +134,14 @@ export class Placement {
     opts.renderer.territory = this.layer;
     this.armyLayer.colorOf = (id) => this.nations[id - 1]?.color ?? "#888";
     this.armyLayer.requestRender = opts.requestRender;
+    this.effects.requestRender = opts.requestRender;
     this.rng = createRng(opts.seed ?? randomSeed());
     this.worldSeed = opts.seed ?? randomSeed();
     this.world = this.newWorld();
     this.paintLayer = new PaintLayer(map, this.world.paint);
     this.worldLayer = new WorldLayer(opts.requestRender, "buildings");
     this.warLayer = new WorldLayer(opts.requestRender, "wars");
-    opts.renderer.overlays.push(this.paintLayer, this.labelLayer, this.worldLayer, this.armyLayer, this.warLayer);
+    opts.renderer.overlays.push(this.paintLayer, this.labelLayer, this.worldLayer, this.armyLayer, this.effects, this.warLayer);
     this.build();
     const mine = (): PlacedNation | undefined => this.nations.find((n) => n.mine);
     initNationBar({
@@ -487,6 +493,7 @@ export class Placement {
     this.world = this.newWorld();
     this.paintLayer.setPaint(this.world.paint);
     this.armyLayer.tokens = [];
+    this.effects.battles = [];
     this.labelLayer.set([]);
     this.openArmy(0);
     showNationBar(null);
@@ -539,6 +546,19 @@ export class Placement {
     const fronts = findFronts(this.opts.map, this.territory, w);
     this.armyLayer.tokens = this.armyTokens(fronts.byPair);
     this.warLayer.wars = fronts.wars;
+    // Battles: where each one is, and a bar for who's winning.
+    this.battleAt.clear();
+    const battles: BattleMark[] = [];
+    const colorOf = (id: number): string => this.nations[id - 1]?.color ?? "#888";
+    for (const b of w.battles) {
+      const px = [...(fronts.byPair.get(b.a * 65536 + b.d) ?? []), ...(fronts.byPair.get(b.d * 65536 + b.a) ?? [])];
+      if (!px.length) continue;
+      const at = middleOf(this.opts.map, px);
+      this.battleAt.set(`${b.a}-${b.d}`, at);
+      const lean = 0.5 + (b.winner === b.a ? b.edge : b.winner === b.d ? -b.edge : 0) / 2;
+      battles.push({ x: at % this.opts.map.width, y: Math.floor(at / this.opts.map.width), colorA: colorOf(b.a), colorD: colorOf(b.d), lean, mine: b.a === w.mineId || b.d === w.mineId });
+    }
+    this.effects.battles = battles;
     // Buildings where they stand (finished, and being built).
     const width = this.opts.map.width;
     const mine = w.mineId;
@@ -603,6 +623,7 @@ export class Placement {
             training: divs.filter((d) => d.training > 0).length,
             strength: troops / Math.max(1, divs.length * size),
             stance: a.stance,
+            front: a.front,
             ...at(line[Math.floor(((k + 0.5) * line.length) / list.length)]),
           });
         });
@@ -620,6 +641,7 @@ export class Placement {
           training: reserve.filter((d) => d.training > 0).length,
           strength: troops / Math.max(1, reserve.length * size),
           stance: "reserve",
+          front: 0,
           ...at(capital),
         });
       }
@@ -645,7 +667,32 @@ export class Placement {
     } else this.refreshDivisions();
     this.updateNationBar();
     this.refreshShownPanel();
+    this.animateMonth(r);
     this.opts.requestRender();
+  }
+
+  /** The month's battles flash (sparks, smoke, losses), armies lunge, and events ripple. */
+  private animateMonth(r: TickResult): void {
+    if (this.opts.reducedMotion) return;
+    const w = this.world;
+    const width = this.opts.map.width;
+    const mine = w.mineId;
+    const colorOf = (id: number): string => this.nations[id - 1]?.color ?? "#888";
+    for (const b of w.battles) {
+      const at = this.battleAt.get(`${b.a}-${b.d}`);
+      if (at === undefined) continue;
+      const x = at % width;
+      const y = Math.floor(at / width);
+      const near = [b.a, b.d].some((id) => id === mine || id === this.army.nation);
+      this.effects.clash(x, y, [{ amount: b.lostA, color: colorOf(b.a) }, { amount: b.lostD, color: colorOf(b.d) }], near);
+      this.armyLayer.lungeAt(b.a, b.d, x, y);
+      this.armyLayer.lungeAt(b.d, b.a, x, y);
+    }
+    const kinds: Partial<Record<string, RippleKind>> = { war: "war", peace: "peace", fall: "fall", build: "build" };
+    for (const e of r.events) {
+      const kind = kinds[e.kind];
+      if (kind && e.at !== undefined) this.effects.ripple(e.at % width, Math.floor(e.at / width), kind);
+    }
   }
 
   /**
@@ -659,7 +706,8 @@ export class Placement {
     this.creep = [];
     const speed = this.ui?.speed ?? 0;
     const clock = this.opts.sim.clock;
-    const ms = speed ? (clock.msPerMonth / clock.speeds[speed - 1]) * 0.85 : 0;
+    // Spread over the whole month, so the border keeps moving instead of jumping.
+    const ms = speed ? (clock.msPerMonth / clock.speeds[speed - 1]) * 0.97 : 0;
     if (!ms || this.opts.reducedMotion) {
       this.layer.reveal(pixels);
       return;
@@ -672,7 +720,7 @@ export class Placement {
       byOwner.get(o)!.push(i);
     }
     const start = performance.now();
-    for (const list of byOwner.values()) this.creep.push({ pixels: list, done: 0, start, ms });
+    for (const [owner, list] of byOwner) this.creep.push({ owner, pixels: list, done: 0, start, ms });
     requestAnimationFrame(this.creepFrame);
   }
 
@@ -681,6 +729,8 @@ export class Placement {
       const upTo = Math.min(c.pixels.length, Math.ceil(((now - c.start) / c.ms) * c.pixels.length));
       if (upTo > c.done) {
         this.layer.reveal(c.pixels, c.done, upTo);
+        // The newly taken land glows in its conqueror's colour for a moment.
+        this.effects.glow(c.pixels.slice(c.done, upTo), this.nations[c.owner - 1]?.color ?? "#ffffff");
         c.done = upTo;
       }
     }

@@ -19,6 +19,8 @@ export interface ArmyToken {
   /** Troops ÷ full strength (0..1). */
   strength: number;
   stance: "attack" | "hold" | "defend" | "reserve";
+  /** The enemy whose front it's on (0 = home or reserve). */
+  front: number;
   /** Where it stands (map pixels). */
   x: number;
   y: number;
@@ -26,6 +28,9 @@ export interface ArmyToken {
 
 /** How long a march to a new spot takes on screen (ms). */
 const MARCH_MS = 900;
+/** A lunge at the enemy when a battle is fought (ms), and how far (CSS pixels). */
+const LUNGE_MS = 520;
+const LUNGE_PX = 8;
 
 interface Shown {
   token: ArmyToken;
@@ -33,6 +38,8 @@ interface Shown {
   fromX: number;
   fromY: number;
   t0: number;
+  /** A lunge toward this map point (the battle), started at `at`. */
+  lunge?: { x: number; y: number; at: number };
 }
 
 interface Hit {
@@ -68,9 +75,16 @@ export class ArmyLayer implements MapOverlay {
       if (old && (old.token.x !== t.x || old.token.y !== t.y)) {
         const [x, y] = this.position(old, now);
         next.set(key, { token: t, fromX: x, fromY: y, t0: now });
-      } else next.set(key, { token: t, fromX: old?.fromX ?? t.x, fromY: old?.fromY ?? t.y, t0: old?.t0 ?? 0 });
+      } else next.set(key, { token: t, fromX: old?.fromX ?? t.x, fromY: old?.fromY ?? t.y, t0: old?.t0 ?? 0, lunge: old?.lunge });
     }
     this.shown = next;
+    this.requestRender();
+  }
+
+  /** `nation`'s armies on its front with `enemy` lunge toward the battle at (x, y) map pixels. */
+  lungeAt(nation: number, enemy: number, x: number, y: number): void {
+    const at = performance.now();
+    for (const s of this.shown.values()) if (s.token.nation === nation && s.token.front === enemy) s.lunge = { x, y, at: at + Math.random() * 120 };
     this.requestRender();
   }
 
@@ -97,9 +111,26 @@ export class ArmyLayer implements MapOverlay {
     for (const s of this.shown.values()) {
       if (now - s.t0 < MARCH_MS) marching = true;
       const [mx, my] = this.position(s, now);
+      // A lunge: out toward the battle and back.
+      let lx = 0;
+      let ly = 0;
+      if (s.lunge) {
+        const t = (now - s.lunge.at) / LUNGE_MS;
+        if (t >= 1) s.lunge = undefined;
+        else if (t > 0) {
+          let dx = s.lunge.x - mx;
+          if (Math.abs(dx) > v.mapWidth / 2) dx -= Math.sign(dx) * v.mapWidth;
+          const dy = s.lunge.y - my;
+          const len = Math.hypot(dx, dy) || 1;
+          const amp = Math.sin(Math.PI * t) * LUNGE_PX * u;
+          lx = (dx / len) * amp;
+          ly = (dy / len) * amp;
+        }
+        marching = true;
+      }
       for (const k of v.copies) {
-        const x = Math.round(v.offsetX + (mx + 0.5 + k * v.mapWidth) * v.scale);
-        const y = Math.round(v.offsetY + (my + 0.5) * v.scale);
+        const x = Math.round(v.offsetX + (mx + 0.5 + k * v.mapWidth) * v.scale + lx);
+        const y = Math.round(v.offsetY + (my + 0.5) * v.scale + ly);
         if (x < -margin || x > v.screenWidth + margin || y < -margin || y > v.screenHeight + margin) continue;
         const sel = this.selected;
         items.push({ s, x, y, selected: !!sel && sel.nation === s.token.nation && sel.army === s.token.army });
