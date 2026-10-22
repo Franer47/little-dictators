@@ -12,6 +12,7 @@
 
 import { Terrain } from "../map/terrain.ts";
 import { frontPower } from "./armies.ts";
+import { stabilityEvent } from "./stability.ts";
 import type { War, World } from "./world.ts";
 
 export interface PeaceTerms {
@@ -342,6 +343,14 @@ export function makePeace(w: World, war: War): PeaceTerms {
       for (const a of allies) w.live[loser - 1].tributes.push({ to: a, amount: (income * p.tributeShare) / 2, yearsLeft: p.tributeYears });
       text += ` Its allies (${allies.map((a) => w.name(a)).join(", ")}) get ${Math.round((p.tributeShare / 2) * 100)}% of ${w.name(loser)}'s income for ${p.tributeYears} years.`;
     }
+  }
+  // Winning lifts stability, losing hurts it (more for a bigger win); allies feel half of it.
+  if (Math.abs(war.score) >= p.tributeAt) {
+    const big = w.sim.stability.events.war * (0.4 + 0.6 * Math.min(1, Math.abs(war.score) / 100));
+    const winners = winner === war.attackers[0] ? war.attackers : war.defenders;
+    const losers = winner === war.attackers[0] ? war.defenders : war.attackers;
+    for (const id of winners) stabilityEvent(w, id, "wars", id === winner ? big : big / 2);
+    for (const id of losers) stabilityEvent(w, id, "wars", id === loser ? -big : -big / 2);
   }
   for (const id of [...war.attackers, ...war.defenders]) w.touch(id);
   w.peaceSigned(war, { text });

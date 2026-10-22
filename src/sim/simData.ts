@@ -105,6 +105,26 @@ export interface SimData {
     tributeYears: number;
   };
   save: { everyYears: number };
+  /** Stability earned by progress (src/sim/stability.ts). */
+  stability: {
+    /** The starting roll counts this much (1 = fully), and fades over 'fadeYears'; so does how mild stability's effects start ('effectStart'). */
+    /** Where the target starts before the signals (a nation doing nothing special sits a bit above it). */
+    base: number;
+    startSpread: number;
+    fadeYears: number;
+    effectStart: number;
+    /** Share of the way to the target stability moves each month. */
+    moveRate: number;
+    /** Readings are smoothed over about 'smoothMonths'; events are forgotten over about 'memoryMonths'. */
+    smoothMonths: number;
+    memoryMonths: number;
+    /** Points each signal adds at its best (and takes at its worst). */
+    weights: Record<"economy" | "debt" | "food" | "population" | "development" | "buildings" | "wars" | "land" | "peace", number>;
+    /** What counts as a full signal: income growth a year, net income as a share of income, population growth a year, development points a year, land change, well fed (food use), hungry (over 100%), months of peace, how bad being at war is. */
+    refs: { income: number; net: number; growth: number; development: number; land: number; wellFed: number; fedBonus: number; hungry: number; peaceMonths: number; atWar: number };
+    /** How big an event is: a building finished, a war won or lost. */
+    events: { building: number; war: number };
+  };
 }
 
 const PUSHES: PushId[] = ["build", "recruit", "improveRelations", "worsenRelations", "alliance", "declareWar", "offerPeace"];
@@ -224,6 +244,12 @@ export function parseSimData(raw: unknown): SimData {
     war: { ...numbers("war", ["scorePerMonth", "losses", "maxLosses", "pushRate", "minPush", "maxShare", "deadZone", "defendPaintCost", "seaCrossing", "seaCost"]), conquestCost: conquestCost(section("war").conquestCost) },
     peace: numbers("peace", ["winAt", "minMonths", "maxMonths", "annexAt", "annexSize", "tributeAt", "tributeShare", "tributeYears"]),
     save: numbers("save", ["everyYears"]),
+    stability: {
+      ...numbers("stability", ["base", "startSpread", "fadeYears", "effectStart", "moveRate", "smoothMonths", "memoryMonths"]),
+      weights: subNumbers(section("stability"), "stability.weights", ["economy", "debt", "food", "population", "development", "buildings", "wars", "land", "peace"]),
+      refs: subNumbers(section("stability"), "stability.refs", ["income", "net", "growth", "development", "land", "wellFed", "fedBonus", "hungry", "peaceMonths", "atWar"]),
+      events: subNumbers(section("stability"), "stability.events", ["building", "war"]),
+    },
   };
 }
 
@@ -240,6 +266,18 @@ function stances(v: unknown): SimData["army"]["stances"] {
       return s[f] as number;
     };
     out[k] = { attack: n("attack"), defence: n("defence"), losses: n("losses") };
+  }
+  return out;
+}
+
+/** A { name: number } object inside a section, every name required. */
+function subNumbers<K extends string>(sec: Record<string, unknown>, where: string, names: K[]): Record<K, number> {
+  const v = sec[where.split(".").pop()!];
+  if (!isObject(v)) throw new Error(`${where} must be { ${names.map((n) => `"${n}": …`).join(", ")} }`);
+  const out = {} as Record<K, number>;
+  for (const n of names) {
+    if (typeof v[n] !== "number" || !Number.isFinite(v[n])) throw new Error(`${where}.${n} must be a number`);
+    out[n] = v[n] as number;
   }
   return out;
 }

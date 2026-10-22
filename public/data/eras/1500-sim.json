@@ -46,10 +46,10 @@
   },
 
   "growth": {
-    "about": "Development moves toward what the nation's stats aim for by 'developmentPerYear' points a year, plus 'perSchool' for each school level. A nation in debt (treasury below zero) gets 'debt' modifiers.",
+    "about": "Development moves toward what the nation's stats aim for by 'developmentPerYear' points a year, plus 'perSchool' for each school level. A nation in debt (treasury below zero) gets 'debt' modifiers (its stability suffers through 'stability' below).",
     "developmentPerYear": 1,
     "perSchool": 0.4,
-    "debt": { "stability": "-10", "popularity": "-5" }
+    "debt": { "popularity": "-5" }
   },
 
   "army": {
@@ -141,5 +141,19 @@
   "save": {
     "about": "The game saves in your browser every 'everyYears' years (and when you leave the page); the start screen then offers Continue.",
     "everyYears": 1
+  },
+
+  "stability": {
+    "about": "Stability is earned by progress. Each month a nation reads its progress signals, each from -1 (worst) to 1 (best), and its target stability is 'base' + each signal × its 'weights' points + what lasts (buildings, popularity) + the starting roll's part. Stability moves 'moveRate' of the way to the target each month. Readings (economy, debt, food, population, development, peace) are smoothed over about 'smoothMonths'; events (buildings finished, wars won or lost, land gained or lost) are remembered and forgotten over about 'memoryMonths'. 'refs' say what a full signal is: 'income' income growth a year and 'net' net income as a share of income (economy, half each); 'growth' population growth a year; 'development' points a year; 'land' land gained or lost as a share of the nation's land; food use under 'wellFed' counts as well fed ('fedBonus' of a full signal: being fed is normal), and 'hungry' over 100% is fully hungry; 'peaceMonths' months of peace is a full long peace, and being at war counts as -'atWar'. 'events': a building finished adds 'building'; a war won adds up to 'war' (less for a narrow win), a lost one takes it. The starting roll counts 'startSpread' as much as on the wheel, and its part fades over about 'fadeYears' years; stability's effects on the rest of the sheet start at 'effectStart' of their full strength and grow to full over the same years.",
+    "base": 40,
+    "startSpread": 0.6,
+    "fadeYears": 8,
+    "effectStart": 0.4,
+    "moveRate": 0.03,
+    "smoothMonths": 24,
+    "memoryMonths": 36,
+    "weights": { "economy": 8, "debt": 8, "food": 6, "population": 5, "development": 3, "buildings": 4, "wars": 10, "land": 6, "peace": 6 },
+    "refs": { "income": 0.05, "net": 0.3, "growth": 0.01, "development": 1, "land": 0.05, "wellFed": 0.7, "fedBonus": 0.5, "hungry": 0.2, "peaceMonths": 240, "atWar": 0.3 },
+    "events": { "building": 0.4, "war": 1 }
   }
 }

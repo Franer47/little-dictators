@@ -302,7 +302,7 @@ rivers change food, defence, trade and ships. Money is in today's US dollars.
 | People | **Population** | People on its land | Rolled density × the land it got |
 | | **Growth** | % per year | Birth rate (about 0.5%/yr) × the room left on the land; negative when over its food. Stability, history, traits |
 | | **Food** | How many people the land can feed, and how much is used | Plains 45 people/km², highlands 18, mountains 6, snow 3; +50% on rivers, +20% on coasts; grain, rice, fish, cattle |
-| | **Stability** | How solid the state is (0–100) | The Stability wheel (Collapsing 5 … Rock solid 95), plus government and traits |
+| | **Stability** | How solid the state is (0–100) | At the start: the Stability wheel (Collapsing 5 … Rock solid 95), government and traits, as a head start. Once time runs it's **earned by progress** (see below) |
 | | **Popularity** | How the people feel about the ruler (0–100) | The Popularity wheel (Hated 5 … Revered 95), plus traits; it nudges stability, taxes and recruits |
 | | **Ideology** | What the people believe, in shares | The rolled ideology is the biggest group (35% when collapsing, 75% when rock solid); the rest follow the ideologies near the nation on the chart |
 | | **Development** | How advanced it is (0–100) | Wealth, trade, cohesion, learning (Scholarly, Humanist, golden age; Burns books lowers it) and stability |
@@ -318,6 +318,35 @@ it is from 50, the more it pushes taxes, recruits, growth, farming, savings, arm
 trade, cohesion and development up (stable) or down (unstable), and an unstable nation is
 a bit more aggressive. Every breakdown shows its share, e.g. "Stability 80 +3". The amounts
 are in `scoreEffects` in the data file (popularity has a few too).
+
+**Once time runs, stability is earned.** The roll on the wheel is only a head start (and it
+counts a bit over half as much as rolled, so "Collapsing" isn't a death sentence and "Rock
+solid" isn't a free win). Every month each nation checks how it's doing:
+
+- **Economy:** is its income growing, and is its net income positive?
+- **Debt:** is its treasury below zero?
+- **Food:** is it well fed, or are there more people than food?
+- **Population:** is it growing or falling?
+- **Development:** is it rising?
+- **Buildings:** did it finish any lately?
+- **Wars:** did it win or lose one lately?
+- **Land:** did it gain or lose land lately?
+- **Peace:** how long since its last war?
+
+Each of these is smoothed over a couple of years, or remembered and slowly forgotten for
+events like a war. Weighted and added up, they give a **target**, and stability moves a
+little toward it every month. Temples and forts, debt and popularity keep their lasting
+part. The roll's part fades over the first decade or two, and stability's effects on the rest
+of the sheet start at 40% of their strength and grow to full over the same years.
+
+The breakdown says what's going on, e.g. "Now 55, heading for 62 (rising) · Economy growing
++5.0 · Well fed +3.0 · Lost a war −6.7 · Starting roll (fading) +3.1 · Temple (level 1) +4".
+All the weights and speeds are in `"stability"` in `public/data/eras/1500-sim.json`.
+
+In a test run on a filled world, the median stability stayed around 60–65. The bottom and top
+tenth moved in from 30 and 86 at the start to about 44 and 79 after 50 years. Most nations with
+bad rolls climbed above 50, some with great rolls fell under 40, and after 50 years the
+starting roll barely predicted stability any more.
 
 The four extra stats (defence, trade, naval reach, cohesion) are there because the coming
 simulation needs them: defence for wars and front lines, trade for income and contact

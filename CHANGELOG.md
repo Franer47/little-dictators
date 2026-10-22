@@ -6,6 +6,12 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 ## Unreleased
 
 ### Added
+- **Stability is earned by progress.** In the running game, stability now moves month by month
+  toward what a nation earns: a growing economy, staying out of debt, being well fed, a growing
+  population, rising development, new buildings, wars won, land gained and long peace (and
+  the opposites pull it down). The wheel's roll is only a head start that fades, and
+  stability's effects start mild. Its breakdown lists what pushes it, e.g. "Economy growing
+  +5 · Lost a war −7 · Starting roll (fading) +3".
 - **The other nations come alive.** They plan wars where you can see them (troops massing on
   the border, a ring on the map, a letter if it's you, a countdown under Threats in the Wars
   panel), raise bigger armies when at war, planning one or threatened, and band together in
@@ -61,6 +67,11 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 - **How to play:** a short guide the first time you play (and from the How to button).
 
 ### Changed
+- **Numbers no longer make the screen shake.** Live numbers keep their decimals ("84.0K", not
+  "84K"), every digit is the same width, and the numbers in the top strip, the stat panel and
+  the nation list have a fixed width, so nothing next to them jumps as they tick (even from
+  999K to 1.00M).
+- Debt no longer takes 10 stability points directly; it's one of stability's progress signals now.
 - Wars are now fought by the armies on each front: a side pushes in only where its attacking
   armies beat the other's defence; a front with no army is held by militia. Worn-down
   divisions merge back into full ones.

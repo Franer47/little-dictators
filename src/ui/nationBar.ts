@@ -145,6 +145,6 @@ function clockHtml(c: NonNullable<NationBarInfo["clock"]>): string {
   const speeds = [`<button type="button" data-speed="0" class="paused${c.speed === 0 ? " on" : ""}" title="Pause (Space)">❚❚</button>`]
     .concat(c.speeds.map((x, i) => `<button type="button" data-speed="${i + 1}" class="${c.speed === i + 1 ? "on" : ""}" title="Speed ×${x} (key ${i + 1})">${"▶".repeat(Math.min(3, i + 1))}</button>`))
     .join("");
-  return `<div class="nb-influence" title="Influence: what you spend to push your nation (build, recruit, war, peace, relations, brushes). You get about ${c.perMonth.toFixed(1)} a month, more when it's stable and likes its ruler.">${icon("star")}${Math.floor(c.influence)}</div>
+  return `<div class="nb-influence" title="Influence: what you spend to push your nation (build, recruit, war, peace, relations, brushes). You get about ${c.perMonth.toFixed(1)} a month, more when it's stable and likes its ruler.">${icon("star")}<b>${Math.floor(c.influence)}</b></div>
     <div class="nb-clock"><span class="nb-date">${escapeHtml(c.date)}<span class="nb-month"><i></i></span></span><div class="nb-speeds">${speeds}</div></div>`;
 }
