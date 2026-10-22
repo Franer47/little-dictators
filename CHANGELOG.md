@@ -67,6 +67,8 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 - **How to play:** a short guide the first time you play (and from the How to button).
 
 ### Changed
+- **Clearer numbers on the pixel wheel:** its font is now VT323, whose 5, 8 and 9 are easy to
+  tell apart.
 - **Numbers no longer make the screen shake.** Live numbers keep their decimals ("84.0K", not
   "84K"), every digit is the same width, and the numbers in the top strip, the stat panel and
   the nation list have a fixed width, so nothing next to them jumps as they tick (even from
