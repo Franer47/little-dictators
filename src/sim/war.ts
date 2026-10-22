@@ -243,6 +243,7 @@ function push(w: World, war: War, winner: number, loser: number, edge: number): 
   war.progress[key] = Math.min(budget, 6);
   if (!taken.length) return;
   if (loser === w.mineId) w.landChanged();
+  infamyForLand(w, winner, taken);
   w.transferLand(taken, winner);
   w.lastConqueror.set(loser, winner);
   // Paint on land that changed hands no longer applies.
@@ -250,6 +251,15 @@ function push(w: World, war: War, winner: number, loser: number, edge: number): 
   w.markChanged(taken);
   w.touch(winner);
   w.touch(loser);
+}
+
+/** Taking land costs infamy: 'infamyPerLand' × the land taken ÷ the taker's own land. */
+function infamyForLand(w: World, winner: number, pixels: readonly number[]): void {
+  const { territory, map } = w.opts;
+  let km = 0;
+  for (const i of pixels) km += territory.areas[(i / map.width) | 0];
+  const own = territory.holding(winner)?.area ?? 0;
+  if (own > 0) w.addInfamy(winner, (w.sim.ai.infamyPerLand * km) / own);
 }
 
 /**
@@ -313,6 +323,7 @@ export function makePeace(w: World, war: War): PeaceTerms {
     const all = Array.from(w.opts.territory.holding(loser)?.pixels ?? []);
     if (all.length) {
       if (loser === w.mineId) w.landChanged();
+      infamyForLand(w, winner, all);
       w.transferLand(all, winner);
       for (const i of all) w.paint[i] = 0;
       w.markChanged(all);

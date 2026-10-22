@@ -113,7 +113,15 @@ export function organizeArmies(w: World, id: number): void {
   const total = l.divisions.length;
   const wanted = total ? Math.min(rules.maxArmies, Math.max(1, Math.ceil(total / rules.armySize))) : 0;
   const cap = wanted ? Math.ceil(total / wanted) : rules.armySize;
-  const count = (a: ArmyLive): number => l.divisions.filter((d) => d.army === a.id).length;
+  // Divisions per army, kept up to date as they move (counting again each time is slow for big armies).
+  const sizes = new Map<number, number>();
+  for (const d of l.divisions) sizes.set(d.army ?? 0, (sizes.get(d.army ?? 0) ?? 0) + 1);
+  const count = (a: ArmyLive): number => sizes.get(a.id) ?? 0;
+  const move = (d: DivisionLive, to: number): void => {
+    sizes.set(d.army ?? 0, (sizes.get(d.army ?? 0) ?? 1) - 1);
+    sizes.set(to, (sizes.get(to) ?? 0) + 1);
+    d.army = to;
+  };
   // Empty armies the nation commands are disbanded.
   l.armies = l.armies.filter((a) => a.locked || count(a) > 0 || l.armies!.length <= wanted);
   while (l.armies.length < wanted) {
@@ -126,7 +134,7 @@ export function organizeArmies(w: World, id: number): void {
     if (!spare.length) break;
     const gone: ArmyLive = spare[0];
     l.armies = l.armies.filter((a: ArmyLive) => a !== gone);
-    for (const d of l.divisions) if (d.army === gone.id) d.army = 0;
+    for (const d of l.divisions) if (d.army === gone.id) move(d, 0);
   }
 
   // Trained divisions in the reserve join the smallest army.
@@ -134,7 +142,7 @@ export function organizeArmies(w: World, id: number): void {
     for (const d of l.divisions) {
       if ((d.army ?? 0) !== 0 || d.training > 0) continue;
       const target = l.armies.reduce((a, b) => (count(b) < count(a) ? b : a));
-      d.army = target.id;
+      move(d, target.id);
     }
     // Even out the armies the nation commands (one big, one tiny isn't useful).
     for (let guard = 0; guard < 50; guard++) {
@@ -145,17 +153,19 @@ export function organizeArmies(w: World, id: number): void {
       const small = even[even.length - 1];
       if (count(big) - count(small) <= 1 || count(big) <= cap) break;
       const d = l.divisions.find((x) => x.army === big.id);
-      if (d) d.army = small.id;
+      if (d) move(d, small.id);
     }
   }
 
   // Fronts: the armies the nation commands go where the enemy is strongest.
   const enemies = enemiesOf(w, id);
-  for (const a of l.armies) if (a.front && !enemies.includes(a.front)) a.front = 0;
+  const plan = l.plan && w.alive(l.plan.target) ? l.plan.target : 0;
+  for (const a of l.armies) if (a.front && !enemies.includes(a.front) && a.front !== plan) a.front = 0;
   const free = l.armies.filter((a) => !a.locked);
   if (!enemies.length) {
+    // At peace: home, or massing on the border of a war it's planning (no fighting yet).
     for (const a of free) {
-      a.front = 0;
+      a.front = plan;
       a.stance = "attack";
     }
     return;

@@ -187,7 +187,9 @@ export class GameUi {
     this.updateBadges();
     // Big news about your nation comes as a letter, and the game waits for you.
     const mine = this.host.world().mineId;
-    const big = r.events.filter((e) => e.nations.includes(mine) && (e.kind === "war" || e.kind === "peace" || (e.kind === "diplomacy" && e.text.includes("no longer"))));
+    const big = r.events.filter(
+      (e) => e.nations.includes(mine) && (e.kind === "war" || e.kind === "peace" || e.kind === "threat" || e.kind === "coalition" || e.kind === "revolt" || (e.kind === "diplomacy" && e.text.includes("no longer"))),
+    );
     if (big.length && !r.playerFell) {
       if (!this.letters.length && this.dialog.hidden) this.resumeSpeed = this.speed;
       this.letters.push(...big);
@@ -327,8 +329,19 @@ export class GameUi {
       .reverse()
       .map((e) => `<p class="gp-treaty"><small>${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][e.month]} ${e.year}</small> ${escapeHtml(e.text.replace(/^Peace: /, ""))}</p>`)
       .join("");
+    // Threats: wars being planned against you, coalitions against you, and your infamy.
+    const ai = w.sim.ai;
+    const threats = w.live
+      .map((l, i) => ({ l, by: i + 1 }))
+      .filter(({ l }) => l.alive && l.plan?.target === id)
+      .map(({ l, by }) => `<p class="gp-threat">${name(by)} is massing troops on your border: war in about ${Math.max(0, (l.plan!.ready - w.absMonth))} months, unless it thinks better of it.</p>`);
+    for (const c of w.coalitions.filter((x) => x.target === id && x.members.length))
+      threats.push(`<p class="gp-threat">A coalition against you: ${c.members.map(name).join(" ")}${c.members.length < 2 ? " (one more and it's a real threat)" : ""}.</p>`);
+    const infamy = Math.round(w.live[id - 1]?.infamy ?? 0);
+    const infamyText = `<p class="gp-hint" title="Starting wars and taking land make your neighbours fear you; it fades over the years.">Your infamy: <b style="color:${scoreColor(100 - (infamy / ai.coalitionAt) * 50)}">${infamy}</b> (neighbours who dislike you band together from ${ai.coalitionAt}).</p>`;
     return `
       <h3>Your wars</h3>${wars.join("") || '<p class="gp-hint">At peace.</p>'}
+      <h3>Threats</h3>${threats.join("") || '<p class="gp-hint">Nobody is getting ready to attack you.</p>'}${infamyText}
       ${treaties ? `<h3>Recent treaties</h3>${treaties}` : ""}
       <h3>Allies</h3><p class="gp-hint">${allies.length ? allies.map(name).join(" ") : "None yet. Allies join each other's defensive wars."}</p>
       <h3>Neighbours</h3>${rows || '<p class="gp-hint">No neighbours.</p>'}
@@ -502,6 +515,9 @@ export class GameUi {
       diplomacy: ["link", "#6fd0a4"],
       fall: ["flame", "#f06a3c"],
       info: ["star", "#d4b062"],
+      threat: ["flag", "#e8a25a"],
+      coalition: ["link", "#e0604f"],
+      revolt: ["flame", "#e8a25a"],
     };
     this.feed.innerHTML = `<div class="ef-head"><span>World news</span>
         <button type="button" data-filter="near" class="${this.eventFilter === "near" ? "on" : ""}">Near you</button>
@@ -525,7 +541,7 @@ export class GameUi {
     if (!e) return;
     const w = this.host.world();
     const mine = w.mineId;
-    const titles: Record<string, string> = { war: "War!", peace: "Peace", diplomacy: "An alliance ends" };
+    const titles: Record<string, string> = { war: "War!", peace: "Peace", diplomacy: "An alliance ends", threat: "Troops on the border", coalition: "A coalition", revolt: "Revolt!" };
     let title = titles[e.kind] ?? "News";
     if (e.kind === "war") title = e.text.startsWith(w.name(mine)) ? "We go to war" : "War is declared on us!";
     const more = this.letters.length ? `<p class="gd-more">${this.letters.length} more…</p>` : "";
@@ -546,6 +562,7 @@ export class GameUi {
         <li><b>Build</b>, <b>Army</b> and <b>Wars</b> on the left let you push it: a building (✦${c.build}), divisions (✦${c.recruit} each; your armies go to the fronts by themselves, or command them in Army), better or worse relations, an alliance, war (✦${c.declareWar}) or peace. It can say no, and tells you why.</li>
         <li><b>Right-click</b> any nation for diplomacy. <b>Brushes</b> paint land you want (War goal), land to guard (Defend) and land to grow (Develop).</li>
         <li>In a war the stronger side <b>pushes the border pixel by pixel</b> (mountains and rivers slow it). When you're winning, you choose when to make peace; you keep what you took. Watch <b>World news</b> in the corner, and point at any number to see where it comes from.</li>
+        <li><b>Watch your neighbours.</b> Nations mass troops on a border before they attack (a dashed ring on the map). Grab too much land and they form <b>coalitions</b> against you. Unstable nations can lose a region to a <b>revolt</b>.</li>
       </ol>
       <p class="gd-small">The game saves itself every year; the start screen shows Continue.</p>
       <div class="gd-actions"><button type="button" class="gp-btn primary" data-dlg="close">Got it</button></div></div>`;

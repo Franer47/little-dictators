@@ -70,14 +70,33 @@
   },
 
   "ai": {
-    "about": "What computer-run nations do. Each nation thinks once a year (each in its own month). 'buildReserve': it keeps this many months of upkeep in the treasury before building (so it doesn't build every year). 'warChance': yearly chance of starting a war at aggression 100 (it scales with aggression²). 'warOdds': it only attacks when its side is this many times stronger. 'allianceAt': relation needed to ally; 'maxAllies'.",
+    "about": "What computer-run nations do. Each nation thinks once a year (each in its own month). 'buildReserve': it keeps this many months of upkeep in the treasury before building (so it doesn't build every year). 'warChance': yearly chance of starting a war at aggression 100 (it scales with aggression²). 'warOdds': it only attacks when its side is this many times stronger. 'allianceAt': relation needed to ally; 'maxAllies'. Wars are planned first: the nation masses troops for 'planMin'..'planMax' months (shown on the map), then declares war if it still looks winnable. Armies: a nation wants 'armyBoostWar' × its peacetime army at war, 'armyBoostPlan' × while planning a war, 'armyBoostThreat' × when someone plans war on it or a coalition targets it, ordering at most 'maxOrder' divisions at a time. Infamy: 'infamyPerWar' for starting a war, 'infamyPerLand' × land taken ÷ own land; 'infamyDecay' of it fades each year. Coalitions form against a neighbour with infamy from 'coalitionAt', or 'coalitionPower' × stronger than its neighbours on average, among nations whose relation with it is under 'coalitionRelation'; they declare war together when they're 'coalitionOdds' × as strong. Revolts: below 'revoltBelow' stability a nation has a monthly chance of up to 'revoltChance' (more the lower it is) that a region of 'revoltShareMin'..'revoltShareMax' of its land breaks away as a new nation, if it has 'revoltMinPixels' pixels or more and had no revolt in 'revoltCooldownYears' years.",
     "buildReserve": 12,
     "warChance": 0.3,
     "warOdds": 1.3,
     "allianceAt": 20,
     "breakAllianceAt": 0,
     "maxAllies": 2,
-    "allyJoinsAttack": 0.5
+    "allyJoinsAttack": 0.5,
+    "planMin": 4,
+    "planMax": 10,
+    "armyBoostWar": 1.5,
+    "armyBoostPlan": 1.4,
+    "armyBoostThreat": 1.3,
+    "maxOrder": 12,
+    "infamyPerWar": 6,
+    "infamyPerLand": 120,
+    "infamyDecay": 0.25,
+    "coalitionAt": 50,
+    "coalitionPower": 5,
+    "coalitionRelation": -25,
+    "coalitionOdds": 1,
+    "revoltBelow": 20,
+    "revoltChance": 0.01,
+    "revoltShareMin": 0.15,
+    "revoltShareMax": 0.35,
+    "revoltMinPixels": 150,
+    "revoltCooldownYears": 10
   },
 
   "relations": {

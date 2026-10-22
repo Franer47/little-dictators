@@ -11,6 +11,15 @@ export interface WarMark {
   mine: boolean;
 }
 
+/** A war being planned: where the planner masses its troops, in its colour. */
+export interface PlanMark {
+  x: number;
+  y: number;
+  color: string;
+  /** Aimed at you (or yours): drawn bigger. */
+  mine: boolean;
+}
+
 export interface BuildingMark {
   x: number;
   y: number;
@@ -26,6 +35,7 @@ const BUILDING_ZOOM = 6;
 
 export class WorldLayer implements MapOverlay {
   wars: WarMark[] = [];
+  plans: PlanMark[] = [];
   buildings: BuildingMark[] = [];
   visible = true;
   /** Icons drawn once into images, by "name:colour". */
@@ -80,6 +90,31 @@ export class WorldLayer implements MapOverlay {
       }
       ctx.globalAlpha = 1;
     }
+    // Planned wars: a dashed ring that turns slowly, with a flag in the planner's colour.
+    if (this.what === "wars") {
+      const spin = performance.now() / 900;
+      for (const p of this.plans) {
+        const img = this.image("flag", "#f1e8d4");
+        const r = (p.mine ? 15 : 10) * u;
+        for (const k of v.copies) {
+          const s = onScreen(p.x, p.y, k);
+          if (!s) continue;
+          ctx.fillStyle = "rgba(20, 17, 13, 0.7)";
+          ctx.beginPath();
+          ctx.arc(s[0], s[1], r * 0.8, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.setLineDash([4 * u, 3 * u]);
+          ctx.lineDashOffset = -spin * 10 * u;
+          ctx.lineWidth = (p.mine ? 2.4 : 1.6) * u;
+          ctx.strokeStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(s[0], s[1], r, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          if (img) ctx.drawImage(img, s[0] - r * 0.55, s[1] - r * 0.55, r * 1.1, r * 1.1);
+        }
+      }
+    }
     // Swords on war fronts, at every zoom.
     const pulse = 0.85 + 0.15 * Math.sin(performance.now() / 300);
     for (const w of this.what === "wars" ? this.wars : []) {
@@ -101,6 +136,6 @@ export class WorldLayer implements MapOverlay {
     }
     ctx.restore();
     // Your own wars pulse: keep drawing while there are any.
-    if (this.what === "wars" && this.wars.some((w) => w.mine)) requestAnimationFrame(() => this.requestRender());
+    if (this.what === "wars" && (this.wars.some((w) => w.mine) || this.plans.length)) requestAnimationFrame(() => this.requestRender());
   }
 }

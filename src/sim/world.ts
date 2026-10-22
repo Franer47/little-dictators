@@ -16,7 +16,7 @@ import { compactNumber } from "../game/numbers.ts";
 import { createRng, type Rng } from "../game/random.ts";
 import { accessShare, statSheet, surveyLand, type LandFacts, type LiveState, type StatSheet, type StatsData } from "../game/stats.ts";
 import type { BrushId, BuildingSpec, PushId, SimData } from "./simData.ts";
-import { aiThink } from "./ai.ts";
+import { aiMonthly, aiRecruit, aiThink } from "./ai.ts";
 import { capitalOf, organizeArmies, type ArmyLive, type Stance } from "./armies.ts";
 import { fightWars, makePeace, type PeaceTerms } from "./war.ts";
 
@@ -52,6 +52,12 @@ export interface NationLive {
   armies?: ArmyLive[];
   /** The number the next new army gets ("3rd Army"). */
   nextArmy?: number;
+  /** How much its neighbours fear it for grabbing land and starting wars (fades over the years). */
+  infamy?: number;
+  /** A war it's preparing: whom, and the month (World.absMonth) its troops are ready. */
+  plan?: { target: number; ready: number };
+  /** When it last had a revolt (World.absMonth). */
+  lastRevolt?: number;
   /** Tribute this nation pays: to whom, how much a year, for how many more years. */
   tributes: { to: number; amount: number; yearsLeft: number }[];
   /** Divisions ordered but not raised yet (raised a few a month when it has the men and money). */
@@ -84,7 +90,13 @@ export interface Battle {
   lostD: number;
 }
 
-export type EventKind = "war" | "peace" | "build" | "army" | "diplomacy" | "fall" | "info";
+export type EventKind = "war" | "peace" | "build" | "army" | "diplomacy" | "fall" | "info" | "threat" | "coalition" | "revolt";
+
+/** Nations banding together against one that grabs too much or grows too strong. */
+export interface Coalition {
+  target: number;
+  members: number[];
+}
 
 export interface GameEvent {
   year: number;
@@ -124,6 +136,7 @@ export interface WorldSave {
   events: GameEvent[];
   nextWarId: number;
   paint: Uint8Array;
+  coalitions?: Coalition[];
 }
 
 export interface WorldOptions {
@@ -153,6 +166,13 @@ export class World {
   wars: War[] = [];
   /** This month's battles (for the map). */
   battles: Battle[] = [];
+  coalitions: Coalition[] = [];
+  /**
+   * Makes a new nation out of `pixels` of nation `from` (a revolt): rolls it, puts it on the
+   * map and returns its id (0 if it can't). Set by the screen that owns the nations
+   * (src/ui/placement.ts), which then calls revolt().
+   */
+  onRevolt?: (from: number, pixels: number[]) => number;
   /** How much two nations like each other (−100..100), and what it drifts back to. */
   relations = new Map<number, number>();
   relationBase = new Map<number, number>();
@@ -190,6 +210,17 @@ export class World {
   /** The player's nation id (0 if none). */
   get mineId(): number {
     return this.nations.findIndex((n) => n.mine) + 1;
+  }
+
+  /** Months since year 0: for plans and cooldowns. */
+  get absMonth(): number {
+    return this.year * 12 + this.month;
+  }
+
+  /** Adds to a nation's infamy (wars started, land taken). */
+  addInfamy(id: number, v: number): void {
+    const l = this.live[id - 1];
+    if (l && v > 0) l.infamy = (l.infamy ?? 0) + v;
   }
 
   dateText(): string {
@@ -402,6 +433,7 @@ export class World {
       events: this.events.slice(-100),
       nextWarId: this.nextWarId,
       paint: this.paint,
+      coalitions: this.coalitions,
     };
   }
 
@@ -417,6 +449,7 @@ export class World {
     this.events = s.events;
     this.nextWarId = s.nextWarId;
     this.paint.set(s.paint);
+    this.coalitions = s.coalitions ?? [];
     this.landDirty = true;
     this.recompute();
   }
@@ -486,6 +519,8 @@ export class World {
 
     // Wars, then peace.
     fightWars(this);
+    // Plans come due, coalitions strike, revolts.
+    aiMonthly(this);
 
     // Relations drift back toward where they started; wars sour them.
     const drift = this.sim.relations.drift;
@@ -872,7 +907,7 @@ export class World {
   }
 
   /** Starts a war: the defender's allies join it, the attacker's might. */
-  declareWar(attacker: number, defender: number): War {
+  declareWar(attacker: number, defender: number, announce = true): War {
     const war: War = { id: this.nextWarId++, name: `${this.name(attacker)}–${this.name(defender)} War`, attackers: [attacker], defenders: [defender], score: 0, months: 0 };
     for (const a of this.allies(defender)) if (!war.attackers.includes(a) && !this.atWar(a, defender)) war.defenders.push(a);
     for (const a of this.allies(attacker))
@@ -880,12 +915,53 @@ export class World {
     // Allies on both sides break their alliance.
     for (const a of war.attackers) for (const d of war.defenders) this.breakAlliance(a, d);
     this.wars.push(war);
-    // Both sides send their armies to the new fronts at once.
+    // Both sides send their armies to the new fronts at once, and the defenders call up more.
     for (const id of [...war.attackers, ...war.defenders]) organizeArmies(this, id);
+    for (const id of war.defenders) if (id !== this.mineId) aiRecruit(this, id);
+    this.addInfamy(attacker, this.sim.ai.infamyPerWar);
+    this.live[attacker - 1].plan = undefined;
+    if (!announce) return war;
     this.shiftRelation(attacker, defender, -30, -10);
     const joined = [...war.attackers.slice(1), ...war.defenders.slice(1)];
     this.log("war", `${this.name(attacker)} declared war on ${this.name(defender)}${joined.length ? ` (with ${joined.map((n) => this.name(n)).join(", ")})` : ""}.`, [...war.attackers, ...war.defenders], capitalOf(this, defender));
     return war;
+  }
+
+  /**
+   * A revolt: nation `rebels` (just made, see onRevolt) takes `pixels` of `from` with the people
+   * and buildings there, some of its soldiers desert to it, and it fights for its independence.
+   */
+  revolt(from: number, rebels: number, pixels: number[]): void {
+    const lf = this.live[from - 1];
+    if (!lf) return;
+    const before = this.opts.territory.holding(from)?.pixels.length ?? 1;
+    const share = pixels.length / Math.max(1, before);
+    this.live[rebels - 1] = {
+      alive: true,
+      population: 0,
+      treasury: 0,
+      development: lf.development,
+      buildings: {},
+      building: [],
+      sites: [],
+      divisions: [],
+      tributes: [],
+      thinkMonth: Math.floor(this.rng.next() * 12),
+    };
+    this.transferLand(pixels, rebels);
+    this.markChanged(pixels);
+    this.landChanged();
+    // Soldiers from there go over to the rebels.
+    const lr = this.live[rebels - 1];
+    const leave = lf.divisions.filter(() => this.rng.next() < share);
+    lf.divisions = lf.divisions.filter((d) => !leave.includes(d));
+    for (const d of leave) lr.divisions.push({ troops: d.troops, training: d.training });
+    this.recompute(true);
+    this.shiftRelation(from, rebels, -60, -40);
+    const war = this.declareWar(rebels, from, false);
+    war.name = `${this.name(rebels)} War of Independence`;
+    const at = capitalOf(this, rebels);
+    this.log("revolt", `Revolt in ${this.name(from)}! ${this.name(rebels)} breaks away and fights for its independence.`, [from, rebels], at);
   }
 
   /** Called by makePeace: logs it and sets relations. */

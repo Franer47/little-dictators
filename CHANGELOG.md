@@ -6,6 +6,12 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 ## Unreleased
 
 ### Added
+- **The other nations come alive.** They plan wars where you can see them (troops massing on
+  the border, a ring on the map, a letter if it's you, a countdown under Threats in the Wars
+  panel), raise bigger armies when at war, planning one or threatened, and band together in
+  **coalitions** against nations with too much **infamy** (from wars and conquest) or far
+  stronger than their neighbours. Unstable nations can suffer **revolts**: a region breaks
+  away as a new, freshly rolled nation and fights a War of Independence.
 - **The map comes alive between months.** Conquered land creeps in through the whole month
   and glows in its new owner's colour; battles flash with sparks and smoke, with a bar for
   who's winning and the losses floating up; armies lunge at each other; ripples mark wars
