@@ -16,6 +16,31 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
   smaller.
 - Faster on every map: the stat survey and name placement that look over the whole map, Fill
   (its look at the free land), and brush painting (only the painted part of the map is redrawn).
+- **Stability is earned by progress.** In the running game, stability now moves month by month
+  toward what a nation earns: a growing economy, staying out of debt, being well fed, a growing
+  population, rising development, new buildings, wars won, land gained and long peace (and
+  the opposites pull it down). The wheel's roll is only a head start that fades, and
+  stability's effects start mild. Its breakdown lists what pushes it, e.g. "Economy growing
+  +5 · Lost a war −7 · Starting roll (fading) +3".
+- **The other nations come alive.** They plan wars where you can see them (troops massing on
+  the border, a ring on the map, a letter if it's you, a countdown under Threats in the Wars
+  panel), raise bigger armies when at war, planning one or threatened, and band together in
+  **coalitions** against nations with too much **infamy** (from wars and conquest) or far
+  stronger than their neighbours. Unstable nations can suffer **revolts**: a region breaks
+  away as a new, freshly rolled nation and fights a War of Independence.
+- **The map comes alive between months.** Conquered land creeps in through the whole month
+  and glows in its new owner's colour; battles flash with sparks and smoke, with a bar for
+  who's winning and the losses floating up; armies lunge at each other; ripples mark wars
+  declared, peace signed, nations fallen and your buildings finished. The top strip's numbers
+  count to their new values, and a thin bar under the date shows how far through the month
+  it is.
+- **Armies and fronts, like Victoria 3.** Divisions are grouped into a few armies, each one
+  token on the map (flag, divisions, a strength bar, its stance) instead of hundreds of little
+  flags. Armies go to a front (the border with one enemy) or stay home, and Attack, Hold or
+  Defend. Your nation commands them itself; give an army an order to command it yourself, and
+  Give back to hand it back. New divisions wait in a Reserve at the capital while they train.
+  Only your armies and your enemies' show on the map (tick "Show every nation's armies" for
+  all), and armies march to where they're sent.
 - **Queues:** order 1, 5, 25 or 100 divisions at once from the Army section. They wait in a
   queue and your nation raises up to 4 a month whenever it has the men, the money and the
   calm. Buildings you can't start yet (short of money, or two already being built) go into a
@@ -52,6 +77,15 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 - **How to play:** a short guide the first time you play (and from the How to button).
 
 ### Changed
+- **Numbers no longer make the screen shake.** Live numbers keep their decimals ("84.0K", not
+  "84K"), every digit is the same width, and the numbers in the top strip, the stat panel and
+  the nation list have a fixed width, so nothing next to them jumps as they tick (even from
+  999K to 1.00M).
+- Debt no longer takes 10 stability points directly; it's one of stability's progress signals now.
+- Wars are now fought by the armies on each front: a side pushes in only where its attacking
+  armies beat the other's defence; a front with no army is held by militia. Worn-down
+  divisions merge back into full ones.
+- The "Bigger division" button is gone (divisions now merge by themselves).
 - A division now costs ✦1 influence instead of ✦4.
 - **The map info is folded away.** What's under the mouse (terrain, height, position) and
   the controls now hide behind the ⓘ button in the bottom-left corner; click it to show them.

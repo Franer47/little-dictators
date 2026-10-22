@@ -354,6 +354,7 @@
 }
 
 .np-stat-val {
+  min-width: 7ch;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   text-align: right;

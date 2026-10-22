@@ -220,49 +220,156 @@
   border: 1px solid rgba(232, 128, 106, 0.35);
 }
 
-.ap-divs {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
-  gap: 5px;
+.ap-armies {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   min-height: 0;
-  margin-top: 6px;
+  margin-top: 4px;
   overflow: auto;
 }
 
-.ap-div {
+.ap-army {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 7px 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.ap-army:hover {
+  background: rgba(212, 176, 98, 0.1);
+}
+
+.ap-army.selected {
+  border-color: var(--gold-bright);
+  background: rgba(240, 212, 138, 0.1);
+}
+
+.ap-army-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.ap-army-head b {
+  font-size: 13px;
+}
+
+.ap-sub {
+  flex: 1;
+  font-size: 11px;
+  color: rgba(241, 232, 212, 0.6);
+  font-variant-numeric: tabular-nums;
+}
+
+.ap-bar {
+  flex: none;
+  width: 42px;
+  height: 5px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 3px;
+}
+
+.ap-bar i {
+  display: block;
+  height: 100%;
+}
+
+.ap-army-row {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 7px;
-  font: inherit;
   font-size: 11.5px;
+}
+
+.ap-army-row select {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
+  font: inherit;
   color: var(--ink);
-  text-align: left;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid transparent;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(212, 176, 98, 0.35);
+  border-radius: 6px;
+}
+
+.ap-where {
+  color: rgba(241, 232, 212, 0.75);
+}
+
+.ap-stance {
+  flex: 1;
+  padding: 4px 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--ink);
+  background: rgba(212, 176, 98, 0.1);
+  border: 1px solid rgba(212, 176, 98, 0.28);
   border-radius: 6px;
   cursor: pointer;
 }
 
-.ap-div:hover {
-  background: rgba(212, 176, 98, 0.14);
+.ap-stance.on {
+  color: #1a1404;
+  background: var(--gold);
+  border-color: var(--gold);
 }
 
-.ap-div.selected {
-  border-color: var(--gold-bright);
-  background: rgba(240, 212, 138, 0.12);
+.ap-stance:disabled {
+  cursor: default;
+  opacity: 0.6;
 }
 
-.ap-div.training .ap-flag {
+.ap-stance.on:disabled {
+  opacity: 0.85;
+}
+
+.ap-cmd {
+  flex: 1;
+  color: rgba(241, 232, 212, 0.5);
+}
+
+.ap-cmd.you {
+  color: var(--gold-bright);
+}
+
+.ap-link {
+  padding: 0;
+  font: inherit;
+  color: var(--gold-bright);
+  text-decoration: underline;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.ap-reserve {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 6px 8px;
+  font-size: 11.5px;
+  color: rgba(241, 232, 212, 0.75);
+  border: 1px dashed rgba(212, 176, 98, 0.3);
+  border-radius: 8px;
+}
+
+.ap-reserve .ap-flag {
+  margin-top: 2px;
   background-image: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.6) 0 2px, transparent 2px 5px) !important;
 }
 
-.ap-div-name {
-  flex: 1;
+.ap-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 11.5px;
   color: rgba(241, 232, 212, 0.7);
-}
-
-.ap-div-troops {
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
+  cursor: pointer;
 }

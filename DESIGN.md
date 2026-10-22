@@ -250,6 +250,12 @@ The wheel setup is fully configurable, per wheel:
        Mountains +10%, Unstable −15%"). **Everyone's stats are visible** (you're an
        observer). All modifiers live in data files, so they're easy to tune.
      - Stats don't change over time yet; that's milestone 4.
+   - **Stability is earned (decided 2026-10-21):** the wheel's stability is only a head
+     start. Each month stability moves toward a target the nation earns: **up** with a
+     growing economy, growing and well-fed population, buildings and development, won wars,
+     gained land and long peace; **down** with the opposite (shrinking economy, debt,
+     famine, lost land and wars). After ~10–20 years the starting roll barely matters, and
+     early on stability's effects are mild.
 4. **Ticks + basic simulation** — the clock runs; growth and peaceful expansion into empty
    land. Kept simple, upgraded later.
 5. **Conquest** — wars and pixel-by-pixel front lines. Two modes: push on all borders, or

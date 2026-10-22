@@ -559,6 +559,12 @@ export interface Factor {
 export interface StatSheet {
   stats: Record<StatId, Stat>;
   factors: Record<FactorId, Factor>;
+  /**
+   * Stability's two fixed parts, for the running game (src/sim/stability.ts): what the wheels,
+   * land and traits give (the starting roll), and what lasts on top (buildings, debt,
+   * popularity), as points above or below 50, with the lines saying why.
+   */
+  stabilityParts: { roll: number; lasting: number; lastingLines: string[] };
   land: LandFacts;
   /** The people's ideologies, biggest first (empty if the data has no "ideology" rules). */
   ideologies: IdeologyShare[];
@@ -571,6 +577,8 @@ interface Contribution {
   mod: Modifier;
   /** How much of the modifier applies (1 for wheel results; the land share for terrain…). */
   scale: number;
+  /** It lasts in the running game (buildings, debt, popularity), unlike the starting roll. */
+  lasting?: boolean;
 }
 
 /**
@@ -590,6 +598,10 @@ export interface LiveState {
   tribute?: number;
   /** Extra modifiers, e.g. buildings ("Farm (level 2)") or being in debt. */
   mods?: { label: string; set: ModSet; scale?: number }[];
+  /** Stability now, as the running game works it out (src/sim/stability.ts), with its why lines. Default: the rolled value. */
+  stability?: { value: number; lines: string[] };
+  /** How strongly stability changes the other factors (1 = fully; less early in the game). */
+  stabilityEffect?: number;
 }
 
 /** Works out a nation's stat sheet from its wheel results, its land and (in a running game) its live state. */
@@ -602,11 +614,11 @@ export function statSheet(nation: Nation, land: LandFacts, data: StatsData, live
 
   // ---- what applies to this nation
   const contributions = new Map<FactorId, Contribution[]>();
-  const add = (set: ModSet | undefined, label: string, scale = 1): void => {
+  const add = (set: ModSet | undefined, label: string, scale = 1, lasting = false): void => {
     if (!set || scale === 0) return;
     for (const [id, mod] of Object.entries(set) as [FactorId, Modifier][]) {
       if (!contributions.has(id)) contributions.set(id, []);
-      contributions.get(id)!.push({ label, mod, scale });
+      contributions.get(id)!.push({ label, mod, scale, lasting });
     }
   };
   const fromResult = (r: WheelOutcome): void => {
@@ -644,7 +656,7 @@ export function statSheet(nation: Nation, land: LandFacts, data: StatsData, live
   }
 
   // Buildings and anything else the running game adds.
-  for (const m of live.mods ?? []) add(m.set, m.label, m.scale ?? 1);
+  for (const m of live.mods ?? []) add(m.set, m.label, m.scale ?? 1, true);
 
   // The shape of the land costs cohesion.
   const c = data.cohesion;
@@ -664,14 +676,26 @@ export function statSheet(nation: Nation, land: LandFacts, data: StatsData, live
   const factors = {} as Record<FactorId, Factor>;
   const compute = (id: FactorId): void => void (factors[id] = computeFactor(data.factors[id], contributions.get(id) ?? [], sfx));
   const scoreOrder: ("popularity" | "stability")[] = data.scoreEffects.stability?.popularity ? ["stability", "popularity"] : ["popularity", "stability"];
+  let stabilityParts: StatSheet["stabilityParts"] = { roll: 0, lasting: 0, lastingLines: [] };
   for (const score of scoreOrder) {
     compute(score);
+    if (score === "stability") {
+      // Its parts: the roll (wheels, land, traits) and what lasts (buildings, debt, popularity).
+      const spec = data.factors.stability;
+      const list = contributions.get("stability") ?? [];
+      const roll = computeFactor(spec, list.filter((c) => !c.lasting), sfx).value;
+      const lasting = computeFactor({ ...spec, min: -1000, max: 1000 }, list.filter((c) => c.lasting), sfx);
+      stabilityParts = { roll: roll - 50, lasting: lasting.value - spec.base, lastingLines: lasting.lines.slice(1) };
+      // In the running game stability is earned month by month (src/sim/stability.ts).
+      if (live.stability) factors.stability = { value: clamp(live.stability.value, spec.min, spec.max), lines: live.stability.lines };
+    }
     const v = factors[score].value;
     const t = (v - 50) / 50;
     if (t === 0) continue;
     const name = data.factors[score].name;
+    const strength = score === "stability" ? (live.stabilityEffect ?? 1) : 1;
     for (const [id, [lo, hi]] of Object.entries(data.scoreEffects[score] ?? {}) as [FactorId, [Modifier, Modifier]][])
-      add({ [id]: t < 0 ? lo : hi }, `${name} ${Math.round(v)}`, Math.abs(t));
+      add({ [id]: t < 0 ? lo : hi }, `${name} ${Math.round(v)}${strength < 0.995 ? ` (×${strength.toFixed(2)} early on)` : ""}`, Math.abs(t) * strength, score === "popularity");
   }
   for (const id of FACTOR_IDS) if (id !== "development" && !factors[id]) compute(id);
   const d = data.development;
@@ -847,7 +871,7 @@ export function statSheet(nation: Nation, land: LandFacts, data: StatsData, live
     naval: score("naval"),
     cohesion: score("cohesion"),
   };
-  return { stats, factors, land, ideologies, baseArmy };
+  return { stats, factors, land, ideologies, baseArmy, stabilityParts };
 }
 
 /**

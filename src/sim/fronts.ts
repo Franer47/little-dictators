@@ -10,6 +10,8 @@ import type { World } from "./world.ts";
 export interface Fronts {
   /** By nation id: its pixels that touch an enemy's, in no particular order. */
   byNation: Map<number, number[]>;
+  /** By id × 65536 + enemy: id's pixels that touch that enemy (where its armies on that front stand). */
+  byPair: Map<number, number[]>;
   /** Each war's front, for the swords on the map: the middle pixel, and the two leaders. */
   wars: { id: number; x: number; y: number; attacker: number; defender: number; mine: boolean }[];
 }
@@ -26,9 +28,17 @@ export function findFronts(map: GameMap, territory: Territory, w: World): Fronts
     addEnemy(a, d);
     addEnemy(d, a);
   }
+  // Planned wars too: the planner's armies mass on that border.
+  w.live.forEach((l, i) => {
+    if (l.alive && l.plan && w.alive(l.plan.target)) {
+      addEnemy(i + 1, l.plan.target);
+      addEnemy(l.plan.target, i + 1);
+    }
+  });
   const { width } = map;
   const owner = territory.owner;
   const byNation = new Map<number, number[]>();
+  const byPair = new Map<number, number[]>();
   // Pixels along the front between each pair (for the swords): key a*65536+b with a < b.
   const pairPixels = new Map<number, number[]>();
   for (const [id, foes] of enemies) {
@@ -45,6 +55,9 @@ export function findFronts(map: GameMap, territory: Territory, w: World): Fronts
         const other = owner[p[1] * width + p[0]];
         if (other && foes.has(other)) {
           front.push(i);
+          const own = id * 65536 + other;
+          if (!byPair.has(own)) byPair.set(own, []);
+          byPair.get(own)!.push(i);
           if (id < other) {
             const key = id * 65536 + other;
             if (!pairPixels.has(key)) pairPixels.set(key, []);
@@ -64,32 +77,38 @@ export function findFronts(map: GameMap, territory: Territory, w: World): Fronts
     if (!a || !d) continue;
     const pixels = pairPixels.get(a < d ? a * 65536 + d : d * 65536 + a);
     if (!pixels?.length) continue; // they don't touch (a war across the sea)
-    // The front pixel nearest the middle of the front.
-    const ref = pixels[0] % width;
-    let sx = 0;
-    let sy = 0;
-    for (const i of pixels) {
-      let dx = (i % width) - ref;
-      if (map.wraps) dx = dx > width / 2 ? dx - width : dx < -width / 2 ? dx + width : dx;
-      sx += dx;
-      sy += (i / width) | 0;
-    }
-    const cx = ref + sx / pixels.length;
-    const cy = sy / pixels.length;
-    let best = pixels[0];
-    let bestD = Infinity;
-    for (const i of pixels) {
-      let dx = (i % width) - cx;
-      if (map.wraps) dx = dx > width / 2 ? dx - width : dx < -width / 2 ? dx + width : dx;
-      const dy = ((i / width) | 0) - cy;
-      const dist = dx * dx + dy * dy;
-      if (dist < bestD) {
-        bestD = dist;
-        best = i;
-      }
-    }
+    const best = middleOf(map, pixels);
     const involved = [...war.attackers, ...war.defenders].includes(mine);
     wars.push({ id: war.id, x: best % width, y: (best / width) | 0, attacker: a, defender: d, mine: involved });
   }
-  return { byNation, wars };
+  return { byNation, byPair, wars };
+}
+
+/** The pixel of a front nearest its middle (where the swords and the battle go). */
+export function middleOf(map: GameMap, pixels: readonly number[]): number {
+  const { width } = map;
+  const ref = pixels[0] % width;
+  let sx = 0;
+  let sy = 0;
+  for (const i of pixels) {
+    let dx = (i % width) - ref;
+    if (map.wraps) dx = dx > width / 2 ? dx - width : dx < -width / 2 ? dx + width : dx;
+    sx += dx;
+    sy += (i / width) | 0;
+  }
+  const cx = ref + sx / pixels.length;
+  const cy = sy / pixels.length;
+  let best = pixels[0];
+  let bestD = Infinity;
+  for (const i of pixels) {
+    let dx = (i % width) - cx;
+    if (map.wraps) dx = dx > width / 2 ? dx - width : dx < -width / 2 ? dx + width : dx;
+    const dy = ((i / width) | 0) - cy;
+    const dist = dx * dx + dy * dy;
+    if (dist < bestD) {
+      bestD = dist;
+      best = i;
+    }
+  }
+  return best;
 }

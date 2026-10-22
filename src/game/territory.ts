@@ -353,6 +353,18 @@ export class Territory {
   }
 
   /**
+   * A new nation with no land yet (a revolt): its holding starts empty at pixel `start`; give
+   * it land with transfer().
+   */
+  addHolding(start: number): Holding {
+    if (this.holdings.length >= TEST_ID - 1) throw new Error("Too many nations");
+    const { width } = this.map;
+    const holding: Holding = { id: this.holdings.length + 1, start: [start % width, Math.floor(start / width)], rolledArea: 0, targetArea: 0, area: 0, pixels: new Int32Array(0) };
+    this.holdings.push(holding);
+    return holding;
+  }
+
+  /**
    * Gives the region's leftover free land (small islands, slivers between borders) to the
    * nearest nation: every nation spreads out at most `maxSteps` pixels into free land, and
    * across water to islands, one ring at a time, so the closest nation gets each pixel.
