@@ -18,6 +18,7 @@ import { accessShare, statSheet, surveyLand, type LandFacts, type LiveState, typ
 import type { BrushId, BuildingSpec, PushId, SimData } from "./simData.ts";
 import { aiMonthly, aiRecruit, aiThink } from "./ai.ts";
 import { capitalOf, organizeArmies, type ArmyLive, type Stance } from "./armies.ts";
+import { stabilityEffect, stabilityEvent, stabilityLines, startStability, updateStability, type StabilityLive } from "./stability.ts";
 import { fightWars, makePeace, type PeaceTerms } from "./war.ts";
 
 /** What the world needs to know about a nation on the map (the placement screen's PlacedNation). */
@@ -58,6 +59,9 @@ export interface NationLive {
   plan?: { target: number; ready: number };
   /** When it last had a revolt (World.absMonth). */
   lastRevolt?: number;
+  /** Stability now (earned by progress, see stability.ts), and what its progress signals remember. */
+  stability?: number;
+  progress?: StabilityLive;
   /** Tribute this nation pays: to whom, how much a year, for how many more years. */
   tributes: { to: number; amount: number; yearsLeft: number }[];
   /** Divisions ordered but not raised yet (raised a few a month when it has the men and money). */
@@ -295,6 +299,14 @@ export class World {
       if (!everyone && id % 4 !== this.month % 4 && id !== mine && !fighting.has(id) && !this.dirty.has(id)) return;
       this.sheets[i] = statSheet(n.nation, this.land[i], stats, this.liveState(id, tributeIn.get(id) ?? 0));
     });
+    // New nations (and old saves): stability starts from the roll, squeezed toward 50.
+    this.live.forEach((l, i) => {
+      const s = this.sheets[i];
+      if (l.alive && l.stability === undefined && s) {
+        startStability(this, l, s);
+        this.sheets[i] = statSheet(this.nations[i].nation, this.land[i], stats, this.liveState(i + 1, tributeIn.get(i + 1) ?? 0));
+      }
+    });
     this.dirty.clear();
     this.ensureRelations();
   }
@@ -321,6 +333,8 @@ export class World {
       development: l.development,
       tribute: tributeIn - paid,
       mods,
+      stability: l.stability === undefined ? undefined : { value: l.stability, lines: stabilityLines(this, l, this.sheets[id - 1]) },
+      stabilityEffect: stabilityEffect(this, l),
     };
   }
 
@@ -486,6 +500,7 @@ export class World {
         this.dirty.add(id);
         l.sites.push({ id: b.id, at: b.at });
         const spec = this.buildingSpec(b.id);
+        stabilityEvent(this, id, "buildings", this.sim.stability.events.building);
         if (id === mine) this.log("build", `${this.name(id)} finished a ${spec?.name ?? b.id} (level ${l.buildings[b.id]}).`, [id], b.at);
       }
       l.building = l.building.filter((x) => x.monthsLeft > 0);
@@ -497,6 +512,11 @@ export class World {
         for (const t of l.tributes) t.yearsLeft--;
         l.tributes = l.tributes.filter((t) => t.yearsLeft > 0 && this.alive(t.to));
       }
+    });
+
+    // Stability moves toward what the nation's progress earns it.
+    this.live.forEach((l, i) => {
+      if (l.alive) updateStability(this, i + 1);
     });
 
     // Ordered divisions and buildings.
