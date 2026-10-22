@@ -17,7 +17,7 @@
     "max": 300,
     "costs": {
       "build": 6,
-      "recruit": 4,
+      "recruit": 1,
       "improveRelations": 8,
       "worsenRelations": 6,
       "alliance": 12,
@@ -53,9 +53,10 @@
   },
 
   "army": {
-    "about": "New divisions train for 'trainingMonths' months before they count. A division under 'disband' troops is broken up.",
+    "about": "New divisions train for 'trainingMonths' months before they count. A division under 'disband' troops is broken up. Divisions you order go in a queue: up to 'queuePerMonth' are raised each month while the nation has the men, the money and the calm.",
     "trainingMonths": 6,
-    "disband": 60
+    "disband": 60,
+    "queuePerMonth": 4
   },
 
   "ai": {

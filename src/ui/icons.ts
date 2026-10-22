@@ -24,6 +24,7 @@ const PATHS: Record<string, string> = {
   scales: '<path d="M8 2v12M4.5 14h7M3 4.5h10M3 4.5L1.5 9h3zM13 4.5L11.5 9h3zM1.5 9a1.5 1 0 0 0 3 0M11.5 9a1.5 1 0 0 0 3 0"/>',
   anchor: '<circle cx="8" cy="3.5" r="1.5"/><path d="M8 5v9M5.5 7h5M2.5 9.5c0 2.5 2.5 4.5 5.5 4.5s5.5-2 5.5-4.5"/>',
   link: '<path d="M6.5 9.5l3-3M7 4.8l1-1a2.6 2.6 0 0 1 3.7 3.7l-1 1M9 11.2l-1 1a2.6 2.6 0 0 1-3.7-3.7l1-1"/>',
+  clock: '<circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.5 1.5"/>',
   outflow: '<circle cx="8" cy="8" r="6"/><path d="M5.5 8h5M8.5 5.5L11 8l-2.5 2.5"/>',
 };
 

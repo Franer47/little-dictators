@@ -261,22 +261,29 @@ export class GameUi {
       .map((b: BuildingSpec) => {
         const level = l.buildings[b.id] ?? 0;
         const going = l.building.filter((x) => x.id === b.id);
-        const why = w.whyCantBuild(id, b);
-        const dots = Array.from({ length: b.maxLevel }, (_, k) => `<i class="${k < level ? "on" : k < level + going.length ? "going" : ""}"></i>`).join("");
+        const queued = (l.buildQueue ?? []).filter((x) => x === b.id).length;
+        const block = w.buildBlock(id, b, queued);
+        const never = block === "max" || block === "coast";
+        const why = never ? (queued ? `${b.name} reaches the top level (${b.maxLevel}) with the ones in the queue.` : w.whyCantBuild(id, b)) : block ? `${w.whyCantBuild(id, b)} Ordering it puts it in the queue.` : "";
+        const dots = Array.from({ length: b.maxLevel }, (_, k) => `<i class="${k < level ? "on" : k < level + going.length + queued ? "going" : ""}"></i>`).join("");
         const effects = Object.entries(b.effectText)
           .map(([f, v]) => `${v} ${w.opts.stats.factors[f as keyof typeof w.opts.stats.factors]?.name.toLowerCase() ?? f}`)
           .join(", ");
-        const status = going.length ? `<span class="gp-going">Building… ${going[0].monthsLeft} months left</span>` : "";
-        return `<div class="gp-building${why ? " blocked" : ""}">
+        const status = [going.length ? `Building… ${going[0].monthsLeft} months left` : "", queued ? `${queued} in the queue` : ""].filter(Boolean).join(" · ");
+        return `<div class="gp-building${never ? " blocked" : ""}">
           ${badge(b.icon, "#e6c25a")}
           <div class="gp-b-text"><div class="gp-b-name">${escapeHtml(b.name)} <span class="gp-dots">${dots}</span></div>
             <div class="gp-b-eff">${escapeHtml(effects)} per level</div>
-            <div class="gp-b-cost">${money(w.buildCost(id, b))} · ${b.months} months ${status}</div></div>
-          <button type="button" class="gp-btn" data-build="${b.id}" title="${escapeHtml(why || `Push your nation to build it (costs ${cost} influence)`)}">Build <small>✦${cost}</small></button>
+            <div class="gp-b-cost">${money(w.buildCost(id, b))} · ${b.months} months ${status ? `<span class="gp-going">${status}</span>` : ""}</div></div>
+          <button type="button" class="gp-btn" data-build="${b.id}" title="${escapeHtml(why || `Push your nation to build it (costs ${cost} influence)`)}">${block && !never ? "Queue" : "Build"} <small>✦${cost}</small></button>
         </div>`;
       })
       .join("");
-    return `<p class="gp-hint">Treasury ${escapeHtml(s.stats.treasury.text)} · income ${escapeHtml(s.stats.income.text)}. Your nation also builds what it thinks it needs, once a year.</p>${rows}`;
+    const waiting = l.buildQueue ?? [];
+    const queue = waiting.length
+      ? `<div class="gp-queue"><span>Queue: ${waiting.map((x, i) => `${i + 1}. ${escapeHtml(w.buildingSpec(x)?.name ?? x)}`).join(", ")}. They start by themselves when there's money and a free builder.</span><button type="button" class="gp-btn" data-clearbuild="1" title="Cancel the waiting buildings (the influence comes back)">Clear</button></div>`
+      : "";
+    return `<p class="gp-hint">Treasury ${escapeHtml(s.stats.treasury.text)} · income ${escapeHtml(s.stats.income.text)}. Two things can be built at once; order more and they wait in the queue. Your nation also builds what it thinks it needs, once a year.</p>${queue}${rows}`;
   }
 
   private warsHtml(w: World): string {
@@ -351,6 +358,7 @@ export class GameUi {
     let decision: Decision | null = null;
     if (d.act === "close") return this.setPanel(null);
     if (d.build) decision = w.pushBuild(d.build);
+    else if (d.clearbuild) decision = w.clearBuildQueue();
     else if (d.peace) decision = w.pushPeace(Number(d.peace));
     else if (d.rel) decision = w.pushRelations(Number(d.rel), Number(d.dir) as 1 | -1);
     else if (d.ally) decision = w.pushAlliance(Number(d.ally));

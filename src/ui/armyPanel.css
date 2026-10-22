@@ -144,6 +144,37 @@
   cursor: pointer;
 }
 
+.ap-section {
+  margin: 8px 0 4px;
+}
+
+.ap-actions + .ap-actions,
+.ap-queue + .ap-actions {
+  margin-top: 8px;
+}
+
+.ap-btn.small {
+  flex: 0 0 auto;
+  padding: 4px 10px;
+}
+
+.ap-queue {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 6px 8px;
+  font-size: 12px;
+  background: rgba(212, 176, 98, 0.08);
+  border: 1px dashed rgba(212, 176, 98, 0.35);
+  border-radius: 8px;
+}
+
+.ap-queue p {
+  flex: 1;
+  margin: 0;
+}
+
 .ap-btn small {
   font-weight: 500;
   opacity: 0.7;

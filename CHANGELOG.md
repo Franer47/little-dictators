@@ -6,6 +6,12 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 ## Unreleased
 
 ### Added
+- **Queues:** order 1, 5, 25 or 100 divisions at once from the Army section. They wait in a
+  queue and your nation raises up to 4 a month whenever it has the men, the money and the
+  calm. Buildings you can't start yet (short of money, or two already being built) go into a
+  queue too and start by themselves later. Both queues can be cleared for your influence back.
+- **Conquered land keeps what's on it:** its people (the same share as of the land) and the
+  buildings standing there move to the winner; taking a whole nation also takes its treasury.
 - **The game runs!** Press ▶ (or Space) and time goes by, month by month, at three speeds
   (about six hours from 1500 to 2000). Nations grow, earn and spend money, build, raise
   armies, like and dislike their neighbours, make alliances, go to war and sign peace:
@@ -36,6 +42,7 @@ English. Add your entry under **Unreleased** in the same pull request as the cha
 - **How to play:** a short guide the first time you play (and from the How to button).
 
 ### Changed
+- A division now costs ✦1 influence instead of ✦4.
 - **The map info is folded away.** What's under the mouse (terrain, height, position) and
   the controls now hide behind the ⓘ button in the bottom-left corner; click it to show them.
 - **First round of stat tuning:** every government, ideology, history, trait, wealth level,
