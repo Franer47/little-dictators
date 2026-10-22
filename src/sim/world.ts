@@ -17,6 +17,7 @@ import { createRng, type Rng } from "../game/random.ts";
 import { accessShare, statSheet, surveyLand, type LandFacts, type LiveState, type StatSheet, type StatsData } from "../game/stats.ts";
 import type { BrushId, BuildingSpec, PushId, SimData } from "./simData.ts";
 import { aiThink } from "./ai.ts";
+import { organizeArmies, type ArmyLive, type Stance } from "./armies.ts";
 import { fightWars, makePeace, type PeaceTerms } from "./war.ts";
 
 /** What the world needs to know about a nation on the map (the placement screen's PlacedNation). */
@@ -30,6 +31,8 @@ export interface DivisionLive {
   troops: number;
   /** Months of training left (0 = ready to fight). */
   training: number;
+  /** The army it belongs to (see armies.ts); 0 or missing = the reserve at the capital. */
+  army?: number;
 }
 
 /** A nation's state that changes as time runs. */
@@ -45,6 +48,10 @@ export interface NationLive {
   /** Where finished buildings stand (one per level built), for the map. */
   sites: { id: string; at: number }[];
   divisions: DivisionLive[];
+  /** Its armies (see armies.ts); divisions not in one are in the reserve. */
+  armies?: ArmyLive[];
+  /** The number the next new army gets ("3rd Army"). */
+  nextArmy?: number;
   /** Tribute this nation pays: to whom, how much a year, for how many more years. */
   tributes: { to: number; amount: number; yearsLeft: number }[];
   /** Divisions ordered but not raised yet (raised a few a month when it has the men and money). */
@@ -65,6 +72,14 @@ export interface War {
   months: number;
   /** Push not yet spent on each front (by "winner-loser"), carried to next month. */
   progress?: Record<string, number>;
+}
+
+/** A front where armies fought this month: the two sides, who pushed (0 = nobody) and by how much (0..1). */
+export interface Battle {
+  a: number;
+  d: number;
+  winner: number;
+  edge: number;
 }
 
 export type EventKind = "war" | "peace" | "build" | "army" | "diplomacy" | "fall" | "info";
@@ -132,6 +147,8 @@ export class World {
   /** Each nation's neighbours (by id − 1), from the land. */
   neighbours: Set<number>[] = [];
   wars: War[] = [];
+  /** This month's battles (for the map). */
+  battles: Battle[] = [];
   /** How much two nations like each other (−100..100), and what it drifts back to. */
   relations = new Map<number, number>();
   relationBase = new Map<number, number>();
@@ -229,6 +246,7 @@ export class World {
     }
     // New nations: start from what their sheet says.
     for (let i = this.live.length; i < this.nations.length; i++) this.live.push(this.startLive(i + 1));
+    for (let i = 0; i < this.live.length; i++) if (!this.live[i].armies && this.sheets[i]) organizeArmies(this, i + 1);
     if (this.sheets.length !== this.nations.length) everyone = true;
     const tributeIn = new Map<number, number>();
     for (const l of this.live) for (const t of l.tributes) tributeIn.set(t.to, (tributeIn.get(t.to) ?? 0) + t.amount);
@@ -456,6 +474,12 @@ export class World {
       this.influence = Math.min(inf.max, this.influence + inf.perMonth + inf.perStability * s.stats.stability.value + inf.perPopularity * s.stats.popularity.value);
     }
 
+    // Armies: every nation at war each month (and the player's), the others now and then.
+    this.live.forEach((l, i) => {
+      const id = i + 1;
+      if (l.alive && (id === mine || this.month % 3 === l.thinkMonth % 3 || this.warsOf(id).length)) organizeArmies(this, id);
+    });
+
     // Wars, then peace.
     fightWars(this);
 
@@ -495,6 +519,7 @@ export class World {
     if (!l?.alive) return;
     l.alive = false;
     l.divisions = [];
+    l.armies = [];
     l.building = [];
     l.tributes = [];
     for (const w of this.wars) {
@@ -759,29 +784,25 @@ export class World {
     return { ok: true, reason: `Cancelled ${n} waiting buildings; ✦${n * this.sim.influence.costs.build} back.` };
   }
 
-  /** Push your nation to raise a new division now (or `grow` an existing one). */
-  pushRecruit(grow?: number): Decision {
+  /** You take command of one of your armies: send it to a front (enemy id, 0 = home) and/or set its stance. */
+  commandArmy(armyId: number, order: { front?: number; stance?: Stance }): Decision {
     const id = this.mineId;
-    if (!id || !this.alive(id)) return { ok: false, reason: "You have no nation to push." };
-    const rules = this.opts.stats.divisions;
-    const l = this.live[id - 1];
-    const s = this.sheets[id - 1];
-    const troops = grow === undefined ? rules.size : rules.growBy;
-    if (grow !== undefined && (!l.divisions[grow] || l.divisions[grow].troops + rules.growBy > rules.maxSize)) return { ok: false, reason: `A division can't be bigger than ${compactNumber(rules.maxSize, ["K", "M"])}.` };
-    const cost = troops * s.factors.soldierCost.value;
-    if (s.stats.stability.value < rules.minStability) return { ok: false, reason: `Refused: the state is too unstable (stability ${Math.round(s.stats.stability.value)}, needs ${rules.minStability}).` };
-    if (s.stats.army.value + troops > s.stats.manpower.value) return { ok: false, reason: `Refused: not enough men (manpower ${compactNumber(Math.round(s.stats.manpower.value), ["K", "M"])}).` };
-    if (s.stats.net.value - cost < 0) return { ok: false, reason: `Refused: it can't pay for them (${money(cost)} a year, net income ${money(s.stats.net.value)}).` };
-    const unpaid = this.pay("recruit");
-    if (unpaid) return { ok: false, reason: unpaid };
-    const months = this.sim.army.trainingMonths;
-    if (grow === undefined) l.divisions.push({ troops, training: months });
-    else {
-      l.divisions[grow].troops += troops;
-      l.divisions[grow].training = Math.max(l.divisions[grow].training, Math.ceil(months / 2));
-    }
-    this.recompute();
-    return { ok: true, reason: `Agreed: ${troops} more soldiers for ${money(cost)} a year, ready in ${grow === undefined ? months : Math.ceil(months / 2)} months.` };
+    const a = this.live[id - 1]?.armies?.find((x) => x.id === armyId);
+    if (!a) return { ok: false, reason: "That army is gone." };
+    if (order.front !== undefined) a.front = order.front;
+    if (order.stance) a.stance = order.stance;
+    a.locked = true;
+    return { ok: true, reason: `${a.name}: ${a.front ? `to the front with ${this.name(a.front)}` : "at home"}, ${a.stance === "attack" ? "attacking" : a.stance === "hold" ? "holding the line" : "defending"}. You command it now.` };
+  }
+
+  /** Hands an army back to your nation, which then decides its front and stance itself. */
+  releaseArmy(armyId: number): Decision {
+    const id = this.mineId;
+    const a = this.live[id - 1]?.armies?.find((x) => x.id === armyId);
+    if (!a) return { ok: false, reason: "That army is gone." };
+    a.locked = false;
+    organizeArmies(this, id);
+    return { ok: true, reason: `${a.name} is back under your nation's command.` };
   }
 
   /** Push better (+1) or worse (−1) relations between your nation and `other`. */
@@ -853,6 +874,8 @@ export class World {
     // Allies on both sides break their alliance.
     for (const a of war.attackers) for (const d of war.defenders) this.breakAlliance(a, d);
     this.wars.push(war);
+    // Both sides send their armies to the new fronts at once.
+    for (const id of [...war.attackers, ...war.defenders]) organizeArmies(this, id);
     this.shiftRelation(attacker, defender, -30, -10);
     const joined = [...war.attackers.slice(1), ...war.defenders.slice(1)];
     this.log("war", `${this.name(attacker)} declared war on ${this.name(defender)}${joined.length ? ` (with ${joined.map((n) => this.name(n)).join(", ")})` : ""}.`, [...war.attackers, ...war.defenders]);

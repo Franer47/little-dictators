@@ -40,7 +40,7 @@ type Brush = BrushId | "erase";
 
 const BRUSHES: { id: Brush; name: string; color: string; about: string }[] = [
   { id: "warGoal", name: "War goal", color: "#dc2828", about: "Paint other nations' land you want. Your nation goes after it: more likely to war with its owner, and it asks for this land first in a peace." },
-  { id: "defend", name: "Defend", color: "#3c82f0", about: "Paint your own land to guard. Your divisions stand there and forts are built there first." },
+  { id: "defend", name: "Defend", color: "#3c82f0", about: "Paint your own land to guard. Your armies at home stand there and forts are built there first." },
   { id: "develop", name: "Develop", color: "#46be5a", about: "Paint your own land to grow. New buildings go there first, and your nation builds farms, markets, workshops and schools more." },
   { id: "erase", name: "Erase", color: "#9a8f78", about: "Removes paint and gives back half of what it cost." },
 ];
@@ -88,7 +88,7 @@ export class GameUi {
     }
     this.menu.innerHTML = `
       <button type="button" data-open="build" title="Buildings: push your nation to build">${badge("columns", "#e6c25a")}<span>Build</span></button>
-      <button type="button" data-open="army" title="Your divisions">${badge("swords", "#e0604f")}<span>Army</span></button>
+      <button type="button" data-open="army" title="Your armies">${badge("swords", "#e0604f")}<span>Army</span></button>
       <button type="button" data-open="wars" title="Wars, allies and neighbours">${badge("flag", "#b494ec")}<span>Wars</span></button>
       <button type="button" data-open="brush" title="Paint the map with influence">${badge("trend", "#62b0e6")}<span>Brushes</span></button>
       <button type="button" data-open="help" title="How to play">${badge("book", "#d4b062")}<span>How to</span></button>`;
@@ -541,7 +541,7 @@ export class GameUi {
       <ol>
         <li><b>Start the clock</b> with ▶ in the top strip (or <b>Space</b>); keys <b>1 2 3</b> set the speed. A month passes every few seconds.</li>
         <li><b>Your nation runs itself</b>, like every other nation: it builds, recruits, makes friends and enemies. You <b>guide</b> it with <b>influence ✦</b>, which you earn every month.</li>
-        <li><b>Build</b>, <b>Army</b> and <b>Wars</b> on the left let you push it: a building (✦${c.build}), a division (✦${c.recruit}), better or worse relations, an alliance, war (✦${c.declareWar}) or peace. It can say no, and tells you why.</li>
+        <li><b>Build</b>, <b>Army</b> and <b>Wars</b> on the left let you push it: a building (✦${c.build}), divisions (✦${c.recruit} each; your armies go to the fronts by themselves, or command them in Army), better or worse relations, an alliance, war (✦${c.declareWar}) or peace. It can say no, and tells you why.</li>
         <li><b>Right-click</b> any nation for diplomacy. <b>Brushes</b> paint land you want (War goal), land to guard (Defend) and land to grow (Develop).</li>
         <li>In a war the stronger side <b>pushes the border pixel by pixel</b> (mountains and rivers slow it). When you're winning, you choose when to make peace; you keep what you took. Watch <b>World news</b> in the corner, and point at any number to see where it comes from.</li>
       </ol>

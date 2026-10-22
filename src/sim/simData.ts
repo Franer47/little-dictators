@@ -29,7 +29,22 @@ export interface SimData {
   brushes: { cost: Record<BrushId, number>; eraseRefund: number; sizes: number[] };
   buildings: BuildingSpec[];
   growth: { developmentPerYear: number; perSchool: number; debt: ModSet };
-  army: { trainingMonths: number; disband: number; queuePerMonth: number };
+  army: {
+    trainingMonths: number;
+    disband: number;
+    queuePerMonth: number;
+    /** About how many divisions an army has, and the most armies a nation keeps. */
+    armySize: number;
+    maxArmies: number;
+    /** Home armies guard every front with this share of their strength (split between the fronts). */
+    homeShare: number;
+    /** Every front has militia worth this share of the nation's strength, even with no army there. */
+    militia: number;
+    /** A nation's own armies attack when they're this many times stronger than the enemy on that front. */
+    attackOdds: number;
+    /** What each stance does: × attack, × defence, × losses. */
+    stances: Record<"attack" | "hold" | "defend", { attack: number; defence: number; losses: number }>;
+  };
   ai: { buildReserve: number; warChance: number; warOdds: number; allianceAt: number; breakAllianceAt: number; maxAllies: number; allyJoinsAttack: number };
   relations: { base: number; aggression: number; sameIdeology: number; random: number; drift: number; war: number; afterPeace: number; push: number };
   war: {
@@ -166,13 +181,30 @@ export function parseSimData(raw: unknown): SimData {
     brushes,
     buildings,
     growth,
-    army: numbers("army", ["trainingMonths", "disband", "queuePerMonth"]),
+    army: { ...numbers("army", ["trainingMonths", "disband", "queuePerMonth", "armySize", "maxArmies", "homeShare", "militia", "attackOdds"]), stances: stances(section("army").stances) },
     ai: numbers("ai", ["buildReserve", "warChance", "warOdds", "allianceAt", "breakAllianceAt", "maxAllies", "allyJoinsAttack"]),
     relations: numbers("relations", ["base", "aggression", "sameIdeology", "random", "drift", "war", "afterPeace", "push"]),
     war: { ...numbers("war", ["scorePerMonth", "losses", "maxLosses", "pushRate", "minPush", "maxShare", "deadZone", "defendPaintCost", "seaCrossing", "seaCost"]), conquestCost: conquestCost(section("war").conquestCost) },
     peace: numbers("peace", ["winAt", "minMonths", "maxMonths", "annexAt", "annexSize", "tributeAt", "tributeShare", "tributeYears"]),
     save: numbers("save", ["everyYears"]),
   };
+}
+
+/** army.stances: { "attack": { "attack": 1, "defence": 0.8, "losses": 1 }, "hold": …, "defend": … }. */
+function stances(v: unknown): SimData["army"]["stances"] {
+  const where = "army.stances";
+  if (!isObject(v)) throw new Error(`${where} must be { "attack": {…}, "hold": {…}, "defend": {…} }`);
+  const out = {} as SimData["army"]["stances"];
+  for (const k of ["attack", "hold", "defend"] as const) {
+    const s = v[k];
+    if (!isObject(s)) throw new Error(`${where}.${k} is missing`);
+    const n = (f: string): number => {
+      if (typeof s[f] !== "number" || (s[f] as number) < 0) throw new Error(`${where}.${k}.${f} must be a number, 0 or more`);
+      return s[f] as number;
+    };
+    out[k] = { attack: n("attack"), defence: n("defence"), losses: n("losses") };
+  }
+  return out;
 }
 
 /** war.conquestCost: { "Mountains": 4, … } by terrain name, as a list by terrain id (1 where unlisted). */

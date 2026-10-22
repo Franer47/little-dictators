@@ -25,7 +25,8 @@ import { runWheelScreen } from "./wheel/wheelScreen.ts";
 import { closeNationPanel, landText, showNationPanel, updateNationPanelStats } from "./nationPanel.ts";
 import { initNationBar, setNationBarHidden, showNationBar } from "./nationBar.ts";
 import { showArmyPanel } from "./armyPanel.ts";
-import { findBorders, ordinal, sortAround, spreadDivisions, type Borders, type Division } from "../game/army.ts";
+import { findBorders, sortAround, type Borders } from "../game/army.ts";
+import { capitalOf, divisionsOf, enemiesOf } from "../sim/armies.ts";
 import { findFronts } from "../sim/fronts.ts";
 import { WorldLayer } from "../render/worldLayer.ts";
 import { World, type TickResult } from "../sim/world.ts";
@@ -34,7 +35,7 @@ import { saveGame, type GameSave } from "../sim/save.ts";
 import { GameUi } from "./gameUi.ts";
 import { PaintLayer } from "../render/paintLayer.ts";
 import { labelSpots, mapName } from "../game/labels.ts";
-import { DivisionLayer } from "../render/divisionLayer.ts";
+import { ArmyLayer, type ArmyToken } from "../render/armyLayer.ts";
 import { LabelLayer } from "../render/labelLayer.ts";
 import { escapeHtml } from "./uiBits.ts";
 import { loadPref, savePref } from "./prefs.ts";
@@ -82,9 +83,10 @@ export class Placement {
   readonly ui: GameUi;
   /** How long the last stats update took (ms), for the dev checks. */
   statsMs = 0;
-  /** Every nation's divisions on the map (worked out again with the stats). */
-  divisions: Division[] = [];
-  private divisionLayer = new DivisionLayer();
+  /** Army tokens on the map: yours, your enemies' and the nation whose Army section is open (or everyone's). */
+  private armyLayer = new ArmyLayer();
+  /** Show every nation's armies, not just yours and your enemies'. */
+  private showAllArmies = false;
   private labelLayer = new LabelLayer();
   private paintLayer: PaintLayer;
   /** Buildings on the map (under the flags) and war swords (over them). */
@@ -97,7 +99,7 @@ export class Placement {
   private mapDirty = false;
   /** Conquered pixels being drawn a few at a time through the month (one list per conqueror). */
   private creep: { pixels: number[]; done: number; start: number; ms: number }[] = [];
-  /** The nation whose Army section is open (0 = closed), its selected division and its last answer. */
+  /** The nation whose Army section is open (0 = closed), its selected army and the last answer. */
   private army: { nation: number; selected: number | null; message: { ok: boolean; text: string } | null } = { nation: 0, selected: null, message: null };
   private layer: TerritoryLayer;
   private state: State = "wheel";
@@ -125,14 +127,15 @@ export class Placement {
     this.region = new Region(map, data.regions[data.region], (t) => this.territory.claimableTerrain(t) && t !== Terrain.River);
     this.layer = new TerritoryLayer(map, this.territory);
     opts.renderer.territory = this.layer;
-    this.divisionLayer.colorOf = (id) => this.nations[id - 1]?.color ?? "#888";
+    this.armyLayer.colorOf = (id) => this.nations[id - 1]?.color ?? "#888";
+    this.armyLayer.requestRender = opts.requestRender;
     this.rng = createRng(opts.seed ?? randomSeed());
     this.worldSeed = opts.seed ?? randomSeed();
     this.world = this.newWorld();
     this.paintLayer = new PaintLayer(map, this.world.paint);
     this.worldLayer = new WorldLayer(opts.requestRender, "buildings");
     this.warLayer = new WorldLayer(opts.requestRender, "wars");
-    opts.renderer.overlays.push(this.paintLayer, this.labelLayer, this.worldLayer, this.divisionLayer, this.warLayer);
+    opts.renderer.overlays.push(this.paintLayer, this.labelLayer, this.worldLayer, this.armyLayer, this.warLayer);
     this.build();
     const mine = (): PlacedNation | undefined => this.nations.find((n) => n.mine);
     initNationBar({
@@ -219,11 +222,11 @@ export class Placement {
       return;
     }
     if (this.state === "idle" || this.state === "growing") {
-      // An army flag first: it opens that nation's Army section with the division picked.
-      const flag = this.divisionLayer.hit(sx, sy);
+      // An army first: it opens that nation's Army section with the army picked.
+      const flag = this.armyLayer.hit(sx, sy);
       if (flag) {
         this.showNation(flag.nation);
-        this.openArmy(flag.nation, flag.indices[0]);
+        this.openArmy(flag.nation, flag.army);
         return;
       }
       const id = this.territory.ownerAt(x, y);
@@ -483,8 +486,7 @@ export class Placement {
     this.ui.setSpeed(0);
     this.world = this.newWorld();
     this.paintLayer.setPaint(this.world.paint);
-    this.divisions = [];
-    this.divisionLayer.divisions = [];
+    this.armyLayer.tokens = [];
     this.labelLayer.set([]);
     this.openArmy(0);
     showNationBar(null);
@@ -524,7 +526,7 @@ export class Placement {
     this.refreshDivisions(true);
     const spots = labelSpots(map, this.territory.owner, this.nations.length);
     this.labelLayer.set(this.nations.map((n, i) => ({ text: this.world.alive(i + 1) || !this.world.live[i] ? mapName(n.nation.name) : "", spot: spots[i] })));
-    if (import.meta.env.DEV && this.nations.length > 50) console.log(`Flags (${this.divisions.length} divisions) and names: ${Math.round(performance.now() - t0)} ms`);
+    if (import.meta.env.DEV && this.nations.length > 50) console.log(`Armies (${this.armyLayer.tokens.length}) and names: ${Math.round(performance.now() - t0)} ms`);
     this.opts.requestRender();
   }
 
@@ -533,16 +535,9 @@ export class Placement {
     const w = this.world;
     if (bordersChanged || !this.borders || this.borders.lines.length !== this.nations.length)
       this.borders = findBorders(this.opts.map, this.territory.owner, this.nations.length, w.paint);
-    // Nations at war stand on their front with the enemy; the map marks each war there.
+    // Armies stand on the front they were sent to; the map marks each war there.
     const fronts = findFronts(this.opts.map, this.territory, w);
-    const override = new Map<number, Int32Array>();
-    for (const [id, px] of fronts.byNation) override.set(id, sortAround(Int32Array.from(px), this.opts.map.width, this.opts.map.wraps));
-    this.divisions = spreadDivisions(
-      this.opts.map,
-      this.borders,
-      (id) => (w.live[id - 1]?.alive ? w.live[id - 1].divisions.map((d) => ({ troops: d.troops, training: d.training > 0 })) : []),
-      override,
-    );
+    this.armyLayer.tokens = this.armyTokens(fronts.byPair);
     this.warLayer.wars = fronts.wars;
     // Buildings where they stand (finished, and being built).
     const width = this.opts.map.width;
@@ -556,8 +551,80 @@ export class Placement {
       for (const b of l.building) marks.push({ x: b.at % width, y: (b.at / width) | 0, icon: iconOf(b.id), building: true, mine: id === mine });
     });
     this.worldLayer.buildings = marks;
-    this.divisionLayer.divisions = this.divisions;
     if (this.army.nation) this.renderArmy();
+  }
+
+  /**
+   * The army tokens to show: each army on its front (spread along it when several share it) or
+   * along its border at home, and the reserve at the capital. Only your armies, your enemies'
+   * and those of the nation whose Army section is open, unless "every nation's" is on.
+   */
+  private armyTokens(byPair: Map<number, number[]>): ArmyToken[] {
+    const w = this.world;
+    const { map } = this.opts;
+    const width = map.width;
+    const size = this.opts.stats.divisions.size;
+    const mine = w.mineId;
+    const show = new Set<number>();
+    if (this.showAllArmies) w.live.forEach((l, i) => l.alive && show.add(i + 1));
+    else {
+      if (mine) {
+        show.add(mine);
+        for (const e of enemiesOf(w, mine)) show.add(e);
+      }
+      if (this.army.nation) show.add(this.army.nation);
+    }
+    const out: ArmyToken[] = [];
+    const at = (p: number): { x: number; y: number } => ({ x: p % width, y: (p / width) | 0 });
+    for (const id of show) {
+      const l = w.live[id - 1];
+      if (!l?.alive) continue;
+      // Armies grouped by where they stand: each front, or home (the border).
+      const groups = new Map<number, typeof l.armies>();
+      for (const a of l.armies ?? []) {
+        if (!divisionsOf(w, id, a.id).length) continue;
+        if (!groups.has(a.front)) groups.set(a.front, []);
+        groups.get(a.front)!.push(a);
+      }
+      for (const [front, list] of groups) {
+        const border = this.borders?.lines[id - 1];
+        const px = front ? byPair.get(id * 65536 + front) : undefined;
+        const line = px?.length ? sortAround(Int32Array.from(px), width, map.wraps) : border;
+        if (!line?.length || !list) continue;
+        list.forEach((a, k) => {
+          const divs = divisionsOf(w, id, a.id);
+          const troops = divs.reduce((t, d) => t + d.troops, 0);
+          out.push({
+            nation: id,
+            army: a.id,
+            name: a.name,
+            divisions: divs.length,
+            troops,
+            training: divs.filter((d) => d.training > 0).length,
+            strength: troops / Math.max(1, divs.length * size),
+            stance: a.stance,
+            ...at(line[Math.floor(((k + 0.5) * line.length) / list.length)]),
+          });
+        });
+      }
+      const reserve = divisionsOf(w, id, 0);
+      const capital = capitalOf(w, id);
+      if (reserve.length && capital >= 0) {
+        const troops = reserve.reduce((t, d) => t + d.troops, 0);
+        out.push({
+          nation: id,
+          army: 0,
+          name: "Reserve",
+          divisions: reserve.length,
+          troops,
+          training: reserve.filter((d) => d.training > 0).length,
+          strength: troops / Math.max(1, reserve.length * size),
+          stance: "reserve",
+          ...at(capital),
+        });
+      }
+    }
+    return out;
   }
 
   /** After a month passed: repaint land that changed hands, then the numbers and screens. */
@@ -717,11 +784,12 @@ export class Placement {
 
   // ---------------------------------------------------------------- the army section
 
-  /** Opens nation `id`'s Army section (0 closes it), optionally with a division picked. */
+  /** Opens nation `id`'s Army section (0 closes it), optionally with an army picked. */
   private openArmy(id: number, select: number | null = null): void {
     this.army = { nation: id, selected: select, message: null };
-    this.divisionLayer.focus = id;
-    this.divisionLayer.selected = id && select !== null ? { nation: id, index: select } : null;
+    this.armyLayer.selected = id && select !== null ? { nation: id, army: select } : null;
+    // Its armies show on the map while the section is open.
+    this.refreshDivisions();
     this.renderArmy();
     this.opts.requestRender();
   }
@@ -734,38 +802,50 @@ export class Placement {
       showArmyPanel(null);
       return;
     }
-    const rules = this.opts.stats.divisions;
+    const w = this.world;
+    const l = w.live[id - 1];
+    const size = this.opts.stats.divisions.size;
     const answer = (d: { ok: boolean; reason: string }): void => {
       this.army.message = { ok: d.ok, text: d.reason };
       this.afterPush();
       this.renderArmy();
     };
-    const ask = (grow?: number): void => answer(this.world.pushRecruit(grow));
+    const armies = (l?.armies ?? []).map((a) => {
+      const divs = divisionsOf(w, id, a.id);
+      const troops = divs.reduce((t, d) => t + d.troops, 0);
+      return { id: a.id, name: a.name, divisions: divs.length, troops, training: divs.filter((d) => d.training > 0).length, strength: troops / Math.max(1, divs.length * size), front: a.front, stance: a.stance, locked: a.locked };
+    });
+    const reserve = divisionsOf(w, id, 0);
     showArmyPanel({
       name: placed.nation.name,
       color: placed.color,
       mine: !!placed.mine,
       influenceCost: this.opts.sim.influence.costs.recruit,
-      divisions: this.divisions.filter((d) => d.nation === id),
       sheet,
-      rules,
+      rules: this.opts.stats.divisions,
+      armies,
+      reserve: { divisions: reserve.length, training: reserve.filter((d) => d.training > 0).length, troops: reserve.reduce((t, d) => t + d.troops, 0) },
+      enemies: enemiesOf(w, id).map((e) => ({ id: e, name: w.name(e) })),
       selected: this.army.selected,
       message: this.army.message,
+      showAll: this.showAllArmies,
       suffixes: this.opts.stats.numberSuffixes,
-      onSelect: (index) => {
-        this.army.selected = index;
-        this.army.message = null;
-        this.divisionLayer.selected = { nation: id, index };
+      onSelect: (army) => {
+        this.army.selected = army;
+        this.armyLayer.selected = { nation: id, army };
         this.renderArmy();
         this.opts.requestRender();
       },
-      queue: placed.mine ? { waiting: this.world.live[id - 1]?.recruitQueue ?? 0, text: this.world.queueText(id) } : undefined,
-      onOrder: (count) => answer(this.world.orderDivisions(count)),
-      onClearQueue: () => answer(this.world.clearRecruitQueue()),
-      onBigger: (index) => {
-        ask(index);
-        if (this.army.message?.ok) this.army.message.text = this.army.message.text.replace("more soldiers", `more soldiers for the ${ordinal(index + 1)} Division`);
-        this.renderArmy();
+      onFront: (army, front) => answer(w.commandArmy(army, { front })),
+      onStance: (army, stance) => answer(w.commandArmy(army, { stance })),
+      onRelease: (army) => answer(w.releaseArmy(army)),
+      queue: placed.mine ? { waiting: l?.recruitQueue ?? 0, text: w.queueText(id) } : undefined,
+      onOrder: (count) => answer(w.orderDivisions(count)),
+      onClearQueue: () => answer(w.clearRecruitQueue()),
+      onShowAll: (on) => {
+        this.showAllArmies = on;
+        this.refreshDivisions();
+        this.opts.requestRender();
       },
       onClose: () => this.openArmy(0),
     });
